@@ -1,0 +1,76 @@
+name: "🐞 Bug Report"
+description: Report a reproducible issue or malfunction in the Slipstream system
+title: "[BUG] <short description>"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please fill out this form completely to help us reproduce and fix the issue.
+  - type: input
+    id: component
+    attributes:
+      label: Affected Component
+      description: Which subsystem is affected? (firmware, pc-software, electronics, mechanical, docs)
+      placeholder: e.g. firmware - PID control
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What went wrong? Provide clear steps or observed symptoms.
+      placeholder: e.g. PID control loop oscillates after 30s runtime
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can someone else replicate this?
+      placeholder: |
+        1. Power up system
+        2. Run calibration
+        3. Send telemetry data
+        4. Observe motion jitter on roll axis
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What should have happened?
+      placeholder: The platform should stabilize smoothly after PID adjustment
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: The actuator overshoots target by ~5° every cycle
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        Include relevant info:
+        - Firmware version / commit hash
+        - Hardware used (motors, sensors)
+        - OS or simulation software version
+      placeholder: |
+        Firmware v0.3.2
+        Arduino Uno, SimTools v2.5
+        Windows 11 64-bit
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or Evidence
+      description: Attach error messages, console logs, scope traces, or photos if applicable.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched existing issues for duplicates
+          required: true
+        - label: I followed the Contributing Guidelines and provided reproduction details
+          required: true

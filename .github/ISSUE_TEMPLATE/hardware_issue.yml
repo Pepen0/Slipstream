@@ -1,0 +1,50 @@
+name: "🔧 Hardware / Electronics Issue"
+description: Report an issue or improvement related to electronics or mechanical design
+title: "[HW] <short description>"
+labels: ["hardware"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form for any electronics, PCB, or mechanical issue (design error, integration problem, or suggested improvement).
+  - type: input
+    id: subsystem
+    attributes:
+      label: Subsystem
+      placeholder: e.g. electronics - power distribution board
+      description: Specify which subsystem (electronics, mechanical, or both)
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Description of Issue
+      description: Describe the observed issue or improvement idea.
+      placeholder: The 24V rail fuse overheats under load >30A; possibly undersized or poor airflow.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps or Observations
+      description: Include testing conditions or how it was discovered.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence or Measurements
+      description: Include photos, oscilloscope captures, DMM readings, or FEA screenshots.
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Suggested Fix or Action
+      description: Describe your proposed solution or improvement.
+      placeholder: Replace with 40A fuse and add heat sink; update schematic and BOM.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I confirmed the problem under consistent test conditions
+          required: true
+        - label: I verified this is not a duplicate of another hardware issue
+          required: true

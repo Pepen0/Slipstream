@@ -1,0 +1,56 @@
+name: "✨ Feature Request"
+description: Suggest a new feature, enhancement, or capability
+title: "[FEAT] <short description>"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for your idea! Please describe the feature clearly so we can evaluate feasibility.
+  - type: input
+    id: area
+    attributes:
+      label: Area or Subsystem
+      description: Which subsystem does this apply to? (firmware, pc-software, electronics, mechanical, docs)
+      placeholder: e.g. firmware - add auto-calibration routine
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation / Problem
+      description: What problem does this feature solve or improve?
+      placeholder: Current calibration process is manual; automating it would reduce setup time.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: Describe how you envision it working. Include any relevant algorithms, components, or diagrams.
+      placeholder: Add firmware subroutine to read limit switches, compute actuator offsets, and store calibration in EEPROM.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you tried or ruled out other approaches?
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies / Impact
+      description: Will this affect other parts of the system? (e.g., electronics, mechanical limits, UI)
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing & Verification Plan
+      description: How would you validate this feature works as intended?
+      placeholder: Unit tests on calibration logic + field test verifying position accuracy < 1° error
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I confirmed no duplicate feature request exists
+          required: true
+        - label: I described the motivation and testing approach clearly
+          required: true
