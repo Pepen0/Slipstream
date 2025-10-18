@@ -1,0 +1,39 @@
+name: "📝 Documentation Update"
+description: Request or propose improvements to documentation
+title: "[DOCS] <short description>"
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for documentation fixes, clarifications, or new content requests.
+  - type: textarea
+    id: location
+    attributes:
+      label: Location
+      description: File or section to update.
+      placeholder: /docs/user-manual/setup.md
+    validations:
+      required: true
+  - type: textarea
+    id: change
+    attributes:
+      label: Description
+      description: What needs to be changed or added?
+      placeholder: Add assembly torque values for M8 bolts in seat mount section.
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Why is this change needed?
+      placeholder: The previous version omitted torque specifications critical for safety.
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I verified no existing PR already addresses this
+          required: true
+        - label: The proposed change aligns with the Contributing Guidelines
+          required: true
