@@ -1,6 +1,6 @@
 # Pull Request — Slipstream
 
-**Issue linked:** #<id>
+Closes #<id>
 
 ## Does this PR fully satisfy the issue?
 - [ ] Yes — implements everything described
