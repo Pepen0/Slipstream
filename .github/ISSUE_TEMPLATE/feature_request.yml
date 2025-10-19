@@ -11,7 +11,7 @@ body:
     id: area
     attributes:
       label: Area or Subsystem
-      description: Which subsystem does this apply to? (firmware, pc-software, electronics, mechanical, docs)
+      description: Which subsystem does this apply to? (firmware, pc-software, electronics, mechanical, GitHub, docs, other)
       placeholder: e.g. firmware - add auto-calibration routine
     validations:
       required: true
@@ -21,8 +21,6 @@ body:
       label: Motivation / Problem
       description: What problem does this feature solve or improve?
       placeholder: Current calibration process is manual; automating it would reduce setup time.
-    validations:
-      required: true
   - type: textarea
     id: proposal
     attributes:

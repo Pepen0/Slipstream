@@ -11,7 +11,7 @@ body:
     id: component
     attributes:
       label: Affected Component
-      description: Which subsystem is affected? (firmware, pc-software, electronics, mechanical, docs)
+      description: Which subsystem is affected? (firmware, pc-software, electronics, mechanical, GitHub, docs, other)
       placeholder: e.g. firmware - PID control
     validations:
       required: true
@@ -21,8 +21,6 @@ body:
       label: Description
       description: What went wrong? Provide clear steps or observed symptoms.
       placeholder: e.g. PID control loop oscillates after 30s runtime
-    validations:
-      required: true
   - type: textarea
     id: steps
     attributes:
