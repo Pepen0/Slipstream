@@ -1,0 +1,34 @@
+name: Create branch on issue
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  create-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Determine branch prefix
+        id: branch-type
+        run: |
+          title="${{ github.event.issue.title }}"
+          if echo "$title" | grep -qi "bug"; then
+            echo "prefix=bugfix" >> $GITHUB_OUTPUT
+          elif echo "$title" | grep -qi "feature"; then
+            echo "prefix=feature" >> $GITHUB_OUTPUT
+          elif echo "$title" | grep -qi "doc"; then
+            echo "prefix=docs" >> $GITHUB_OUTPUT
+          elif echo "$title" | grep -qi "hardware"; then
+            echo "prefix=hardware" >> $GITHUB_OUTPUT
+          else
+            echo "prefix=issue" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create branch for this issue
+        uses: peter-evans/create-branch@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.branch-type.outputs.prefix }}/issue-${{ github.event.issue.number }}
+          ref: main
