@@ -1,2 +1,10 @@
 # Ignore environment files
 .env
+
+# Ignore LaTeX build files
+docs/Latex/System-Architecture.aux
+docs/Latex/System-Architecture.fdb_latexmk
+docs/Latex/System-Architecture.log
+docs/Latex/System-Architecture.fls
+docs/Latex/System-Architecture.pdf
+docs/Latex/System-Architecture.synctex.gz
