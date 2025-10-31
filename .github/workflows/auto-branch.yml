@@ -9,26 +9,49 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+
     steps:
-      - name: Determine branch prefix
-        id: branch-type
+      - name: Determine branch name
+        id: branch
+        shell: bash
         run: |
           title="${{ github.event.issue.title }}"
-          if echo "$title" | grep -qi "bug"; then
-            echo "prefix=bugfix" >> $GITHUB_OUTPUT
-          elif echo "$title" | grep -qi "feature"; then
-            echo "prefix=feature" >> $GITHUB_OUTPUT
-          elif echo "$title" | grep -qi "doc"; then
-            echo "prefix=docs" >> $GITHUB_OUTPUT
-          elif echo "$title" | grep -qi "hardware"; then
-            echo "prefix=hardware" >> $GITHUB_OUTPUT
+
+          # choose allowed prefix (fix | feature | docs)
+          if echo "$title" | grep -Eqi "(bug|fix)"; then
+            prefix="fix"
+          elif echo "$title" | grep -Eqi "(doc|docs|documentation)"; then
+            prefix="docs"
           else
-            echo "prefix=issue" >> $GITHUB_OUTPUT
+            prefix="feature"
           fi
 
-      - name: Create branch for this issue
-        uses: peter-evans/create-branch@v2
+          # slugify title (lowercase, hyphens, max 50 chars)
+          slug="$(printf '%s' "$title" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's/[^a-z0-9]+/-/g; s/^-+|-+$//g' \
+            | cut -c1-50)"
+
+          echo "name=${prefix}/issue-${{ github.event.issue.number }}${slug:+-$slug}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve default branch HEAD SHA
+        id: head
+        uses: actions/github-script@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: ${{ steps.branch-type.outputs.prefix }}/issue-${{ github.event.issue.number }}
-          ref: main
+          script: |
+            const { owner, repo } = context.repo;
+            const { data: r } = await github.rest.repos.get({ owner, repo });
+            const def = r.default_branch;
+            const { data: ref } = await github.rest.git.getRef({
+              owner, repo, ref: `heads/${def}`
+            });
+            core.setOutput('sha', ref.object.sha);
+            core.setOutput('default_branch', def);
+
+      - name: Create branch for this issue
+        uses: peterjgrainger/action-create-branch@v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          branch: refs/heads/${{ steps.branch.outputs.name }}
+          sha: ${{ steps.head.outputs.sha }}
