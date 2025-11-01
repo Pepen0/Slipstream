@@ -52,15 +52,16 @@
 % --- Distributed Mechatronics (modular MCUs) ---
 \node[box, below=30mm of io, minimum width=72mm, align=center] (bus) {\textbf{Realtime Field Bus}\\CAN-FD (multi-drop) \textit{or} Multi-USB Hub\\\textit{Expansion-ready: +Yaw/+Heave/+Surge}};
 
-% >>> Increased horizontal spacing between MCUs (±70mm) and a bit more vertical gap (-18mm)
+% MCUs with wider horizontal spacing
 \node[box, minimum width=62mm, align=left] (mcu_wheel)  at ($(bus.south)+(-70mm,-18mm)$) {\textbf{Wheel MCU}\\1 kHz FFB haptics\\Inputs: encoder/torque\\Outputs: torque setpoint \& status};
 \node[box, minimum width=62mm, align=left] (mcu_pedals) at ($(bus.south)+(0mm,-18mm)$)  {\textbf{Pedals MCU}\\1 kHz sampling (loadcells/halls)\\Filters, debouncing\\Outputs: pedal positions};
 \node[box, minimum width=62mm, align=left] (mcu_motion) at ($(bus.south)+(70mm,-18mm)$) {\textbf{Motion MCU (2-DOF)}\\PID @1 kHz\\Targets: \textbf{Pitch $\pm$15°}, \textbf{Roll $\pm$12°}\\Hall feedback \& limits};
 
-% More vertical breathing room between MCUs and their actuators (below=10mm)
+% === Actuators (added extra horizontal gap between Wheel Actuator and Pedal Assemblies) ===
 \node[box, below=10mm of mcu_wheel,  minimum width=62mm, align=left] (act_wheel)  {\textbf{Wheel Actuator}\\Direct-drive motor + driver (less than 5 Nm, 360°)};
-\node[box, below=10mm of mcu_pedals, minimum width=62mm, align=left] (act_pedals) {\textbf{Pedal Assemblies}\\Throttle / Brake / Clutch (std. mounts)};
-\node[box, below=10mm of mcu_motion, minimum width=62mm, align=left] (act_motion) {\textbf{2-DOF Platform}\\Two 24 V DC motors, worm gears\\U-joint pivot; mechanical stops (±17°)};
+% shift Pedal Assemblies slightly to the right to create space
+\node[box, below=10mm of mcu_pedals, xshift=14mm, minimum width=62mm, align=left] (act_pedals) {\textbf{Pedal Assemblies}\\Throttle / Brake / Clutch (std. mounts)};
+\node[box, below=10mm of mcu_motion, xshift=14mm, minimum width=62mm, align=left] (act_motion) {\textbf{2-DOF Platform}\\Two 24 V DC motors, worm gears\\U-joint pivot; mechanical stops (±17°)};
 
 \node[box, below=14mm of act_pedals, minimum width=84mm, align=left] (power) {\textbf{Power \& Safety}\\24 V, 42 A PSU; inline fuses;\\E-Stop relay cuts 24 V bus;\\120 VAC $\leq$ 1,000 W};
 
