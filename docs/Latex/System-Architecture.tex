@@ -40,8 +40,8 @@
 % ================== NODES ==================
 
 % --- Game PC stack ---
-\node[box, minimum width=50mm] (game) at (0,0) {\textbf{Assetto Corsa}\\\textit{Game Process}};
-\node[box, below=8mm of game, minimum width=50mm] (sharedmem) {\textbf{Shared Memory \& (opt) UDP}\\Physics / Graphics / Static};
+\node[box, minimum width=50mm] (game) at (0,0) {\textbf{Assetto Corsa / iRacing / F1}\\\textit{Game Processes}};
+\node[box, below=8mm of game, minimum width=50mm] (sharedmem) {\textbf{Shared Memory / UDP}\\Physics / Graphics / Static};
 
 \node[box, right=30mm of sharedmem, minimum width=56mm, align=left] (hotpath) {\textbf{Hot Path (Control)}\\FFB Torque, Washout\\Safety / Watchdog (1 kHz MCU)};
 \node[box, below=8mm of hotpath, minimum width=56mm, align=left] (streampath) {\textbf{Stream Path (Telemetry)}\\Protobuf encode, fan-out};
@@ -50,20 +50,21 @@
 \node[box, below=10mm of sharedmem, minimum width=50mm] (io) {\textbf{USB / CAN I/O}\\Binary protocol + CRC + seq\#};
 
 % --- Distributed Mechatronics (modular MCUs) ---
-% field bus / hub directly below IO; pushed far down to avoid Game PC overlap
-\node[box, below=28mm of io, minimum width=64mm, align=center] (bus) {\textbf{Realtime Field Bus}\\CAN-FD (multi-drop) \textit{or} Multi-USB Hub};
+\node[box, below=30mm of io, minimum width=68mm, align=center] (bus) {\textbf{Realtime Field Bus}\\CAN-FD (multi-drop) \textit{or} Multi-USB Hub\\\textit{Expansion-ready: +Yaw/+Heave/+Surge}};
 
-% three MCU islands
-\node[box, minimum width=56mm, align=left] (mcu_wheel) at ($(bus.south)+(-48mm,-16mm)$) {\textbf{Wheel MCU}\\1 kHz haptics, FOC\\Inputs: encoder / torque\\Outputs: torque setpoint};
-\node[box, minimum width=56mm, align=left] (mcu_pedals) at ($(bus.south)+(0mm,-16mm)$) {\textbf{Pedals MCU}\\1 kHz sampling (loadcells / halls)\\Filters, debouncing\\Outputs: pedal positions};
-\node[box, minimum width=56mm, align=left] (mcu_motion) at ($(bus.south)+(48mm,-16mm)$) {\textbf{Motion MCU}\\1 kHz kinematics / washout\\Limits, jerk clamp\\Outputs: actuator strokes};
+\node[box, minimum width=58mm, align=left] (mcu_wheel) at ($(bus.south)+(-50mm,-16mm)$) {\textbf{Wheel MCU}\\1 kHz FFB haptics\\Inputs: encoder/torque\\Outputs: torque setpoint \& status};
+\node[box, minimum width=58mm, align=left] (mcu_pedals) at ($(bus.south)+(0mm,-16mm)$) {\textbf{Pedals MCU}\\1 kHz sampling (loadcells/halls)\\Filters, debouncing\\Outputs: pedal positions};
+\node[box, minimum width=58mm, align=left] (mcu_motion) at ($(bus.south)+(50mm,-16mm)$) {\textbf{Motion MCU (2-DOF)}\\PID @1 kHz\\Targets: \textbf{Pitch $\pm$15°}, \textbf{Roll $\pm$12°}\\Hall feedback \& limits};
 
-\node[box, below=6mm of mcu_wheel, minimum width=56mm, align=left] (act_wheel) {\textbf{Wheel Actuator}\\Direct-drive motor + driver};
-\node[box, below=6mm of mcu_pedals, minimum width=56mm, align=left] (act_pedals) {\textbf{Pedal Sensors/Actuators}\\Throttle/Brake/Clutch};
-\node[box, below=6mm of mcu_motion, minimum width=56mm, align=left] (act_motion) {\textbf{Motion Platform}\\SCN/Hexapod/Linear actuators};
+\node[box, below=6mm of mcu_wheel, minimum width=58mm, align=left] (act_wheel) {\textbf{Wheel Actuator}\\Direct-drive motor + driver (less than 5 Nm, 360°)};
+\node[box, below=6mm of mcu_pedals, minimum width=58mm, align=left] (act_pedals) {\textbf{Pedal Assemblies}\\Throttle / Brake / Clutch (std. mounts)};
+\node[box, below=6mm of mcu_motion, minimum width=58mm, align=left] (act_motion) {\textbf{2-DOF Platform}\\Two 24 V DC motors, worm gears\\U-joint pivot; mechanical stops (±17°)};
+
+\node[box, below=12mm of act_pedals, minimum width=78mm, align=left] (power) {\textbf{Power \& Safety}\\24 V, 42 A PSU; inline fuses;\\E-Stop relay cuts 24 V bus;\\120 VAC $\leq$ 1,000 W};
 
 % --- Network / Backend ---
-\node[box, right=44mm of hotpath, minimum width=54mm, align=left] (broker) {\textbf{Broker}\\NATS / Redis Streams};
+\node[box, right=28mm of streampath, minimum width=54mm, align=left] (middleware) {\textbf{Telemetry Middleware (opt.)}\\SimTools / CrewChief / OMS\\API normalization \& scaling};
+\node[box, right=28mm of middleware, minimum width=54mm, align=left] (broker) {\textbf{Broker}\\NATS / Redis Streams};
 \node[box, below=10mm of broker, minimum width=54mm] (tsdb) {\textbf{TimescaleDB (TS)}\\Downsampled + indexed telemetry};
 \node[box, below=8mm of tsdb, minimum width=54mm, align=left] (gateway) {\textbf{API Gateway}\\Envoy (gRPC-Web) / WebSocket};
 \node[box, above=10mm of broker, minimum width=54mm, align=left] (obs) {\textbf{Observability}\\OpenTelemetry: traces + metrics};
@@ -75,30 +76,27 @@
 
 % ================== FLOWS ==================
 \draw[telem] (game.south) -- node[right, small]{333–500 Hz read} (sharedmem.north);
-
 \draw[telem] (sharedmem.east) -- ++(11mm,0) |- node[pos=0.22, above, small]{zero-copy} (hotpath.west);
 \draw[telem] (sharedmem.east) -- ++(11mm,0) |- node[pos=0.22, below, small]{SPSC ring} (streampath.west);
+
+\draw[telem] (streampath.east) -- node[above, small]{normalize / scale} (middleware.west);
+\draw[telem] (middleware.east) -- ++(8mm,0) |- node[pos=0.25, above, small]{Protobuf 60–120 Hz} (broker.north);
 
 \draw[storage] (streampath.south) -- node[right, small]{raw + downsample} (recorder.north);
 \draw[control] (hotpath.south) -- ++(0,-3mm) -| node[pos=0.25, right, small]{100–250 Hz setpoints} (io.north);
 
-% IO down to bus
 \draw[control] (io.south) -- node[right, small]{USB CDC / CAN-FD} ($(bus.north)+(0,1mm)$);
-
-% bus fanout to MCUs
 \draw[control] (bus.south) -- (mcu_wheel.north);
 \draw[control] (bus.south) -- (mcu_pedals.north);
 \draw[control] (bus.south) -- (mcu_motion.north);
 
-% MCUs to actuators/sensors
 \draw[control] (mcu_wheel.south) -- (act_wheel.north);
 \draw[control] (mcu_pedals.south) -- (act_pedals.north);
 \draw[control] (mcu_motion.south) -- (act_motion.north);
+\draw[control] (power.north) -- ++(0,4mm);
 
-% telemetry/control to backend/clients
-\draw[telem] (streampath.east) -- ++(12mm,0) |- node[pos=0.36, above, small]{Protobuf 60–120 Hz} (broker.north);
 \draw[storage] (broker.south) -- node[right, small]{ingest} (tsdb.north);
-\draw[storage] (recorder.east) -- ++(10mm,0) |- node[pos=0.34, right, small]{offline backfill} (tsdb.west);
+\draw[storage] (recorder.east) -- ++(8mm,0) |- node[pos=0.34, right, small]{offline backfill} (tsdb.west);
 \draw[telem] (broker.east) -- ++(9mm,0) |- (gateway.north);
 
 \draw[telem] (gateway.east) -- ++(10mm,0) |- (flutterDesktop.west);
@@ -110,20 +108,20 @@
 
 % ================== BOUNDARIES ==================
 \node[boundary, fit={(game) (sharedmem) (hotpath) (streampath) (recorder) (io)} , label={[title]above:Game PC (Windows)}] (pcbox) {};
-\node[boundary, fit={(bus) (mcu_wheel) (mcu_pedals) (mcu_motion) (act_wheel) (act_pedals) (act_motion)} , label={[title]below:Mechatronics / Firmware (Modular MCUs)}] (fwbox) {};
-\node[boundary, fit={(broker) (tsdb) (gateway) (obs)} , label={[title]above:Network / Backend}] (netbox) {};
+\node[boundary, fit={(bus) (mcu_wheel) (mcu_pedals) (mcu_motion) (act_wheel) (act_pedals) (act_motion) (power)} , label={[title]below:Mechatronics / Firmware (Modular MCUs)}] (fwbox) {};
+\node[boundary, fit={(middleware) (broker) (tsdb) (gateway) (obs)} , label={[title]above:Network / Backend}] (netbox) {};
 \node[boundary, fit={(flutterDesktop) (flutterWeb) (tools)} , label={[title]above:Clients}] (clientsbox) {};
 
 % ================== LEGEND (bottom-right) ==================
 \coordinate (L0) at ($(clientsbox.south east)+(0mm,-16mm)$);
-\draw[boundary, minimum width=88mm, minimum height=32mm] ($(L0)+(0,0)$) rectangle ++(-88mm,-32mm);
-\node[title, anchor=west] at ($(L0)+(-84mm,2mm)$) {Legend};
-\draw[legendline, draw=clr-telemetry] ($(L0)+(-82mm,-11mm)$) -- ++(18mm,0);
-\node[labelbox, anchor=west] at ($(L0)+(-62mm,-11mm)$) {Live Telemetry Stream};
-\draw[legendline, draw=clr-control] ($(L0)+(-82mm,-18mm)$) -- ++(18mm,0);
-\node[labelbox, anchor=west] at ($(L0)+(-62mm,-18mm)$) {Realtime Control / Setpoints};
-\draw[legendline, draw=clr-storage] ($(L0)+(-82mm,-25mm)$) -- ++(18mm,0);
-\node[labelbox, anchor=west] at ($(L0)+(-62mm,-25mm)$) {Storage / Historical Flow};
+\draw[boundary, minimum width=96mm, minimum height=36mm] ($(L0)+(0,0)$) rectangle ++(-96mm,-36mm);
+\node[title, anchor=west] at ($(L0)+(-92mm,2mm)$) {Legend};
+\draw[legendline, draw=clr-telemetry] ($(L0)+(-90mm,-12mm)$) -- ++(18mm,0);
+\node[labelbox, anchor=west] at ($(L0)+(-70mm,-12mm)$) {Live Telemetry Stream};
+\draw[legendline, draw=clr-control] ($(L0)+(-90mm,-20mm)$) -- ++(18mm,0);
+\node[labelbox, anchor=west] at ($(L0)+(-70mm,-20mm)$) {Realtime Control / Setpoints};
+\draw[legendline, draw=clr-storage] ($(L0)+(-90mm,-28mm)$) -- ++(18mm,0);
+\node[labelbox, anchor=west] at ($(L0)+(-70mm,-28mm)$) {Storage / Historical Flow};
 
 % ================== NOTES ==================
 \node[small, anchor=north west] at ($(pcbox.south west)+(2mm,2mm)$) {CPU pinning, high-res timers, zero-copy shared memory};
