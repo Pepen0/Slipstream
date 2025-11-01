@@ -50,17 +50,19 @@
 \node[box, below=10mm of sharedmem, minimum width=50mm] (io) {\textbf{USB / CAN I/O}\\Binary protocol + CRC + seq\#};
 
 % --- Distributed Mechatronics (modular MCUs) ---
-\node[box, below=30mm of io, minimum width=68mm, align=center] (bus) {\textbf{Realtime Field Bus}\\CAN-FD (multi-drop) \textit{or} Multi-USB Hub\\\textit{Expansion-ready: +Yaw/+Heave/+Surge}};
+\node[box, below=30mm of io, minimum width=72mm, align=center] (bus) {\textbf{Realtime Field Bus}\\CAN-FD (multi-drop) \textit{or} Multi-USB Hub\\\textit{Expansion-ready: +Yaw/+Heave/+Surge}};
 
-\node[box, minimum width=58mm, align=left] (mcu_wheel) at ($(bus.south)+(-50mm,-16mm)$) {\textbf{Wheel MCU}\\1 kHz FFB haptics\\Inputs: encoder/torque\\Outputs: torque setpoint \& status};
-\node[box, minimum width=58mm, align=left] (mcu_pedals) at ($(bus.south)+(0mm,-16mm)$) {\textbf{Pedals MCU}\\1 kHz sampling (loadcells/halls)\\Filters, debouncing\\Outputs: pedal positions};
-\node[box, minimum width=58mm, align=left] (mcu_motion) at ($(bus.south)+(50mm,-16mm)$) {\textbf{Motion MCU (2-DOF)}\\PID @1 kHz\\Targets: \textbf{Pitch $\pm$15°}, \textbf{Roll $\pm$12°}\\Hall feedback \& limits};
+% >>> Increased horizontal spacing between MCUs (±70mm) and a bit more vertical gap (-18mm)
+\node[box, minimum width=62mm, align=left] (mcu_wheel)  at ($(bus.south)+(-70mm,-18mm)$) {\textbf{Wheel MCU}\\1 kHz FFB haptics\\Inputs: encoder/torque\\Outputs: torque setpoint \& status};
+\node[box, minimum width=62mm, align=left] (mcu_pedals) at ($(bus.south)+(0mm,-18mm)$)  {\textbf{Pedals MCU}\\1 kHz sampling (loadcells/halls)\\Filters, debouncing\\Outputs: pedal positions};
+\node[box, minimum width=62mm, align=left] (mcu_motion) at ($(bus.south)+(70mm,-18mm)$) {\textbf{Motion MCU (2-DOF)}\\PID @1 kHz\\Targets: \textbf{Pitch $\pm$15°}, \textbf{Roll $\pm$12°}\\Hall feedback \& limits};
 
-\node[box, below=6mm of mcu_wheel, minimum width=58mm, align=left] (act_wheel) {\textbf{Wheel Actuator}\\Direct-drive motor + driver (less than 5 Nm, 360°)};
-\node[box, below=6mm of mcu_pedals, minimum width=58mm, align=left] (act_pedals) {\textbf{Pedal Assemblies}\\Throttle / Brake / Clutch (std. mounts)};
-\node[box, below=6mm of mcu_motion, minimum width=58mm, align=left] (act_motion) {\textbf{2-DOF Platform}\\Two 24 V DC motors, worm gears\\U-joint pivot; mechanical stops (±17°)};
+% More vertical breathing room between MCUs and their actuators (below=10mm)
+\node[box, below=10mm of mcu_wheel,  minimum width=62mm, align=left] (act_wheel)  {\textbf{Wheel Actuator}\\Direct-drive motor + driver (less than 5 Nm, 360°)};
+\node[box, below=10mm of mcu_pedals, minimum width=62mm, align=left] (act_pedals) {\textbf{Pedal Assemblies}\\Throttle / Brake / Clutch (std. mounts)};
+\node[box, below=10mm of mcu_motion, minimum width=62mm, align=left] (act_motion) {\textbf{2-DOF Platform}\\Two 24 V DC motors, worm gears\\U-joint pivot; mechanical stops (±17°)};
 
-\node[box, below=12mm of act_pedals, minimum width=78mm, align=left] (power) {\textbf{Power \& Safety}\\24 V, 42 A PSU; inline fuses;\\E-Stop relay cuts 24 V bus;\\120 VAC $\leq$ 1,000 W};
+\node[box, below=14mm of act_pedals, minimum width=84mm, align=left] (power) {\textbf{Power \& Safety}\\24 V, 42 A PSU; inline fuses;\\E-Stop relay cuts 24 V bus;\\120 VAC $\leq$ 1,000 W};
 
 % --- Network / Backend ---
 \node[box, right=28mm of streampath, minimum width=54mm, align=left] (middleware) {\textbf{Telemetry Middleware (opt.)}\\SimTools / CrewChief / OMS\\API normalization \& scaling};
