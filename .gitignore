@@ -8,3 +8,7 @@ docs/Latex/System-Architecture.log
 docs/Latex/System-Architecture.fls
 docs/Latex/System-Architecture.pdf
 docs/Latex/System-Architecture.synctex.gz
+
+# Ignore macOS system files
+.DS_Store
+docs/.DS_Store
