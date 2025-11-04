@@ -1,6 +1,8 @@
 # Slipstream
 lighter, easier-to-carry body and a more affordable motion platform
 
+![Slipstream Logo](docs/Logo/Slipstream.png)
+
 # Setup guideline
 1. Clone repository
 ```git clone https://github.com/Pepen0/Slipstream.git```
