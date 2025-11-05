@@ -17,6 +17,7 @@ docs/.DS_Store
 Software-code/Asseto-Corsa-telemetry/%HOMEPATH%/
 Software-code/Asseto-Corsa-telemetry/telemetry/
 Software-code/Asseto-Corsa-telemetry/cpp/build/
+Software-code/Asseto-Corsa-telemetry/build/CMakeFiles
 
 
 # Ignore specific scripts and text files
