@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package telemetry.v1;
+
+option csharp_namespace = "Slipstream.Telemetry.V1";
+option go_package       = "telemetry/v1;telemetryv1";
+option java_multiple_files = true;
+option java_package     = "ai.slipstream.telemetry.v1";
+option java_outer_classname = "TelemetryProto";
+option optimize_for     = SPEED;
+
+message Vec3f   { float x = 1; float y = 2; float z = 3; }
+message Wheel4f { float fl = 1; float fr = 2; float rl = 3; float rr = 4; }
+
+message Physics {
+  float speed_kmh           = 1;
+  float gas                 = 2;
+  float brake               = 3;
+  float clutch              = 4;
+  int32 gear                = 5;   // -1..7
+  float steer               = 6;   // -1..1
+  float engine_rpm          = 7;
+  Wheel4f tyre_slip         = 8;
+  Wheel4f tyre_load         = 9;
+  Wheel4f tyre_temp_c       = 10;
+  Wheel4f suspension_travel = 11;
+  Vec3f acc_g               = 12;
+  Vec3f velocity            = 13;  // m/s
+  Vec3f angular_velocity    = 14;  // rad/s
+}
+
+message Graphics {
+  int32 status               = 1;   // 0=AC_OFF, 1=AC_REPLAY, 2=AC_LIVE
+  int32 completed_laps       = 2;
+  int32 position             = 3;
+  float i_current_time_s     = 4;
+  float i_last_time_s        = 5;
+  float i_best_time_s        = 6;
+  float lap_time_s           = 7;
+  float delta_lap_s          = 8;
+  float normalized_car_pos   = 9;   // 0..1
+}
+
+message Static {
+  string car_model           = 1;
+  string track               = 2;
+  string track_configuration = 3;
+  int32  max_rpm             = 4;
+}
+
+message TelemetryFrame {
+  uint64 monotonic_ns = 1;     // host steady_clock
+  string game         = 2;     // "assetto_corsa"
+  string session_id   = 3;     // uuid
+  Physics physics     = 4;
+  Graphics graphics   = 5;
+  Static stat         = 6;
+}
+
+message StreamAck {
+  // latest timestamp acknowledged by server
+  uint64 last_monotonic_ns = 1;
+}
+
+service TelemetryIngest {
+  // Bidirectional stream; server may send acks or control hints
+  rpc StreamFrames(stream TelemetryFrame) returns (stream StreamAck);
+}
