@@ -12,3 +12,17 @@ docs/Latex/System-Architecture.synctex.gz
 # Ignore macOS system files
 .DS_Store
 docs/.DS_Store
+
+# Ignore Assetto Corsa telemetry build files
+Software-code/Asseto-Corsa-telemetry/%HOMEPATH%/
+Software-code/Asseto-Corsa-telemetry/telemetry/
+Software-code/Asseto-Corsa-telemetry/cpp/build/
+
+
+# Ignore specific scripts and text files
+concat.sh
+context.txt
+Software-code/concat.sh
+Software-code/context.txt
+Software-code/Asseto-Corsa-telemetry/concat.sh
+Software-code/Asseto-Corsa-telemetry/context.txt
