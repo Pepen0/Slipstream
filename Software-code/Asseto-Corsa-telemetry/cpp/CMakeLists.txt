@@ -9,47 +9,51 @@ find_package(Protobuf CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 
-set(PROTO_DIR  ${CMAKE_CURRENT_SOURCE_DIR}/../proto/telemetry/v1)
-set(PROTO_FILE ${PROTO_DIR}/telemetry.proto)
-set(GEN_DIR    ${CMAKE_CURRENT_BINARY_DIR}/_generated)
+set(PROTO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../proto)
+set(PROTO_FILE ${PROTO_ROOT}/telemetry/v1/telemetry.proto)
 
-file(MAKE_DIRECTORY ${GEN_DIR})
+set(GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/_generated)
+set(GEN_SUBDIR ${GEN_DIR}/telemetry/v1)
+file(MAKE_DIRECTORY ${GEN_SUBDIR})
 
-# Paths to tools
-set(PROTOC               $<TARGET_FILE:protobuf::protoc>)
-set(GRPC_CPP_PLUGIN      $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
+# Tools
+set(PROTOC          $<TARGET_FILE:protobuf::protoc>)
+set(GRPC_CPP_PLUGIN $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
 
-# Generated sources
-set(GEN_PROTO_SRCS ${GEN_DIR}/telemetry.pb.cc)
-set(GEN_PROTO_HDRS ${GEN_DIR}/telemetry.pb.h)
-set(GEN_GRPC_SRCS  ${GEN_DIR}/telemetry.grpc.pb.cc)
-set(GEN_GRPC_HDRS  ${GEN_DIR}/telemetry.grpc.pb.h)
+# Expected generated paths (note telemetry/v1 subdir)
+set(GEN_PROTO_SRCS ${GEN_SUBDIR}/telemetry.pb.cc)
+set(GEN_PROTO_HDRS ${GEN_SUBDIR}/telemetry.pb.h)
+set(GEN_GRPC_SRCS  ${GEN_SUBDIR}/telemetry.grpc.pb.cc)
+set(GEN_GRPC_HDRS  ${GEN_SUBDIR}/telemetry.grpc.pb.h)
 
 add_custom_command(
   OUTPUT ${GEN_PROTO_SRCS} ${GEN_PROTO_HDRS}
   COMMAND ${PROTOC}
     --cpp_out=${GEN_DIR}
-    -I ${CMAKE_CURRENT_SOURCE_DIR}/../proto
+    -I ${PROTO_ROOT}
     ${PROTO_FILE}
   DEPENDS ${PROTO_FILE}
   COMMENT "Generating C++ protobuf sources"
-  VERBATIM)
+  VERBATIM
+)
 
 add_custom_command(
   OUTPUT ${GEN_GRPC_SRCS} ${GEN_GRPC_HDRS}
   COMMAND ${PROTOC}
     --grpc_out=${GEN_DIR}
     --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
-    -I ${CMAKE_CURRENT_SOURCE_DIR}/../proto
+    -I ${PROTO_ROOT}
     ${PROTO_FILE}
   DEPENDS ${PROTO_FILE}
   COMMENT "Generating C++ gRPC sources"
-  VERBATIM)
+  VERBATIM
+)
 
 add_library(telemetry_proto
   ${GEN_PROTO_SRCS} ${GEN_PROTO_HDRS}
   ${GEN_GRPC_SRCS}  ${GEN_GRPC_HDRS}
 )
+# Include the GEN_DIR so includes like "telemetry/v1/telemetry.pb.h" resolve
 target_include_directories(telemetry_proto PUBLIC ${GEN_DIR})
 target_link_libraries(telemetry_proto PUBLIC protobuf::libprotobuf gRPC::grpc++)
 
