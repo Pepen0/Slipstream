@@ -5,49 +5,59 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_definitions(-D_WIN32_WINNT=0x0A00) # Windows 10
 
-# gRPC + Protobuf
+# Dependencies from vcpkg
 find_package(Protobuf CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
+find_package(ZLIB REQUIRED)
 
-set(PROTO_FILE ${CMAKE_SOURCE_DIR}/../proto/telemetry/v1/telemetry.proto)
+# --- Proto paths
+set(PROTO_DIR  ${CMAKE_CURRENT_SOURCE_DIR}/../proto)
+set(PROTO_FILE ${PROTO_DIR}/telemetry/v1/telemetry.proto)
 
-# Generate sources
-set(GENERATED_DIR ${CMAKE_BINARY_DIR}/generated)
-file(MAKE_DIRECTORY ${GENERATED_DIR})
+# --- Generated code target (protobuf + gRPC)
+add_library(telemetry_proto)
 
-protobuf_generate(TARGET telemetry_proto
-  LANGUAGE cpp
+# Make generated headers visible to dependents
+target_include_directories(telemetry_proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+
+# Link core libs for anyone using the proto target
+target_link_libraries(telemetry_proto
+  PUBLIC
+    protobuf::libprotobuf
+    gRPC::grpc++
+)
+
+# Generate C++ protobuf and gRPC sources into the build tree
+# (macros provided by vcpkg's protobuf/grpc packages)
+protobuf_generate(
+  TARGET telemetry_proto
   PROTOS ${PROTO_FILE}
-  PROTOC_OUT_DIR ${GENERATED_DIR})
+)
 
-# gRPC codegen
-get_filename_component(PROTO_ABS ${PROTO_FILE} ABSOLUTE)
-set(PROTO_IMPORT_DIRS ${CMAKE_SOURCE_DIR}/../proto)
-set(GRPC_SRCS ${GENERATED_DIR}/telemetry/v1/telemetry.grpc.pb.cc)
-set(GRPC_HDRS ${GENERATED_DIR}/telemetry/v1/telemetry.grpc.pb.h)
-set(PB_SRCS   ${GENERATED_DIR}/telemetry/v1/telemetry.pb.cc)
-set(PB_HDRS   ${GENERATED_DIR}/telemetry/v1/telemetry.pb.h)
+grpc_generate(
+  TARGET telemetry_proto
+  PROTOS ${PROTO_FILE}
+)
 
-add_custom_command(
-  OUTPUT ${GRPC_SRCS} ${GRPC_HDRS} ${PB_SRCS} ${PB_HDRS}
-  COMMAND $<TARGET_FILE:protobuf::protoc>
-  ARGS --grpc_out ${GENERATED_DIR}
-       --cpp_out ${GENERATED_DIR}
-       --plugin=protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>
-       -I ${PROTO_IMPORT_DIRS}
-       ${PROTO_ABS}
-  DEPENDS ${PROTO_ABS} protobuf::protoc gRPC::grpc_cpp_plugin)
-
-add_library(telemetry_proto STATIC ${GRPC_SRCS} ${PB_SRCS})
-target_include_directories(telemetry_proto PUBLIC ${GENERATED_DIR})
-target_link_libraries(telemetry_proto PUBLIC protobuf::libprotobuf gRPC::grpc++)
-
+# --- Bridge executable
 add_executable(telemetry_bridge
   src/main.cpp
-  src/ac_shmem.hpp
+  src/recorder.cpp
   src/recorder.hpp
-  src/recorder.cpp)
+  src/ac_shmem.hpp
+)
 
-target_include_directories(telemetry_bridge PRIVATE ${GENERATED_DIR})
-target_link_libraries(telemetry_bridge PRIVATE telemetry_proto protobuf::libprotobuf gRPC::grpc++)
+target_link_libraries(telemetry_bridge
+  PRIVATE
+    telemetry_proto
+    protobuf::libprotobuf
+    gRPC::grpc++
+    ZLIB::ZLIB
+)
+
 target_compile_definitions(telemetry_bridge PRIVATE UNICODE _UNICODE NOMINMAX)
+
+# Optional: put the exe next to the build dir root (helps with manual running)
+set_target_properties(telemetry_bridge PROPERTIES
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
+)
