@@ -1,5 +1,10 @@
+#define WIN32_LEAN_AND_MEAN
+#include <WinSock2.h>
+#include <WS2tcpip.h>
 #include <windows.h>
 #include <Rpc.h> // UuidCreate
+#include <locale>
+#include <codecvt>
 #include <chrono>
 #include <iostream>
 #include <string>
@@ -56,9 +61,10 @@ static uint64_t now_ns() {
 }
 
 int wmain(int argc, wchar_t** argv) {
-  const char* target = (argc >= 2) ? std::string().assign(
-      std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(argv[1])).c_str()
-    : "127.0.0.1:50051";
+  std::string target_str = (argc >= 2)
+    ? std::wstring_convert<std::codecvt_utf8<wchar_t>>().to_bytes(argv[1])
+    : std::string("127.0.0.1:50051");
+  const char* target = target_str.c_str();
 
   std::string session_id = make_uuid();
 

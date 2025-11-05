@@ -69,6 +69,9 @@ target_link_libraries(telemetry_bridge
     gRPC::grpc++
     protobuf::libprotobuf
     ZLIB::ZLIB
+    ws2_32
+    Rpcrt4
 )
-target_compile_definitions(telemetry_bridge PRIVATE UNICODE _UNICODE NOMINMAX)
+
+target_compile_definitions(telemetry_bridge PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
 set_target_properties(telemetry_bridge PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
