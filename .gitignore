@@ -24,7 +24,8 @@ Software-code/Asseto-Corsa-telemetry/build/CMakeFiles
 Software-code/Asseto-Corsa-telemetry/build/CMakeCache.txt
 Software-code/Asseto-Corsa-telemetry/vcpkg
 Software-code/Asseto-Corsa-telemetry/build_generated/
-
+Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/
+Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/v1/
 # Ignore specific scripts and text files
 concat.sh
 context.txt
