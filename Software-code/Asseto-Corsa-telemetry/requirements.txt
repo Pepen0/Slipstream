@@ -6,3 +6,4 @@ protobuf
 # Data Processing
 pandas
 pyarrow
+matplotlib
