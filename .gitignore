@@ -35,3 +35,11 @@ Software-code/context.txt
 Software-code/Asseto-Corsa-telemetry/concat.sh
 Software-code/Asseto-Corsa-telemetry/context.txt
 Software-code/Asseto-Corsa-telemetry/combined_dump.txt
+/Software-code/Asseto-Corsa-telemetry/build/_generated/telemetry/v1
+/Software-code/Asseto-Corsa-telemetry/build
+Software-code/Asseto-Corsa-telemetry/out.csv
+Software-code/Asseto-Corsa-telemetry/out.parquet
+Software-code/Asseto-Corsa-telemetry/server/__pycache__/reference_ingest_server.cpython-313.pyc
+Software-code/Asseto-Corsa-telemetry/telemetry__init.py
+Software-code/Asseto-Corsa-telemetry/telemetry_record.pb.gz
+Software-code/Asseto-Corsa-telemetry/tools/__pycache__/recorder_reader.cpython-313.pyc

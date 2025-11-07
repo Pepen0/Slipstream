@@ -1,3 +1,6 @@
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+
 import asyncio
 import grpc
 import telemetry.v1.telemetry_pb2 as pb
