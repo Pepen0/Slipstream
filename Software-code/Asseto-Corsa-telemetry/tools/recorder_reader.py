@@ -4,7 +4,6 @@ import struct
 import sys
 from pathlib import Path
 import telemetry.v1.telemetry_pb2 as pb
-
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -27,9 +26,16 @@ def main(in_gz: Path, out_parquet: Path):
     with gzip.open(in_gz, "rb") as f:
         while True:
             n = read_varint(f)
-            if n is None: break
-            payload = f.read(n)
-            if len(payload) != n: break
+            if n is None:
+                break
+            try:
+                payload = f.read(n)
+            except EOFError:
+                # truncated gzip/member; ignore tail
+                break
+            if len(payload) != n:
+                # length prefix claims more bytes than remain; ignore tail
+                break
             msg = pb.TelemetryFrame()
             msg.ParseFromString(payload)
             rows.append({
