@@ -26,6 +26,7 @@ Software-code/Asseto-Corsa-telemetry/vcpkg
 Software-code/Asseto-Corsa-telemetry/build_generated/
 Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/
 Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/v1/
+Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/v1/telemetry.grpc.pb.cc
 # Ignore specific scripts and text files
 concat.sh
 context.txt
