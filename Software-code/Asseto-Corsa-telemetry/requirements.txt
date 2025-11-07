@@ -1,0 +1,9 @@
+# gRPC and Protocol Buffers
+grpcio
+grpcio-tools
+protobuf
+
+# Data Processing
+pandas
+pyarrow
+matplotlib
