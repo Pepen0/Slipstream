@@ -27,6 +27,10 @@ Software-code/Asseto-Corsa-telemetry/build_generated/
 Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/
 Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/v1/
 Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/v1/telemetry.grpc.pb.cc
+
+# Ignore practice schematics
+docs/Schematics/PCB_tutorial
+
 # Ignore specific scripts and text files
 concat.sh
 context.txt
