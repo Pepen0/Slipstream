@@ -32,7 +32,7 @@ Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/v1/telemetry.grpc
 docs/Reports
 
 # Ignore practice schematics
-docs/Schematics/PCB_tutorial
+docs/Schematics/GPT-Backup
 
 # Ignore specific scripts and text files
 concat.sh
