@@ -74,34 +74,34 @@ export const siteConfig = {
   // Team members
   team: [
     {
-      name: "Penoelo Thibeaud",
-      role: "CEO",
-      bio: "Making sure everything runs smoothly from prototype to production.",
-    },
-    {
-      name: "Rahul Patel",
-      role: "CTO",
-      bio: "Embedded systems specialist focused on real-time motion control.",
-    },
-    {
       name: "Ammar Sathar",
-      role: "Founder",
-      bio: "The man with the plan.",
+      role: "Founder & CTO",
+      bio: "The man with the plan, the mastermind behind the Slipstream project.",
     },
     {
-      name: "Olivier Dupre",
-      role: "Founding ElectricalEngineer",
-      bio: "Handles circuit design.",
-    },
-    {
-      name: "Usman Shehu Usman",
-      role: "Co-Founder",
-      bio: "Handles circuit design.",
+      name: "Penoelo Thibeaud",
+      role: "Founder & CEO",
+      bio: "Making sure everything runs smoothly from prototype to production.",
     },
     {
       name: "Anthony Aldama",
       role: "Chief Electrical Designer",
+      bio: "Handles circuit design Specifications and Electrical Design.",
+    },
+    {
+      name: "Usman Shehu Usman",
+      role: "Co-Founder & Electrical Engineer",
       bio: "Handles circuit design.",
+    },
+    {
+      name: "Rahul Patel",
+      role: "Founding Integration Engineer",
+      bio: "Handles the integration of the motion control system with the simulator.",
+    },
+    {
+      name: "Olivier Dupre",
+      role: "Founding Electrical Engineer",
+      bio: "Handles circuit/power design.",
     },
   ],
 };
