@@ -2,13 +2,13 @@ export const siteConfig = {
   name: "Slipstream",
   tagline: "Built for the drivers who can't stop thinking about the next lap.",
   description: "Compact 2-DOF motion simulator for intro-to-racing drivers and hobbyists.",
-  
+
   // Launch configuration
   launch: {
     date: "2026-04-01T00:00:00Z", // April 1st, 2026
     liveMessage: "We're live.",
   },
-  
+
   // Event details for launch email
   event: {
     location: "Concordia University",
@@ -16,13 +16,13 @@ export const siteConfig = {
     date: "April 2025",
     time: "TBA",
   },
-  
+
   // Social links
   socials: {
     instagram: "https://instagram.com/slipstream",
     youtube: "https://youtube.com/@slipstream",
   },
-  
+
   // Navigation
   nav: {
     main: [
@@ -36,7 +36,7 @@ export const siteConfig = {
       { label: "Waitlist", href: "/waitlist" },
     ],
   },
-  
+
   // Roadmap phases
   roadmap: [
     {
@@ -70,32 +70,38 @@ export const siteConfig = {
       status: "planned" as const,
     },
   ],
-  
+
   // Team members
   team: [
     {
-      name: "Alex Chen",
-      role: "Lead Engineer",
-      bio: "Mechanical engineer with a passion for motorsport and control systems.",
-      image: "/team/alex.jpg",
-    },
-    {
-      name: "Sarah Martinez",
-      role: "Firmware Developer",
-      bio: "Embedded systems specialist focused on real-time motion control.",
-      image: "/team/sarah.jpg",
-    },
-    {
-      name: "James Wilson",
-      role: "Product Designer",
-      bio: "Industrial designer bringing ergonomics and aesthetics to racing hardware.",
-      image: "/team/james.jpg",
-    },
-    {
-      name: "Emily Park",
-      role: "Operations Lead",
+      name: "Penoelo Thibeaud",
+      role: "CEO",
       bio: "Making sure everything runs smoothly from prototype to production.",
-      image: "/team/emily.jpg",
+    },
+    {
+      name: "Rahul Patel",
+      role: "CTO",
+      bio: "Embedded systems specialist focused on real-time motion control.",
+    },
+    {
+      name: "Ammar Sathar",
+      role: "Founder",
+      bio: "The man with the plan.",
+    },
+    {
+      name: "Olivier Dupre",
+      role: "Founding ElectricalEngineer",
+      bio: "Handles circuit design.",
+    },
+    {
+      name: "Usman Shehu Usman",
+      role: "Co-Founder",
+      bio: "Handles circuit design.",
+    },
+    {
+      name: "Anthony Aldama",
+      role: "Chief Electrical Designer",
+      bio: "Handles circuit design.",
     },
   ],
 };
