@@ -17,11 +17,11 @@ export function Header() {
       <div className="container mx-auto px-4 md:px-6">
         <nav className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link 
-            to="/" 
-            className="font-display text-xl md:text-2xl font-bold tracking-wider text-foreground hover:text-primary transition-colors"
+          <Link
+            to="/"
+            title="Slipstream Home"
           >
-            SLIPSTREAM
+            <img src="/logo-slipstream.svg" alt="Slipstream" className="h-12 md:h-24 w-auto" />
           </Link>
 
           {/* Desktop Navigation */}
@@ -68,9 +68,7 @@ export function Header() {
             <div className="flex flex-col h-full p-6">
               {/* Close Button */}
               <div className="flex justify-between items-center mb-12">
-                <span className="font-display text-xl font-bold tracking-wider">
-                  SLIPSTREAM
-                </span>
+                <img src="/logo-slipstream.svg" alt="Slipstream" className="h-12 w-auto" />
                 <button
                   onClick={() => setMobileMenuOpen(false)}
                   className="p-2 text-foreground"
@@ -140,6 +138,6 @@ export function Header() {
           </motion.div>
         )}
       </AnimatePresence>
-    </header>
+    </header >
   );
 }

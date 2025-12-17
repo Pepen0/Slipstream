@@ -28,7 +28,7 @@ export default function Team() {
       {/* Team Grid */}
       <section className="py-16 md:py-24 section-gradient">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 max-w-5xl mx-auto">
             {siteConfig.team.map((member, index) => (
               <TeamCard key={member.name} member={member} index={index} />
             ))}
@@ -50,8 +50,8 @@ export default function Team() {
               Our Mission
             </h2>
             <p className="text-muted-foreground leading-relaxed">
-              We believe motion simulation shouldn't be a luxury. Slipstream is our answer to 
-              overpriced, overcomplicated hardware. We're building something real drivers can 
+              We believe motion simulation shouldn't be a luxury. Slipstream is our answer to
+              overpriced, overcomplicated hardware. We're building something real drivers can
               actually afford—without sacrificing the feel of the track.
             </p>
           </motion.div>
