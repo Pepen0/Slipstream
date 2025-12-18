@@ -75,12 +75,22 @@ export function RoadmapNode({ phase, isActive, progress }: RoadmapNodeProps) {
         {phase.description}
       </p>
 
-      {/* Photo Placeholder */}
-      <div className="aspect-[4/3] w-full bg-secondary/30 rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-border/50">
-        <Camera className="w-8 h-8 text-muted-foreground/50 mb-2" />
-        <span className="text-xs text-muted-foreground/50 font-display uppercase tracking-wider">
-          Photo coming soon
-        </span>
+      {/* Phase Image */}
+      <div className="aspect-[4/3] w-full bg-secondary/30 rounded-lg overflow-hidden border border-border/50 relative group">
+        {phase.image ? (
+          <img
+            src={phase.image}
+            alt={phase.title}
+            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center border-2 border-dashed border-border/50">
+            <Camera className="w-8 h-8 text-muted-foreground/50 mb-2" />
+            <span className="text-xs text-muted-foreground/50 font-display uppercase tracking-wider">
+              Photo coming soon
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Progress Bar */}
