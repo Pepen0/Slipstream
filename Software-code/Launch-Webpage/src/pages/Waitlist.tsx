@@ -32,12 +32,12 @@ export default function Waitlist() {
                   Join the Slipstream Waitlist
                 </h1>
                 <p className="text-muted-foreground leading-relaxed">
-                  Get updates on launch, live demos, and early access opportunities. 
+                  Get updates on launch, live demos, and early access opportunities.
                   Be the first to experience the future of accessible motion simulation.
                 </p>
               </div>
 
-              <WaitlistForm source="waitlist-page" showFullForm={true} />
+              <WaitlistForm source="waitlist-page" />
 
               {/* Social links */}
               <div className="mt-8 pt-8 border-t border-border">

@@ -5,15 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 
 interface WaitlistFormProps {
-  source: string;
-  showFullForm?: boolean;
+  source?: string;
 }
 
 type FormState = "idle" | "loading" | "success" | "error";
 
-export function WaitlistForm({ source, showFullForm = false }: WaitlistFormProps) {
-  const [email, setEmail] = useState("");
+// Get endpoint from environment variable
+const waitlistEndpoint = import.meta.env.VITE_WAITLIST_ENDPOINT || "";
+
+export function WaitlistForm({ source }: WaitlistFormProps) {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [recommendation, setRecommendation] = useState("");
   const [state, setState] = useState<FormState>("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -23,7 +26,7 @@ export function WaitlistForm({ source, showFullForm = false }: WaitlistFormProps
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateEmail(email)) {
       setState("error");
       setErrorMessage("Please enter a valid email address.");
@@ -34,18 +37,34 @@ export function WaitlistForm({ source, showFullForm = false }: WaitlistFormProps
     setErrorMessage("");
 
     try {
-      // Simulate API call - replace with actual Supabase integration
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      // For now, just log the submission
-      console.log("Waitlist signup:", { email, name, source });
-      
+      if (!waitlistEndpoint) {
+        throw new Error("Waitlist endpoint not configured");
+      }
+
+      // Use URLSearchParams for Apps Script compatibility (avoids CORS preflight)
+      const formData = new URLSearchParams();
+      formData.append("name", name);
+      formData.append("email", email);
+      formData.append("recommendation", recommendation);
+      formData.append("source", source || "");
+
+      const res = await fetch(waitlistEndpoint, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || "Failed to join waitlist");
+      }
+
       setState("success");
-      setEmail("");
       setName("");
-    } catch {
+      setEmail("");
+      setRecommendation("");
+    } catch (err) {
       setState("error");
-      setErrorMessage("Something went wrong. Please try again.");
+      setErrorMessage(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     }
   };
 
@@ -71,49 +90,72 @@ export function WaitlistForm({ source, showFullForm = false }: WaitlistFormProps
 
   return (
     <form onSubmit={handleSubmit} className="w-full space-y-4">
-      {showFullForm && (
-        <div>
-          <Input
-            type="text"
-            placeholder="First name (optional)"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={state === "loading"}
-            className="bg-card border-border focus:border-primary"
-          />
-        </div>
-      )}
-      
-      <div className="flex flex-col sm:flex-row gap-3">
+      {/* Name (optional) */}
+      <div>
+        <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+          Name (optional)
+        </label>
+        <Input
+          type="text"
+          placeholder="Your name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={state === "loading"}
+          className="bg-card border-border focus:border-primary"
+        />
+      </div>
+
+      {/* Email (required) */}
+      <div>
+        <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+          Email (required)
+        </label>
         <Input
           type="email"
-          placeholder="Enter your email"
+          placeholder="your@email.com"
           value={email}
           onChange={(e) => {
             setEmail(e.target.value);
             if (state === "error") setState("idle");
           }}
           disabled={state === "loading"}
-          className="flex-1 bg-card border-border focus:border-primary"
+          className="bg-card border-border focus:border-primary"
           required
         />
-        <Button 
-          type="submit" 
-          variant="hero" 
-          size="lg"
-          disabled={state === "loading"}
-          className="whitespace-nowrap"
-        >
-          {state === "loading" ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Joining...
-            </>
-          ) : (
-            "Join Waitlist"
-          )}
-        </Button>
       </div>
+
+      {/* Recommendation (optional) */}
+      <div>
+        <label className="block text-sm font-medium text-muted-foreground mb-1.5">
+          Recommendation (optional)
+        </label>
+        <textarea
+          placeholder="Any feedback or suggestions?"
+          value={recommendation}
+          onChange={(e) => setRecommendation(e.target.value)}
+          disabled={state === "loading"}
+          rows={3}
+          className="w-full px-3 py-2 rounded-md bg-card border border-border focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground resize-none"
+        />
+      </div>
+
+      {/* Submit Button */}
+      <Button
+        type="submit"
+        variant="hero"
+        size="lg"
+        disabled={state === "loading"}
+        className="w-full"
+      >
+        {state === "loading" ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            Joining...
+          </>
+        ) : (
+          "Join Waitlist"
+        )}
+      </Button>
 
       {state === "error" && errorMessage && (
         <motion.div
@@ -128,3 +170,4 @@ export function WaitlistForm({ source, showFullForm = false }: WaitlistFormProps
     </form>
   );
 }
+
