@@ -123,7 +123,13 @@ export function Header() {
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <Instagram className="w-6 h-6" />
+                  <motion.span
+                    className="inline-flex"
+                    whileHover={{ rotate: 360 }}
+                    transition={{ duration: 0.6, ease: "linear", repeat: Infinity }}
+                  >
+                    <Instagram className="w-6 h-6" />
+                  </motion.span>
                 </a>
                 <a
                   href={siteConfig.socials.youtube}
@@ -131,7 +137,13 @@ export function Header() {
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  <Youtube className="w-6 h-6" />
+                  <motion.span
+                    className="inline-flex"
+                    whileHover={{ rotate: 360 }}
+                    transition={{ duration: 0.6, ease: "linear", repeat: Infinity }}
+                  >
+                    <Youtube className="w-6 h-6" />
+                  </motion.span>
                 </a>
               </div>
             </div>

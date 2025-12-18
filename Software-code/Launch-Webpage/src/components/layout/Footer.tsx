@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 import { Instagram, Youtube } from "lucide-react";
 import { siteConfig } from "@/config/site";
 
@@ -48,7 +49,13 @@ export function Footer() {
                 className="p-2 rounded-md bg-secondary hover:bg-accent text-foreground/70 hover:text-foreground transition-all"
                 aria-label="Follow on Instagram"
               >
-                <Instagram className="w-5 h-5" />
+                <motion.span
+                  className="inline-flex"
+                  whileHover={{ rotate: 360 }}
+                  transition={{ duration: 0.6, ease: "linear", repeat: Infinity }}
+                >
+                  <Instagram className="w-5 h-5" />
+                </motion.span>
               </a>
               <a
                 href={siteConfig.socials.youtube}
@@ -57,7 +64,13 @@ export function Footer() {
                 className="p-2 rounded-md bg-secondary hover:bg-accent text-foreground/70 hover:text-foreground transition-all"
                 aria-label="Subscribe on YouTube"
               >
-                <Youtube className="w-5 h-5" />
+                <motion.span
+                  className="inline-flex"
+                  whileHover={{ rotate: 360 }}
+                  transition={{ duration: 0.6, ease: "linear", repeat: Infinity }}
+                >
+                  <Youtube className="w-5 h-5" />
+                </motion.span>
               </a>
             </div>
           </div>

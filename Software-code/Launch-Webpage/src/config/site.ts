@@ -19,8 +19,8 @@ export const siteConfig = {
 
   // Social links
   socials: {
-    instagram: "https://instagram.com/slipstream",
-    youtube: "https://youtube.com/@slipstream",
+    instagram: "https://www.instagram.com/slipstrearn",
+    youtube: "https://www.youtube.com/channel/UCHCf9AAipaBe-YrR8mLdMkw",
   },
 
   // Navigation
