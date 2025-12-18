@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
 import { Countdown } from "@/components/Countdown";
 import { SimulatorModel } from "@/components/SimulatorModel";
-import { WaitlistForm } from "@/components/WaitlistForm";
 
 const fadeUpVariants = {
   hidden: { opacity: 0, y: 30 },
@@ -207,13 +206,13 @@ export default function Home() {
                   description: "2-DOF actuation delivers convincing motion feedback for immersive racing.",
                 },
                 {
-                  title: "Low Footprint",
-                  description: "Compact design fits in apartments, offices, and small spaces.",
-                },
-                {
                   title: "Firmware-Driven",
                   description: "Precision control algorithms tuned for realistic force response.",
                 },
+                {
+                  title: "AI Race Engineer",
+                  description: "To helps you improve your racing experience.",
+                }
               ].map((feature, index) => (
                 <motion.div
                   key={index}
@@ -254,7 +253,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Inline Waitlist Section */}
+      {/* Be First In Line CTA */}
       <section className="py-20 md:py-32 section-gradient">
         <div className="container mx-auto px-4 md:px-6">
           <motion.div
@@ -262,29 +261,17 @@ export default function Home() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.6 }}
-            className="max-w-xl mx-auto"
+            className="max-w-xl mx-auto text-center"
           >
-            <div className="card-glass rounded-2xl p-8 md:p-10">
-              <div className="text-center mb-6">
-                <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-2">
-                  Be First In Line
-                </h2>
-                <p className="text-muted-foreground">
-                  Be the first to know when Slipstream launches.
-                </p>
-              </div>
-
-              <WaitlistForm source="home-inline" />
-
-              <div className="mt-6 text-center">
-                <Link
-                  to="/waitlist"
-                  className="text-sm text-muted-foreground hover:text-foreground transition-colors underline underline-offset-4"
-                >
-                  See full waitlist details →
-                </Link>
-              </div>
-            </div>
+            <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground mb-4">
+              Be First In Line
+            </h2>
+            <p className="text-muted-foreground mb-8">
+              Be the first to know when Slipstream launches.
+            </p>
+            <Button variant="hero" size="xl" asChild>
+              <Link to="/waitlist">Join Waitlist</Link>
+            </Button>
           </motion.div>
         </div>
       </section>

@@ -76,32 +76,32 @@ export const siteConfig = {
     {
       name: "Ammar Sathar",
       role: "Founder & CTO",
-      bio: "The man with the plan, the mastermind behind the Slipstream project.",
+      bio: "The mastermind with the plan behind the Slipstream project.",
     },
     {
       name: "Penoelo Thibeaud",
       role: "Founder & CEO",
-      bio: "Making sure everything runs smoothly from prototype to production.",
+      bio: "Keeps everything running smooth, start to finish.",
     },
     {
       name: "Anthony Aldama",
       role: "Chief Electrical Designer",
-      bio: "Handles circuit design Specifications and Electrical Design.",
+      bio: "Designs the circuits that power it all.",
     },
     {
       name: "Usman Shehu Usman",
-      role: "Co-Founder & Electrical Engineer",
-      bio: "Handles circuit design.",
+      role: "Co-Founder & Electrical Designer",
+      bio: "Makes sure the hardware stays sharp and steady.",
     },
     {
       name: "Rahul Patel",
-      role: "Founding Integration Engineer",
-      bio: "Handles the integration of the motion control system with the simulator.",
+      role: "Founding Integration Designer",
+      bio: "Connects the motion system to the sim brain.",
     },
     {
       name: "Olivier Dupre",
-      role: "Founding Electrical Engineer",
-      bio: "Handles circuit/power design.",
+      role: "Founding Electrical Designer",
+      bio: "Keeps the power flowing no matter what.",
     },
   ],
 };
