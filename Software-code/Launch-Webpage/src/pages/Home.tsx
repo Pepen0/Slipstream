@@ -29,27 +29,20 @@ export default function Home() {
   return (
     <Layout>
       {/* Hero Section */}
-      <section className="relative min-h-[calc(100vh-80px)] flex flex-col items-center justify-center overflow-hidden hero-gradient">
-        {/* Background glow */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/5 rounded-full blur-[150px]" />
-        </div>
+      <section className="relative min-h-[calc(100vh-80px)] flex items-center overflow-hidden hero-gradient py-12 md:py-20">
+        {/* Background Radial Gradient - subtle focus on center (kept for vibe) */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle at 50% 50%, rgba(20, 20, 20, 1) 0%, rgba(5, 5, 5, 1) 100%)'
+          }}
+        />
 
-        <div className="container mx-auto px-4 md:px-6 py-12 md:py-20 relative z-10">
-          <div className="max-w-5xl mx-auto">
-            {/* 3D Model */}
-            <motion.div
-              variants={fadeUpVariants}
-              initial="hidden"
-              animate="visible"
-              custom={0}
-              className="mb-8"
-            >
-              <SimulatorModel />
-            </motion.div>
+        <div className="container mx-auto px-4 md:px-6 relative z-10 h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-8 items-center h-full">
 
-            {/* Text Content */}
-            <div className="text-center space-y-6">
+            {/* LEFT COLUMN: Text Content */}
+            <div className="text-center lg:text-left space-y-8 order-1 lg:order-1">
               <motion.h1
                 variants={fadeUpVariants}
                 initial="hidden"
@@ -65,7 +58,7 @@ export default function Home() {
                 initial="hidden"
                 animate="visible"
                 custom={0.4}
-                className="max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground leading-relaxed"
+                className="max-w-2xl mx-auto lg:mx-0 text-lg md:text-xl text-muted-foreground leading-relaxed"
               >
                 "Nobody should have to choose between a new Honda Civic or a racing simulator."
               </motion.p>
@@ -76,9 +69,11 @@ export default function Home() {
                 initial="hidden"
                 animate="visible"
                 custom={0.6}
-                className="pt-4"
+                className="pt-2"
               >
-                <Countdown />
+                <div className="flex justify-center lg:justify-start">
+                  <Countdown />
+                </div>
               </motion.div>
 
               {/* CTAs */}
@@ -87,7 +82,7 @@ export default function Home() {
                 initial="hidden"
                 animate="visible"
                 custom={0.8}
-                className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-6"
+                className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4"
               >
                 <Button variant="hero" size="xl" asChild>
                   <Link to="/waitlist">Join the Waitlist</Link>
@@ -97,6 +92,23 @@ export default function Home() {
                 </Button>
               </motion.div>
             </div>
+
+            {/* RIGHT COLUMN: 3D Model */}
+            <div className="relative order-2 lg:order-2 w-full h-[50vh] lg:h-[800px] flex items-center justify-center">
+              {/* Red Glow Accent - Behind Rig (Localized) */}
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] z-0 pointer-events-none"
+                style={{
+                  background: 'radial-gradient(circle, rgba(229, 57, 53, 0.1) 0%, transparent 70%)',
+                  filter: 'blur(80px)'
+                }}
+              />
+
+              <div className="w-full h-full relative z-10">
+                <SimulatorModel />
+              </div>
+            </div>
+
           </div>
 
           {/* Scroll indicator */}
@@ -104,7 +116,7 @@ export default function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 1.2 }}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2"
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 lg:left-8 lg:translate-x-0"
           >
             <button
               onClick={scrollToContent}
@@ -135,7 +147,7 @@ export default function Home() {
             <span className="inline-block px-4 py-1.5 rounded-full bg-destructive/10 text-destructive font-display text-xs uppercase tracking-wider mb-6">
               The Problem
             </span>
-            
+
             <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-8 leading-tight">
               "Nobody should have to choose between a new Honda Civic or a racing simulator."
             </h2>
@@ -177,11 +189,11 @@ export default function Home() {
               <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary font-display text-xs uppercase tracking-wider mb-6">
                 The Alternative
               </span>
-              
+
               <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-6">
                 Built Different
               </h2>
-              
+
               <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
                 Compact. Control-driven. Designed for intro racing & hobbyist use.
               </p>

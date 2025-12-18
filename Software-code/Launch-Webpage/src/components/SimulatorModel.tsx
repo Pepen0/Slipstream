@@ -1,148 +1,178 @@
-import { Suspense, useRef } from "react";
+import { Suspense, useRef, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Float, Environment, PerspectiveCamera } from "@react-three/drei";
+import { Environment, PerspectiveCamera, useGLTF } from "@react-three/drei";
+import { useReducedMotion } from "framer-motion";
 import * as THREE from "three";
+import { cn } from "@/lib/utils";
 
-function Simulator() {
-  const groupRef = useRef<THREE.Group>(null);
+// --- Types & Helpers ---
+interface DeviceMemoryNavigator extends Navigator {
+  deviceMemory?: number;
+}
 
-  useFrame((state) => {
-    if (groupRef.current) {
-      // Subtle floating animation
-      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.1;
-      groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 0.2) * 0.05;
+// Reuse the type for the group reference
+type GroupRef = THREE.Group;
+
+function Simulator({
+  prefersReducedMotion,
+  hasFinePointer,
+}: {
+  prefersReducedMotion: boolean;
+  hasFinePointer: boolean;
+}) {
+  // Load the GLB model
+  const { scene } = useGLTF("/models/slipstream.glb");
+  const groupRef = useRef<GroupRef>(null);
+
+  // Mouse position tracking
+  const mouseRef = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (prefersReducedMotion || !hasFinePointer) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      // Normalize mouse position to [-1, 1]
+      mouseRef.current = {
+        x: (e.clientX / window.innerWidth) * 2 - 1,
+        y: -(e.clientY / window.innerHeight) * 2 + 1,
+      };
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, [prefersReducedMotion, hasFinePointer]);
+
+  useFrame((state, delta) => {
+    if (!groupRef.current) return;
+
+    // Base rotation (idle)
+    if (!prefersReducedMotion) {
+      if (hasFinePointer) {
+        // Pointer follow logic
+        const targetYaw = mouseRef.current.x * 0.25; // Max 0.25 rad yaw
+        const targetPitch = mouseRef.current.y * 0.1; // Max 0.1 rad pitch
+
+        // Smooth interpolation
+        // Using damp helper or simple lerp
+        // THREE.MathUtils.lerp is standard
+        groupRef.current.rotation.y = THREE.MathUtils.lerp(
+          groupRef.current.rotation.y,
+          targetYaw + Math.sin(state.clock.elapsedTime * 0.2) * 0.05, // Add slight breathing
+          delta * 2
+        );
+        groupRef.current.rotation.x = THREE.MathUtils.lerp(
+          groupRef.current.rotation.x,
+          targetPitch,
+          delta * 2
+        );
+      } else {
+        // Touch/Idle logic: Gentle spin
+        groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.15) * 0.1;
+      }
     }
   });
 
   return (
-    <group ref={groupRef}>
-      {/* Base Platform */}
-      <mesh position={[0, -0.5, 0]}>
-        <boxGeometry args={[3, 0.15, 2]} />
-        <meshStandardMaterial color="#2a2a2a" metalness={0.7} roughness={0.3} />
-      </mesh>
-
-      {/* Left Actuator */}
-      <group position={[-1, 0, 0]}>
-        <mesh position={[0, -0.2, 0]}>
-          <cylinderGeometry args={[0.12, 0.15, 0.5, 16]} />
-          <meshStandardMaterial color="#e53935" metalness={0.8} roughness={0.2} emissive="#e53935" emissiveIntensity={0.2} />
-        </mesh>
-        <mesh position={[0, 0.15, 0]}>
-          <cylinderGeometry args={[0.08, 0.12, 0.4, 16]} />
-          <meshStandardMaterial color="#444444" metalness={0.6} roughness={0.4} />
-        </mesh>
-      </group>
-
-      {/* Right Actuator */}
-      <group position={[1, 0, 0]}>
-        <mesh position={[0, -0.2, 0]}>
-          <cylinderGeometry args={[0.12, 0.15, 0.5, 16]} />
-          <meshStandardMaterial color="#e53935" metalness={0.8} roughness={0.2} emissive="#e53935" emissiveIntensity={0.2} />
-        </mesh>
-        <mesh position={[0, 0.15, 0]}>
-          <cylinderGeometry args={[0.08, 0.12, 0.4, 16]} />
-          <meshStandardMaterial color="#444444" metalness={0.6} roughness={0.4} />
-        </mesh>
-      </group>
-
-      {/* Seat Platform */}
-      <mesh position={[0, 0.5, 0]} rotation={[0.05, 0, 0.02]}>
-        <boxGeometry args={[2.5, 0.12, 1.5]} />
-        <meshStandardMaterial color="#1f1f1f" metalness={0.5} roughness={0.5} />
-      </mesh>
-
-      {/* Seat Back Frame */}
-      <mesh position={[0, 1.1, -0.5]} rotation={[-0.2, 0, 0]}>
-        <boxGeometry args={[0.8, 1, 0.1]} />
-        <meshStandardMaterial color="#2a2a2a" metalness={0.4} roughness={0.6} />
-      </mesh>
-
-      {/* Steering Column */}
-      <mesh position={[0, 0.8, 0.4]} rotation={[0.5, 0, 0]}>
-        <cylinderGeometry args={[0.04, 0.04, 0.6, 12]} />
-        <meshStandardMaterial color="#3a3a3a" metalness={0.7} roughness={0.3} />
-      </mesh>
-
-      {/* Steering Wheel */}
-      <mesh position={[0, 1.05, 0.6]} rotation={[0.5, 0, 0]}>
-        <torusGeometry args={[0.18, 0.025, 12, 32]} />
-        <meshStandardMaterial color="#333333" metalness={0.3} roughness={0.7} />
-      </mesh>
-
-      {/* Pedal Base */}
-      <mesh position={[0, 0.35, 0.8]}>
-        <boxGeometry args={[0.6, 0.08, 0.3]} />
-        <meshStandardMaterial color="#2a2a2a" metalness={0.5} roughness={0.5} />
-      </mesh>
-
-      {/* Red accent strip */}
-      <mesh position={[0, 0.57, 0.76]}>
-        <boxGeometry args={[2.5, 0.02, 0.02]} />
-        <meshStandardMaterial color="#e53935" emissive="#e53935" emissiveIntensity={0.8} />
-      </mesh>
-
-      {/* Additional accent lights */}
-      <mesh position={[-1.25, 0.5, 0.75]}>
-        <boxGeometry args={[0.02, 0.02, 0.5]} />
-        <meshStandardMaterial color="#e53935" emissive="#e53935" emissiveIntensity={0.6} />
-      </mesh>
-      <mesh position={[1.25, 0.5, 0.75]}>
-        <boxGeometry args={[0.02, 0.02, 0.5]} />
-        <meshStandardMaterial color="#e53935" emissive="#e53935" emissiveIntensity={0.6} />
-      </mesh>
-    </group>
+    <primitive
+      object={scene}
+      ref={groupRef}
+      scale={4}
+      position={[0, -0, 0]}
+      rotation={[0, -0.6, 0]} // Slight initial offset for 3/4 view
+    />
   );
 }
 
 function LoadingFallback() {
   return (
     <div className="w-full h-full flex items-center justify-center">
-      <div className="w-16 h-16 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+      {/* Optional: Add a subtle loading state or keep generic */}
     </div>
   );
 }
 
-export function SimulatorModel() {
+function ErrorFallback() {
   return (
-    <div className="w-full h-[350px] md:h-[450px] lg:h-[500px]">
+    <div className="w-full h-full flex items-center justify-center bg-secondary/10">
+      {/* Static image fallback could go here if the component errors out */}
+      <div className="text-muted-foreground text-sm">Preview Unavailable</div>
+    </div>
+  )
+}
+
+export function SimulatorModel() {
+  // 1. Device Capabilities Check
+  const [isLowEnd, setIsLowEnd] = useState(false);
+  const prefersReducedMotion = useReducedMotion() ?? false;
+  // Check for fine pointer (mouse) vs touch
+  const [hasFinePointer, setHasFinePointer] = useState(false);
+  const [mount3D, setMount3D] = useState(false);
+
+  useEffect(() => {
+    // Check device memory
+    const nav = navigator as DeviceMemoryNavigator;
+    if (nav.deviceMemory && nav.deviceMemory < 4) {
+      setIsLowEnd(true);
+    }
+
+    // Check pointer capability
+    const mediaQuery = window.matchMedia("(pointer: fine)");
+    setHasFinePointer(mediaQuery.matches);
+
+    // Listener for pointer changes (hybrid devices)
+    const handler = (e: MediaQueryListEvent) => setHasFinePointer(e.matches);
+    mediaQuery.addEventListener("change", handler);
+
+    // Delay mounting slightly to prioritize LCP
+    const timer = setTimeout(() => {
+      setMount3D(true);
+    }, 100);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handler);
+      clearTimeout(timer);
+    }
+  }, []);
+
+  // Performance/Low-end Fallback
+  // If low end, we can return null or a static image comp directly entirely skipping the Canvas
+  if (isLowEnd) {
+    // In a real scenario, return a static <img> here
+    return null;
+  }
+
+  if (!mount3D) return <LoadingFallback />;
+
+  return (
+    <div className={cn("w-full h-full")}>
       <Suspense fallback={<LoadingFallback />}>
-        <Canvas>
-          <PerspectiveCamera makeDefault position={[4, 2.5, 5]} fov={40} />
-          <ambientLight intensity={0.5} />
+        <Canvas
+          dpr={[1, 2]} // Clamp pixel ratio for performance
+          gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+        >
+          <PerspectiveCamera makeDefault position={[0, 0, 8]} fov={35} />
+          <ambientLight intensity={0.4} />
           <spotLight
-            position={[5, 8, 5]}
-            angle={0.4}
-            penumbra={0.5}
-            intensity={1.5}
+            position={[10, 10, 10]}
+            angle={0.15}
+            penumbra={1}
+            intensity={1}
             castShadow
-            color="#ffffff"
           />
-          <spotLight
-            position={[-4, 4, 2]}
-            angle={0.6}
-            penumbra={0.8}
-            intensity={0.8}
-            color="#e53935"
+          {/* Fill light */}
+          <pointLight position={[-10, -10, -10]} intensity={0.5} color="#e53935" />
+
+          <Simulator
+            prefersReducedMotion={prefersReducedMotion}
+            hasFinePointer={hasFinePointer}
           />
-          <spotLight
-            position={[0, 3, 5]}
-            angle={0.5}
-            penumbra={0.6}
-            intensity={0.6}
-            color="#ffffff"
-          />
-          <pointLight position={[0, 6, 0]} intensity={0.5} color="#ffffff" />
-          <Float
-            speed={1.5}
-            rotationIntensity={0.15}
-            floatIntensity={0.2}
-          >
-            <Simulator />
-          </Float>
-          <Environment preset="city" />
+
+          <Environment preset="city" blur={1} />
         </Canvas>
       </Suspense>
     </div>
   );
 }
+
+// Preload the model
+useGLTF.preload("/models/slipstream.glb");
