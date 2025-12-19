@@ -227,6 +227,20 @@
     }
   }
 
+  @keyframes countdown-blink {
+    0%, 50% {
+      color: hsl(0 0% 98%); /* white */
+    }
+    50.01%, 100% {
+      color: hsl(0 85% 55%); /* racing red */
+    }
+  }
+
+  .countdown-expired {
+    animation: countdown-blink 1s ease-in-out infinite;
+  }
+
+
   /* Reduced motion */
   @media (prefers-reduced-motion: reduce) {
     .animate-fade-up,

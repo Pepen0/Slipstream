@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Layout } from "@/components/layout/Layout";
-import { Countdown } from "@/components/Countdown";
+import { Countdown, useCountdownState } from "@/components/Countdown";
 import { SimulatorModel } from "@/components/SimulatorModel";
 
 const fadeUpVariants = {
@@ -17,6 +17,7 @@ const fadeUpVariants = {
 
 export default function Home() {
   const prefersReducedMotion = useReducedMotion();
+  const { isExpired } = useCountdownState();
 
   const scrollToContent = () => {
     const problemSection = document.getElementById("problem");
@@ -83,8 +84,8 @@ export default function Home() {
                 custom={0.8}
                 className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4"
               >
-                <Button variant="hero" size="xl" asChild>
-                  <Link to="/waitlist">Join the Waitlist</Link>
+                <Button variant="hero" size="xl" asChild className={isExpired ? "font-bold" : ""}>
+                  <Link to="/waitlist">{isExpired ? "I WANT TO TRY" : "Join the Waitlist"}</Link>
                 </Button>
                 <Button variant="heroOutline" size="xl" onClick={scrollToContent}>
                   Explore the Simulator
