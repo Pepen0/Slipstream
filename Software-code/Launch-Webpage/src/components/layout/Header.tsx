@@ -83,7 +83,7 @@ export function Header() {
             <motion.img
               src="/logo-slipstream.svg"
               alt="Slipstream"
-              className="h-10 md:h-12 w-auto"
+              className="h-20 md:h-40 w-auto"
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25, ease: "easeOut" }}
