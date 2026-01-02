@@ -28,12 +28,6 @@ Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/
 Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/v1/
 Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/v1/telemetry.grpc.pb.cc
 
-# Ignore my reports 
-docs/Reports
-
-# Ignore practice schematics
-docs/Schematics/GPT-Backup
-
 # Ignore specific scripts and text files
 concat.sh
 context.txt
@@ -50,3 +44,24 @@ Software-code/Asseto-Corsa-telemetry/server/__pycache__/reference_ingest_server.
 Software-code/Asseto-Corsa-telemetry/telemetry__init.py
 Software-code/Asseto-Corsa-telemetry/telemetry_record.pb.gz
 Software-code/Asseto-Corsa-telemetry/tools/__pycache__/recorder_reader.cpython-313.pyc
+
+# Ignore list for KiCAD Projects
+# Temporary files
+*.000
+*.bak
+*.bck
+*.kicad_pcb-bak
+*.sch-bak
+*~
+_autosave-*
+*.tmp
+*-save.pro
+*-save.kicad_pcb
+fp-info-cache
+
+# Netlist files (exported from Eeschema)
+*.net
+
+# Autorouter files (exported from Pcbnew)
+*.dsn
+*.ses
