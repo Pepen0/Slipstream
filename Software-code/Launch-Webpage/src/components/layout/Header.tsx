@@ -61,6 +61,7 @@ export function Header() {
   const location = useLocation();
 
   const isActive = (href: string) => location.pathname === href;
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   // Scroll lock when mobile menu is open
   useEffect(() => {
@@ -74,68 +75,86 @@ export function Header() {
     };
   }, [mobileMenuOpen]);
 
-  return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-md border-b border-white/5">
-      <div className="container mx-auto px-4 md:px-6">
-        <nav className="flex items-center justify-between h-16 md:h-20">
-          {/* Logo */}
-          <Link to="/" title="Slipstream Home" className="flex items-center">
-            <motion.img
-              src="/logo-slipstream.svg"
-              alt="Slipstream"
-              className="h-20 md:h-40 w-auto"
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-            />
-          </Link>
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        closeMobileMenu();
+      }
+    };
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-8">
-            {siteConfig.nav.main.map((item) => (
+    if (mobileMenuOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [mobileMenuOpen]);
+
+  return (
+    <>
+      <header className="fixed top-0 left-0 right-0 z-50 bg-black/95 backdrop-blur-md border-b border-white/5">
+        <div className="container mx-auto px-4 md:px-6">
+          <nav className="flex items-center justify-between h-16 md:h-20">
+            {/* Logo */}
+            <Link to="/" title="Slipstream Home" className="flex items-center">
+              <motion.img
+                src="/logo-slipstream.svg"
+                alt="Slipstream"
+                className="h-20 md:h-40 w-auto"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+              />
+            </Link>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center gap-8">
+              {siteConfig.nav.main.map((item) => (
+                <motion.div
+                  key={item.href}
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                >
+                  <Link
+                    to={item.href}
+                    className={cn(
+                      "font-display text-sm uppercase tracking-[0.18em] transition-colors duration-200",
+                      isActive(item.href)
+                        ? "text-white"
+                        : "text-white/60 hover:text-white"
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                </motion.div>
+              ))}
               <motion.div
-                key={item.href}
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
               >
-                <Link
-                  to={item.href}
-                  className={cn(
-                    "font-display text-sm uppercase tracking-[0.18em] transition-colors duration-200",
-                    isActive(item.href)
-                      ? "text-white"
-                      : "text-white/60 hover:text-white"
-                  )}
-                >
-                  {item.label}
-                </Link>
+                <Button variant="hero" size="default" asChild>
+                  <Link to="/waitlist" className="tracking-[0.18em] uppercase">
+                    Join Waitlist
+                  </Link>
+                </Button>
               </motion.div>
-            ))}
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
+            </div>
+
+            {/* Mobile Menu Button */}
+            <button
+              className="md:hidden p-2 text-white"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open menu"
             >
-              <Button variant="hero" size="default" asChild>
-                <Link to="/waitlist" className="tracking-[0.18em] uppercase">
-                  Join Waitlist
-                </Link>
-              </Button>
-            </motion.div>
-          </div>
+              <Menu className="w-6 h-6" />
+            </button>
+          </nav>
+        </div>
 
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden p-2 text-white"
-            onClick={() => setMobileMenuOpen(true)}
-            aria-label="Open menu"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
-        </nav>
-      </div>
-
+      </header>
       {/* Mobile Menu Overlay */}
       <AnimatePresence>
         {mobileMenuOpen && (
@@ -151,10 +170,14 @@ export function Header() {
               initial="hidden"
               animate="visible"
               exit="exit"
+              onClick={closeMobileMenu}
               className="flex h-full flex-col px-6 pt-6 pb-8 bg-gradient-to-b from-[#D7171F] via-[#160000] to-black"
             >
               {/* Top bar */}
-              <div className="flex items-center justify-between mb-10">
+              <div
+                className="flex items-center justify-between mb-10"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <img
                   src="/logo-slipstream.svg"
                   alt="Slipstream"
@@ -176,6 +199,7 @@ export function Header() {
               <nav className="flex-1 flex items-center">
                 <motion.div
                   className="w-full rounded-[32px] border border-white/20 bg-gradient-to-b from-[#FF3838]/85 via-[#D7171F]/90 to-[#5A0508]/90 backdrop-blur-xl px-7 py-10 space-y-5 shadow-[0_18px_60px_rgba(0,0,0,0.7)] relative overflow-hidden"
+                  onClick={(e) => e.stopPropagation()}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
@@ -255,11 +279,13 @@ export function Header() {
               <motion.div
                 variants={socialsVariants}
                 className="flex items-center gap-6 pt-6 border-t border-white/10"
+                onClick={(e) => e.stopPropagation()}
               >
                 <a
                   href={siteConfig.socials.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={closeMobileMenu}
                   className="text-white/70 hover:text-white transition-colors"
                 >
                   <motion.span
@@ -275,6 +301,7 @@ export function Header() {
                   href={siteConfig.socials.youtube}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={closeMobileMenu}
                   className="text-white/70 hover:text-white transition-colors"
                 >
                   <motion.span
@@ -291,6 +318,6 @@ export function Header() {
           </motion.div>
         )}
       </AnimatePresence>
-    </header >
+    </>
   );
 }
