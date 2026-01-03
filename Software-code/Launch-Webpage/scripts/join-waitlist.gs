@@ -9,6 +9,9 @@ const COL_SOURCE = "Source";
 const COL_CREATED_AT = "CreatedAt";
 const COL_UPDATED_AT = "UpdatedAt";
 
+// Sender info
+const SENDER_NAME = "Slipstream"
+
 function doPost(e) {
   const lock = LockService.getScriptLock();
   try {
@@ -269,9 +272,11 @@ function findExistingEmailRow_(sheet, emailCol, emailLower) {
 // --- shared helpers ---
 
 function sendEmail_(to, subject, plainBody, htmlBody) {
-  // subject must be plain text; keep emoji, strip any tags if ever added
   const subjectPlain = String(subject).replace(/<[^>]*>?/gm, "");
-  GmailApp.sendEmail(to, subjectPlain, plainBody || "", { htmlBody: htmlBody });
+  GmailApp.sendEmail(to, subjectPlain, plainBody || "", {
+    htmlBody: htmlBody,
+    name: SENDER_NAME,
+  });
 }
 
 function emailFooterHtml_() {
