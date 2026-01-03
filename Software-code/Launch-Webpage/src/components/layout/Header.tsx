@@ -178,11 +178,13 @@ export function Header() {
                 className="flex items-center justify-between mb-10"
                 onClick={(e) => e.stopPropagation()}
               >
-                <img
-                  src="/logo-slipstream.svg"
-                  alt="Slipstream"
-                  className="h-10 w-auto drop-shadow-[0_0_16px_rgba(0,0,0,0.45)]"
-                />
+                <Link to="/" onClick={closeMobileMenu}>
+                  <img
+                    src="/logo-slipstream.svg"
+                    alt="Slipstream"
+                    className="h-20 w-auto drop-shadow-[0_0_16px_rgba(0,0,0,0.45)]"
+                  />
+                </Link>
                 <motion.button
                   onClick={() => setMobileMenuOpen(false)}
                   className="inline-flex items-center justify-center rounded-full border border-white/20 bg-black/40 p-3 backdrop-blur text-white"
