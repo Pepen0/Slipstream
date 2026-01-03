@@ -451,7 +451,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "mcu-platform.kicad_pro",
+    "filename": "capstone.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -567,7 +567,7 @@
       "include_excluded_from_bom": true,
       "name": "Default Editing",
       "sort_asc": true,
-      "sort_field": "Reference"
+      "sort_field": "Référence"
     },
     "connection_grid_size": 50.0,
     "drawing": {
@@ -609,6 +609,35 @@
     "subpart_first_id": 65,
     "subpart_id_separator": 0
   },
-  "sheets": [],
+  "sheets": [
+    [
+      "9d49a7f1-8254-4577-9243-2df57dda2580",
+      "Root"
+    ],
+    [
+      "84ee62e2-b5ac-4fde-ab06-7c8d6f2a7294",
+      "MCU"
+    ],
+    [
+      "32a80e87-c60d-4771-a2f6-b2044cd9d820",
+      "MCU_BOARD"
+    ],
+    [
+      "477414b8-b6ed-4daa-9465-d1ef950b3298",
+      "h-bridge"
+    ],
+    [
+      "55fad3e7-51b7-4030-9df0-fbee31967616",
+      "PSU"
+    ],
+    [
+      "84300e3d-2105-4080-b47b-1695c4ab24a4",
+      "H-BRIDGE_1"
+    ],
+    [
+      "7e375f6f-4d34-48d6-95d4-af1007367bad",
+      "H_BRIDGE_2"
+    ]
+  ],
   "text_variables": {}
 }
