@@ -130,3 +130,8 @@ fp-info-cache
 *.zip
 *.rar
 *.7z
+
+####################################
+# Kibot
+####################################
+Electronics/kibot_yaml/kicost_config_local.yaml
