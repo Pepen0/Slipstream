@@ -54,9 +54,14 @@ for proj in "${projects[@]}"; do
   sch="$proj_dir/$base.kicad_sch"
   pcb="$proj_dir/$base.kicad_pcb"
 
-  if [[ ! -f "$sch" || ! -f "$pcb" ]]; then
-    echo "Skipping $proj (missing $sch or $pcb)"
+  if [[ ! -f "$sch" ]]; then
+    echo "Skipping $proj (missing $sch)"
     continue
+  fi
+
+  has_pcb=true
+  if [[ ! -f "$pcb" ]] || ! grep -q "(layers" "$pcb"; then
+    has_pcb=false
   fi
 
   case "$variant" in
@@ -71,13 +76,16 @@ for proj in "${projects[@]}"; do
   common_args=(
     -c "$config"
     -e "$sch"
-    -b "$pcb"
     -d "$out_dir"
     -g "variant=$variant"
     -E "PROJECT_NAME=$base"
     -E "BOARD_NAME=$base"
     -E "SHEET_WKS=$sheet_wks"
   )
+
+  if [[ "$has_pcb" == true ]]; then
+    common_args+=(-b "$pcb")
+  fi
 
   if [[ -n "$revision" ]]; then
     common_args+=(-E "REVISION=$revision")
@@ -88,6 +96,11 @@ for proj in "${projects[@]}"; do
   fi
 
   echo "Running KiBot for $proj (variant=$variant)"
+  if [[ "$has_pcb" == false ]]; then
+    echo "PCB missing or invalid for $base; running schematic-only outputs."
+    kibot --skip-pre set_text_variables,draw_fancy_stackup,erc,drc "${common_args[@]}" pdf_schematic csv_bom
+    continue
+  fi
   case "$variant" in
     DRAFT)
       kibot --skip-pre set_text_variables,draw_fancy_stackup,erc,drc "${common_args[@]}" md_readme

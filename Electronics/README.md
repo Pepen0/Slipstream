@@ -114,10 +114,10 @@ You should move this file to your KiCad Themes folder.
 > [!CAUTION]
 > Under Linux, the ```.github``` folder from the template needs to be copied at the root of the project directory, as it is not copied when creating a project from a template in KiCad.
 
-6. Create a new `dev` branch. This will be the working branch. 
+6. Create a new feature branch for your work.
    
    ```
-   git checkout -b dev
+   git checkout -b feature/<short-description>
    ```
    
 7. Modify the following fields in [`kibot_main.yaml`](kibot_yaml/kibot_main.yaml#L556) according to your project:
@@ -190,11 +190,11 @@ This template is meant to be used in a CI/CD environment on GitHub. The workflow
 > [!NOTE]
 > KiCad 9 allows for fonts to be embedded in the schematic. However, it is still good practice to add the fonts in the folder mentioned.
 
-- There are two branches, a `main` and a `dev` branch. The `dev` branch is the working branch. The `main` should only be used for pull requests and releases.
+- Follow the repo guidelines: work on feature branches (`feature/*`, `fix/*`, `docs/*`) and open PRs to `main`.
 
 - Changes should be recorded in the [`CHANGELOG.md`](CHANGELOG.md) file, and should respect [semantic versioning guidelines](https://semver.org/) for [hardware](https://www.maskset.net/blog/2023/02/26/semantic-versioning-for-hardware/). The changes of the current version should be added under the `[Unreleased]` section.
 
-- The `variant` variable in [.github/workflows/ci.yaml](.github/workflows/ci.yaml#L21) should be selected according to the project progress.
+- The KiBot workflow is in [.github/workflows/kibot.yml](.github/workflows/kibot.yml). The `KIBOT_VARIANT` and `KICAD_VERSION` environment variables control the default variant and KiCad version.
 
   ```
     # Used variant. We assume:
@@ -203,16 +203,15 @@ This template is meant to be used in a CI/CD environment on GitHub. The workflow
     # CHECKED: will generate both schematic and PCB documents, with ERC/DRC
     # RELEASED: similar to CHECKED, automatically selected when pushing a tag to master
 
-    kibot_variant: CHECKED  
+    KIBOT_VARIANT: CHECKED
+    KICAD_VERSION: "9"
   ```
 
-- The `kicad_version` variable in [.github/workflows/ci.yaml](.github/workflows/ci.yaml#L24) should be selected according to the desired KiCad version. Supported versions are 8 and 9.
+- Pushes to feature branches and PRs to `main` run KiBot and upload generated documents as workflow artifacts. PR checks are informational and not required to merge.
 
-- You should work locally on the `dev` branch. When a change is made, the changes should be pushed to GitHub which will trigger the KiBot workflow. The generated files will be committed and pushed back to the repository.
+- Tags pushed on `main` run KiBot with `RELEASED` and attach artifacts to the GitHub Release.
 
-- After a successful KiBot run on the remote repository, you should pull back the changes into your local repository.
-
-- To avoid conflicts, you should avoid modifying the `.kicad_pro` file locally before pulling from the remote (after the completion of a KiBot run). Otherwise, you will need to solve merge conflicts when pulling the file.
+- Generated outputs are **not** committed back to the repository; use workflow artifacts or release assets instead.
 
 - To synchronise the Revision History of the schematic with the `CHANGELOG.md` file, you should create new text variables in [kibot_pre_set_text_variables.yaml](kibot_yaml/kibot_pre_set_text_variables.yaml#L39). The text variables should then be added in the text boxes of the Revision History sheet.
 
@@ -223,7 +222,7 @@ This template is meant to be used in a CI/CD environment on GitHub. The workflow
     command: '@GET_BODY_CMD@ x.x.x'
   ```
 
-- When ready for a release, you should open a pull request and merge the changes into main. Currently the workflow is set **not to trigger on pull requests**, as we assume the changes coming from `dev` are up-to-date.
+- If a project doesn't have a valid PCB yet, CI will fall back to schematic-only outputs for that project.
 
 - To create a release, push a tag on the `main` branch with the version number (for example `x.x.x = 1.1.1`):
 
@@ -242,15 +241,10 @@ This template is meant to be used in a CI/CD environment on GitHub. The workflow
   git pull
   ```
 
-  And you will also need to rebase your `dev` branch to the `main` branch:
-
-  ```
-  git checkout dev
-  git rebase main
-  ```
+  If you still have feature branches open, rebase them onto `main` as needed.
 
 > [!NOTE]
-> You are free to modify the [.github/workflows/ci.yaml](.github/workflows/ci.yaml) file to suit your workflow needs.
+> You are free to modify the [.github/workflows/kibot.yml](.github/workflows/kibot.yml) file to suit your workflow needs.
 
 ***
 
@@ -262,7 +256,7 @@ The easiest way to install KiBot if custom development is not required is with d
 
 1.  Install **and run** [Docker Desktop](https://docs.docker.com/desktop/)
   
-2.  Run the script `docker_kibot_windows.bat` or `docker_kibot_linux.sh` depending on your platform in [`kibot_resources/scripts`](kibot_resources/scripts). Currently tested on Windows and WSL2. This should pull and start a docker running the `dev` branch of KiBot. You should have access to your local files.
+2.  Run the script `docker_kibot_windows.bat` or `docker_kibot_linux.sh` depending on your platform in [`kibot_resources/scripts`](kibot_resources/scripts). Currently tested on Windows and WSL2. This should pull and start a docker running the KiBot dev image. You should have access to your local files.
 
 ***
 **KiCad 8**
@@ -295,19 +289,13 @@ The easiest way to install KiBot if custom development is not required is with d
   ```
   ***
 
-Once in the docker, you can use the [`kibot_launch.sh`](kibot_launch.sh) script to generate and visualize outputs.
+Once in the docker, run the same script used by CI from the repo root:
 
 ```
-./kibot_launch.sh
+KIBOT_VARIANT=CHECKED bash scripts/kibot_ci.sh
 ```
 
-You can get more information about the usage with
-
-```
-./kibot_launch.sh --help
-```
-
-When running the script with no arguments, it will default to the `CHECKED` variant and generate all outputs. A variant can be set with the `-v` flag. If a custom variant is used (i.e. other than the default variants `DRAFT`, `PRELIMINARY`, `CHECKED`, `RELEASED`), the outputs will be generated in the `Variants` folder.
+Set `KIBOT_VARIANT` to control the variant. Custom variants (i.e. other than `DRAFT`, `PRELIMINARY`, `CHECKED`, `RELEASED`) are written to the `Variants` folder.
 
 Each default variant will have different KiBot flags, which is useful for different phases of the project:
 
@@ -336,18 +324,7 @@ Each default variant will have different KiBot flags, which is useful for differ
 ### Calculating Board Costs (KiCost)
 
 [KiCost](https://github.com/hildogjr/KiCost) is used to estimate costs and get a nice XLSX spreadsheet with part specs. In this project, we run KiCost locally to avoid too many API calls. Also, DigiKey's API [doesn't seem to work](https://github.com/set-soft/kicost_ci_test) in a CI/CD environment.
-To run KiCost, you will need to create a file `kicost_config_local.yaml` in [`kicost_yaml`](kicost_yaml). You can use the [`kicost_config_local_template.yaml`](kicost_yaml/kicost_config_local.yaml) file as a base. Once you have filled in the API keys for the desired manufacturers, KiCost can be run with:
-
-```
-./kibot_launch.sh --costs
-```
-This will create a spreadsheet in [`Manufacturing/Assembly`](Manufacturing/Assembly/) folder.
-
-You can also specify a variant if desired:
-
-```
-./kibot_launch.sh -v <VARIANT> --costs
-```
+To run KiCost, you will need to create a file `kicost_config_local.yaml` in [`kicost_yaml`](kicost_yaml). You can use the [`kicost_config_local_template.yaml`](kicost_yaml/kicost_config_local.yaml) file as a base. Once you have filled in the API keys for the desired manufacturers, run KiBot locally with the `xlsx_bom` output and the `KICOST_CONFIG` environment variable. This will create a spreadsheet in [`Manufacturing/Assembly`](Manufacturing/Assembly/) folder.
 
 For more information, please have a look at the official [documentation](https://hildogjr.github.io/KiCost/docs/_build/singlehtml/index.html)
 
@@ -370,15 +347,12 @@ For more information, please have a look at the official [documentation](https:/
 
 ### Visualizing Outputs in a Webpage
 
-The outputs of KiBot can be visualized in a webpage (excepted for the `DRAFT` variant). This can be done by running:
+The outputs of KiBot can be visualized in a webpage (excepted for the `DRAFT` variant). Serve the project output folder with any static server, for example:
 
 ```
-./kibot_launch.sh --server
+python3 -m http.server 8000
 ```
-And opening `http://localhost:8000` in your favorite browser. The server can be shut down with:
-```
-./kibot_launch.sh --stop-server
-```
+Then open `http://localhost:8000` in your favorite browser.
 
 > [!TIP]
 > You can also give the port as an argument if you want to use another port.

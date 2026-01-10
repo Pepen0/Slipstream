@@ -110,6 +110,7 @@ Provide evidence appropriate to your change:
   * Build/format/lint jobs relevant to changed areas.
   * Any existing unit tests.
   * Fix or justify failures before requesting review.
+  * Exception: the KiBot (KiCad documentation) check on PRs is informational and may fail for schematic-only projects; do not block PRs on it. Release/tag runs should pass.
 
 ---
 
@@ -160,4 +161,3 @@ git rebase origin/main
 git push -u origin HEAD
 # Open PR to main and request 2 reviews
 ```
-
