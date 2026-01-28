@@ -1,0 +1,7 @@
+../Core/Src/main.c:61:16:clamp_i32	24	static
+../Core/Src/main.c:73:5:main	272	static
+../Core/Src/main.c:164:6:SystemClock_Config	72	static
+../Core/Src/main.c:198:13:MX_ADC1_Init	24	static
+../Core/Src/main.c:237:13:MX_USART2_UART_Init	8	static
+../Core/Src/main.c:261:13:MX_GPIO_Init	48	static
+../Core/Src/main.c:295:6:Error_Handler	8	static,ignoring_inline_asm

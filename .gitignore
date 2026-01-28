@@ -1,52 +1,22 @@
-# Ignore environment files
-.env
+# STM32CubeIDE / Eclipse
+/.settings/
+/Debug/
+/Release/
+/build/
+/*.launch
+*.log
+*.tmp
+.metadata/
 
-# Ignore LaTeX build files
-docs/Latex/System-Architecture.aux
-docs/Latex/System-Architecture.fdb_latexmk
-docs/Latex/System-Architecture.log
-docs/Latex/System-Architecture.fls
-docs/Latex/System-Architecture.pdf
-docs/Latex/System-Architecture.synctex.gz
+# Generated build outputs (sometimes in project root)
+*.o
+*.d
+*.su
+*.elf
+*.map
+*.list
+*.cyclo
 
-# Ignore macOS system files
+# OS junk
 .DS_Store
-docs/.DS_Store
-
-# Ignore Visual Studio Code settings
-.vscode/
-
-# Ignore Assetto Corsa telemetry build files
-Software-code/Asseto-Corsa-telemetry/%HOMEPATH%/
-Software-code/Asseto-Corsa-telemetry/telemetry/
-Software-code/Asseto-Corsa-telemetry/cpp/build/
-Software-code/Asseto-Corsa-telemetry/build/CMakeFiles
-Software-code/Asseto-Corsa-telemetry/build/CMakeCache.txt
-Software-code/Asseto-Corsa-telemetry/vcpkg
-Software-code/Asseto-Corsa-telemetry/build_generated/
-Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/
-Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/v1/
-Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/v1/telemetry.grpc.pb.cc
-
-# Ignore my reports 
-docs/Reports
-
-# Ignore practice schematics
-docs/Schematics/GPT-Backup
-
-# Ignore specific scripts and text files
-concat.sh
-context.txt
-Software-code/concat.sh
-Software-code/context.txt
-Software-code/Asseto-Corsa-telemetry/concat.sh
-Software-code/Asseto-Corsa-telemetry/context.txt
-Software-code/Asseto-Corsa-telemetry/combined_dump.txt
-/Software-code/Asseto-Corsa-telemetry/build/_generated/telemetry/v1
-/Software-code/Asseto-Corsa-telemetry/build
-Software-code/Asseto-Corsa-telemetry/out.csv
-Software-code/Asseto-Corsa-telemetry/out.parquet
-Software-code/Asseto-Corsa-telemetry/server/__pycache__/reference_ingest_server.cpython-313.pyc
-Software-code/Asseto-Corsa-telemetry/telemetry__init.py
-Software-code/Asseto-Corsa-telemetry/telemetry_record.pb.gz
-Software-code/Asseto-Corsa-telemetry/tools/__pycache__/recorder_reader.cpython-313.pyc
+Thumbs.db
