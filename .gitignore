@@ -1,52 +1,137 @@
-# Ignore environment files
+####################################
+# Environment / Secrets
+####################################
 .env
 
-# Ignore LaTeX build files
-docs/Latex/System-Architecture.aux
-docs/Latex/System-Architecture.fdb_latexmk
-docs/Latex/System-Architecture.log
-docs/Latex/System-Architecture.fls
-docs/Latex/System-Architecture.pdf
-docs/Latex/System-Architecture.synctex.gz
 
-# Ignore macOS system files
+####################################
+# LaTeX Build Artifacts
+####################################
+docs/Latex/*.aux
+docs/Latex/*.fdb_latexmk
+docs/Latex/*.log
+docs/Latex/*.fls
+docs/Latex/*.pdf
+docs/Latex/*.synctex.gz
+
+
+####################################
+# OS / Editor Junk
+####################################
 .DS_Store
 docs/.DS_Store
-
-# Ignore Visual Studio Code settings
 .vscode/
+.idea/
 
-# Ignore Assetto Corsa telemetry build files
-Software-code/Asseto-Corsa-telemetry/%HOMEPATH%/
-Software-code/Asseto-Corsa-telemetry/telemetry/
-Software-code/Asseto-Corsa-telemetry/cpp/build/
-Software-code/Asseto-Corsa-telemetry/build/CMakeFiles
+
+####################################
+# Assetto Corsa Telemetry – Build & Generated Files
+####################################
+Software-code/Asseto-Corsa-telemetry/build/
+Software-code/Asseto-Corsa-telemetry/build/*
+Software-code/Asseto-Corsa-telemetry/build/CMakeFiles/
 Software-code/Asseto-Corsa-telemetry/build/CMakeCache.txt
-Software-code/Asseto-Corsa-telemetry/vcpkg
+
 Software-code/Asseto-Corsa-telemetry/build_generated/
-Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/
-Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/v1/
-Software-code/Asseto-Corsa-telemetry/build_generated/telemetry/v1/telemetry.grpc.pb.cc
+Software-code/Asseto-Corsa-telemetry/build_generated/**
 
-# Ignore my reports 
-docs/Reports
+Software-code/Asseto-Corsa-telemetry/telemetry/
+Software-code/Asseto-Corsa-telemetry/vcpkg/
 
-# Ignore practice schematics
-docs/Schematics/GPT-Backup
+Software-code/Asseto-Corsa-telemetry/out.csv
+Software-code/Asseto-Corsa-telemetry/out.parquet
+Software-code/Asseto-Corsa-telemetry/combined_dump.txt
+Software-code/Asseto-Corsa-telemetry/telemetry_record.pb.gz
 
-# Ignore specific scripts and text files
+
+####################################
+# Python Cache / Bytecode
+####################################
+__pycache__/
+*.pyc
+
+Software-code/Asseto-Corsa-telemetry/server/__pycache__/
+Software-code/Asseto-Corsa-telemetry/tools/__pycache__/
+
+
+####################################
+# Generated gRPC / Protobuf Files
+####################################
+Software-code/Asseto-Corsa-telemetry/**/telemetry.grpc.pb.cc
+Software-code/Asseto-Corsa-telemetry/build/_generated/
+Software-code/Asseto-Corsa-telemetry/build/_generated/**
+
+
+####################################
+# Local Scripts / Context Dumps
+####################################
 concat.sh
 context.txt
+
 Software-code/concat.sh
 Software-code/context.txt
 Software-code/Asseto-Corsa-telemetry/concat.sh
 Software-code/Asseto-Corsa-telemetry/context.txt
-Software-code/Asseto-Corsa-telemetry/combined_dump.txt
-/Software-code/Asseto-Corsa-telemetry/build/_generated/telemetry/v1
-/Software-code/Asseto-Corsa-telemetry/build
-Software-code/Asseto-Corsa-telemetry/out.csv
-Software-code/Asseto-Corsa-telemetry/out.parquet
-Software-code/Asseto-Corsa-telemetry/server/__pycache__/reference_ingest_server.cpython-313.pyc
-Software-code/Asseto-Corsa-telemetry/telemetry__init.py
-Software-code/Asseto-Corsa-telemetry/telemetry_record.pb.gz
-Software-code/Asseto-Corsa-telemetry/tools/__pycache__/recorder_reader.cpython-313.pyc
+
+
+####################################
+# KiCad – Temporary & Backup Files
+####################################
+*.000
+*.bak
+*.bck
+*.kicad_pcb-bak
+*.sch-bak
+*~
+_autosave-*
+*.tmp
+*-save.pro
+*-save.kicad_pcb
+fp-info-cache
+
+
+####################################
+# KiCad – Netlist & Autorouter
+####################################
+*.net
+*.dsn
+*.ses
+
+
+####################################
+# KiCad – Generated / Cache Folders (KiCad 6+)
+####################################
+.kicad-cache/
+.kicad-temp/
+.kicad-symbols/
+.kicad-footprints/
+
+
+####################################
+# Fabrication Outputs (Regenerated)
+####################################
+*.gbr
+*.gbl
+*.gtl
+*.gts
+*.gto
+*.gbs
+*.gbo
+*.drl
+*.map
+*.job
+*.pos
+*.csv
+
+
+####################################
+# Archives / Exported Bundles
+####################################
+*.zip
+*.rar
+*.7z
+
+####################################
+# Kibot
+####################################
+Electronics/kibot_yaml/kicost_config_local.yaml

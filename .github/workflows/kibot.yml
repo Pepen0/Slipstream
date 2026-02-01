@@ -1,0 +1,99 @@
+name: KiBot CI
+
+on:
+  push:
+    branches-ignore:
+      - main
+    tags:
+      - "*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  KIBOT_VARIANT: CHECKED
+  KICAD_VERSION: "9"
+
+jobs:
+  kibot:
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Select run mode
+        id: run_mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref_type="${GITHUB_REF_TYPE:-}"
+          ref_slug="${GITHUB_REF_NAME//\//-}"
+          if [[ "$ref_type" == "tag" ]]; then
+            echo "variant=RELEASED" >> "$GITHUB_OUTPUT"
+            echo "is_release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "variant=${KIBOT_VARIANT}" >> "$GITHUB_OUTPUT"
+            echo "is_release=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "ref_slug=$ref_slug" >> "$GITHUB_OUTPUT"
+
+      - name: Run KiBot (all projects)
+        shell: bash
+        run: |
+          set -euo pipefail
+          image="ghcr.io/inti-cmnb/kicad${KICAD_VERSION}_auto_full:dev"
+          docker run --rm \
+            -e GITHUB_REPOSITORY="${GITHUB_REPOSITORY}" \
+            -e GITHUB_REF_NAME="${GITHUB_REF_NAME}" \
+            -e KIBOT_VARIANT="${{ steps.run_mode.outputs.variant }}" \
+            -e KIBOT_IS_RELEASE="${{ steps.run_mode.outputs.is_release }}" \
+            -e GITHUB_WORKSPACE="/workspace" \
+            -v "$GITHUB_WORKSPACE":/workspace \
+            -w /workspace \
+            "$image" \
+            bash /workspace/scripts/kibot_ci.sh
+
+      - name: Package KiBot artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref_slug="${{ steps.run_mode.outputs.ref_slug }}"
+          dist_dir="$GITHUB_WORKSPACE/kibot-artifacts"
+          rm -rf "$dist_dir"
+          mkdir -p "$dist_dir"
+          while IFS= read -r proj; do
+            proj_dir="$(dirname "$proj")"
+            name="$(basename "$proj" .kicad_pro)"
+            paths=()
+            for candidate in Manufacturing Schematic Reports HTML KiRI KiCanvas Variants README.md; do
+              if [[ -e "$proj_dir/$candidate" ]]; then
+                paths+=("$candidate")
+              fi
+            done
+            if (( ${#paths[@]} == 0 )); then
+              echo "No outputs found for $name, skipping artifact."
+              continue
+            fi
+            tarball="$dist_dir/${name}-kibot-${ref_slug}.tar.gz"
+            tar -czf "$tarball" -C "$proj_dir" "${paths[@]}"
+          done < <(find "$GITHUB_WORKSPACE/Electronics/Circuits" -name '*.kicad_pro' -print | sort)
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kibot-${{ steps.run_mode.outputs.ref_slug }}
+          path: kibot-artifacts/*.tar.gz
+          if-no-files-found: error
+
+      - name: Publish release assets
+        if: steps.run_mode.outputs.is_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: kibot-artifacts/*.tar.gz

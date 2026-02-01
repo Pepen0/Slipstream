@@ -1,0 +1,134 @@
+(kicad_sch
+	(version 20250114)
+	(generator "eeschema")
+	(generator_version "9.0")
+	(uuid "7d3f06e1-1fd4-4765-8d31-7b6357badeff")
+	(paper "A4")
+	(lib_symbols)
+	(sheet
+		(at 132.08 29.21)
+		(size 138.43 39.37)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "32a80e87-c60d-4771-a2f6-b2044cd9d820")
+		(property "Sheetname" "MCU_BOARD"
+			(at 132.08 28.4984 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "MCU_BOARD.kicad_sch"
+			(at 132.08 69.1646 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "capstone"
+				(path "/9d49a7f1-8254-4577-9243-2df57dda2580/84ee62e2-b5ac-4fde-ab06-7c8d6f2a7294"
+					(page "3")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 143.51 96.52)
+		(size 114.3 43.18)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "477414b8-b6ed-4daa-9465-d1ef950b3298")
+		(property "Sheetname" "h-bridge"
+			(at 143.51 95.8084 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "H-bridge_drive.kicad_sch"
+			(at 143.51 140.2846 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "capstone"
+				(path "/9d49a7f1-8254-4577-9243-2df57dda2580/84ee62e2-b5ac-4fde-ab06-7c8d6f2a7294"
+					(page "4")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 39.37 90.17)
+		(size 74.93 53.34)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke
+			(width 0.1524)
+			(type solid)
+		)
+		(fill
+			(color 0 0 0 0.0000)
+		)
+		(uuid "55fad3e7-51b7-4030-9df0-fbee31967616")
+		(property "Sheetname" "PSU"
+			(at 39.37 89.4584 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left bottom)
+			)
+		)
+		(property "Sheetfile" "untitled.kicad_sch"
+			(at 39.37 144.0946 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left top)
+			)
+		)
+		(instances
+			(project "capstone"
+				(path "/9d49a7f1-8254-4577-9243-2df57dda2580/84ee62e2-b5ac-4fde-ab06-7c8d6f2a7294"
+					(page "5")
+				)
+			)
+		)
+	)
+)
