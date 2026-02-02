@@ -65,13 +65,9 @@ Software-code/Asseto-Corsa-telemetry/build/_generated/**
 ####################################
 # Local Scripts / Context Dumps
 ####################################
-concat.sh
-context.txt
+*concat.sh
+*context.txt
 
-Software-code/concat.sh
-Software-code/context.txt
-Software-code/Asseto-Corsa-telemetry/concat.sh
-Software-code/Asseto-Corsa-telemetry/context.txt
 
 
 ####################################
@@ -88,6 +84,7 @@ _autosave-*
 *-save.pro
 *-save.kicad_pcb
 fp-info-cache
+*.kicad_sch.lck
 
 
 ####################################
