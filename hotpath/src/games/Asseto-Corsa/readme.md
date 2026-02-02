@@ -8,19 +8,13 @@ Stream live telemetry from Assetto Corsa via a small Windows C++ bridge into a P
 
 ```
 .
-├── cpp/                      # Windows bridge (C++/gRPC) + recorder
-│   ├── src/
-│   └── CMakeLists.txt
-├── proto/
-│   └── telemetry/v1/telemetry.proto  # Protobuf + gRPC service
-├── server/
-│   └── reference_ingest_server.py    # Async Python ingest (gRPC)
-├── tools/
-│   ├── recorder_reader.py    # .pb.gz -> Parquet converter
-│   ├── view_parquet.py       # console viewer / CSV export
-│   └── plot_parquet.py       # quick matplotlib plots
-├── requirements.txt
-└── readme.md
+├── CMakeLists.txt                       # Windows bridge build
+├── hotpath/src/games/Asseto-Corsa/      # Windows bridge (C++/gRPC) + recorder
+├── shared/protos/telemetry/v1/telemetry.proto  # Protobuf + gRPC service
+├── scripts/gen_proto_py.sh              # Python stub generator
+├── server/reference_ingest_server.py    # Async Python ingest (gRPC)
+├── tools/                               # Parquet conversion + plotting tools
+└── hotpath/src/games/Asseto-Corsa/requirements.txt
 ```
 
 ---
@@ -39,13 +33,21 @@ Create/activate a virtualenv (recommended), then:
 
 ```powershell
 py -m pip install --upgrade pip
-py -m pip install -r requirements.txt
+py -m pip install -r hotpath/src/games/Asseto-Corsa/requirements.txt
 ```
 
 Generate Python protobuf and gRPC stubs:
 
 ```powershell
-python -m grpc_tools.protoc -I ./proto --python_out=. --grpc_python_out=. proto/telemetry/v1/telemetry.proto
+# From repo root (PowerShell)
+python -m grpc_tools.protoc -I ./shared/protos --python_out=. --grpc_python_out=. shared/protos/telemetry/v1/telemetry.proto
+```
+
+Or use the helper script:
+
+```powershell
+# From repo root (PowerShell + Git Bash)
+bash scripts/gen_proto_py.sh
 ```
 
 > We had a bunch of issues with protobuf imports, so ensure `telemetry/` and `telemetry/v1/` are Python packages by adding empty `__init__.py` files so imports like `import telemetry.v1.telemetry_pb2` work.
@@ -67,7 +69,7 @@ git clone https://github.com/microsoft/vcpkg $env:HOMEPATH\vcpkg
 ```powershell
 # From repo root
 $VCPKG = "$env:HOMEPATH\vcpkg"
-cmake -S cpp -B build `
+cmake -S . -B build `
   -DCMAKE_TOOLCHAIN_FILE="$VCPKG\scripts\buildsystems\vcpkg.cmake" `
   -DVCPKG_TARGET_TRIPLET=x64-windows `
   -DCMAKE_BUILD_TYPE=Release
@@ -145,7 +147,7 @@ python tools/plot_parquet.py out.parquet --cols speed_kmh rpm gear --limit 5000
 Install with:
 
 ```powershell
-py -m pip install -r requirements.txt
+py -m pip install -r hotpath/src/games/Asseto-Corsa/requirements.txt
 ```
 
 ---

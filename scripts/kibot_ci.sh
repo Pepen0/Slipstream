@@ -6,6 +6,8 @@ electronics_dir="$workspace/Electronics"
 config="$electronics_dir/kibot_yaml/kibot_main.yaml"
 changelog="$electronics_dir/CHANGELOG.md"
 sheet_wks="$electronics_dir/Templates/KDT_Template_PCB_GIT_A4.kicad_wks"
+schematics_root="${KIBOT_SCHEMATICS_DIR:-$workspace/docs/hardware/schematics}"
+legacy_schematics_root="$workspace/docs/schematics"
 git_url=""
 
 if [[ -n "${GITHUB_REPOSITORY:-}" ]]; then
@@ -40,6 +42,34 @@ else
   all_group="all_group"
 fi
 
+resolve_schematic() {
+  local proj_dir="$1"
+  local base="$2"
+  local candidate="$proj_dir/$base.kicad_sch"
+
+  if [[ -f "$candidate" ]]; then
+    echo "$candidate"
+    return 0
+  fi
+
+  for root in "$schematics_root" "$legacy_schematics_root"; do
+    if [[ -z "$root" || ! -d "$root" ]]; then
+      continue
+    fi
+    if [[ -f "$root/$base.kicad_sch" ]]; then
+      echo "$root/$base.kicad_sch"
+      return 0
+    fi
+    candidate="$(find "$root" -type f -name "$base.kicad_sch" -print -quit 2>/dev/null || true)"
+    if [[ -n "$candidate" ]]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+
+  echo "$proj_dir/$base.kicad_sch"
+}
+
 cd "$electronics_dir"
 
 mapfile -t projects < <(find Circuits -name '*.kicad_pro' -print | sort)
@@ -51,12 +81,15 @@ fi
 for proj in "${projects[@]}"; do
   proj_dir="$(dirname "$proj")"
   base="$(basename "$proj" .kicad_pro)"
-  sch="$proj_dir/$base.kicad_sch"
+  sch="$(resolve_schematic "$proj_dir" "$base")"
   pcb="$proj_dir/$base.kicad_pcb"
 
   if [[ ! -f "$sch" ]]; then
-    echo "Skipping $proj (missing $sch)"
+    echo "Skipping $proj (missing schematic: $sch)"
     continue
+  fi
+  if [[ "$sch" != "$proj_dir/$base.kicad_sch" ]]; then
+    echo "Using schematic override: $sch"
   fi
 
   has_pcb=true
