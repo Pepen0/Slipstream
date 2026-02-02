@@ -135,3 +135,17 @@ fp-info-cache
 # Kibot
 ####################################
 Electronics/kibot_yaml/kicost_config_local.yaml
+
+
+####################################
+# PlatformIO
+####################################
+.pio/
+.pioenvs/
+.piolibdeps/
+
+
+####################################
+# Python virtualenv
+####################################
+.venv/
