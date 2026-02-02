@@ -3,14 +3,32 @@ project(SlipstreamTelemetryBridge LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+if (NOT WIN32)
+  message(FATAL_ERROR "telemetry_bridge is Windows-only (Win32 shared memory + RPC). Configure on Windows.")
+endif()
 add_definitions(-D_WIN32_WINNT=0x0A00)
 
 find_package(Protobuf CONFIG REQUIRED)
 find_package(gRPC CONFIG REQUIRED)
 find_package(ZLIB REQUIRED)
 
-set(PROTO_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../proto)
-set(PROTO_FILE ${PROTO_ROOT}/telemetry/v1/telemetry.proto)
+set(PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/shared/protos")
+set(PROTO_FILE "${PROTO_ROOT}/telemetry/v1/telemetry.proto")
+if (NOT EXISTS "${PROTO_FILE}")
+  set(PROTO_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/proto")
+  set(PROTO_FILE "${PROTO_ROOT}/telemetry/v1/telemetry.proto")
+endif()
+if (NOT EXISTS "${PROTO_FILE}")
+  message(FATAL_ERROR "Telemetry proto not found. Checked shared/protos and proto.")
+endif()
+
+set(HOTPATH_DIR "${CMAKE_CURRENT_SOURCE_DIR}/hotpath/src/games/Asseto-Corsa")
+if (NOT EXISTS "${HOTPATH_DIR}/main.cpp")
+  set(HOTPATH_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
+endif()
+if (NOT EXISTS "${HOTPATH_DIR}/main.cpp")
+  message(FATAL_ERROR "Hotpath sources not found. Checked hotpath/src/games/Asseto-Corsa and src.")
+endif()
 
 set(GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/_generated)
 set(GEN_SUBDIR ${GEN_DIR}/telemetry/v1)
@@ -58,10 +76,10 @@ target_include_directories(telemetry_proto PUBLIC ${GEN_DIR})
 target_link_libraries(telemetry_proto PUBLIC protobuf::libprotobuf gRPC::grpc++)
 
 add_executable(telemetry_bridge
-  src/main.cpp
-  src/recorder.cpp
-  src/recorder.hpp
-  src/ac_shmem.hpp
+  ${HOTPATH_DIR}/main.cpp
+  ${HOTPATH_DIR}/recorder.cpp
+  ${HOTPATH_DIR}/recorder.hpp
+  ${HOTPATH_DIR}/ac_shmem.hpp
 )
 target_link_libraries(telemetry_bridge
   PRIVATE
