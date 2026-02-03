@@ -9,6 +9,8 @@ Update pin mappings and timing in `firmware/mcu/include/app_config.h`:
 - `PWM_EN_PIN` (gate/driver enable)
 - `LED_PIN`
 - `APP_HEARTBEAT_TIMEOUT_MS`
+- `APP_TORQUE_DECAY_MS`
+- `APP_STATUS_PERIOD_MS`
 
 > If you change the E‑Stop pin, update `EXTI` IRQ selection in `firmware/mcu/src/safety.c`.
 
@@ -27,6 +29,24 @@ CRC16-CCITT over header+payload (init 0xFFFF)
 ```
 
 Send a heartbeat packet at least every 100 ms to keep the MCU in **Active**.
+
+## Torque decay ramp
+
+On heartbeat loss, the MCU enters **Fault** and applies a linear torque‑decay ramp over `APP_TORQUE_DECAY_MS`, then disables PWM. E‑Stop and USB disconnect still force an immediate cutoff.
+
+## Status telemetry (MCU → PC)
+
+The MCU sends a `STATUS` frame every `APP_STATUS_PERIOD_MS` with this payload:
+
+```
+struct mcu_status_t {
+  uint32 uptime_ms;
+  uint32 last_heartbeat_ms;
+  uint8  state;
+  uint8  flags;   // bit0 USB, bit1 E-Stop, bit2 PWM, bit3 Decay
+  uint16 reserved;
+}
+```
 
 ## LED states
 
