@@ -37,6 +37,8 @@ typedef struct {
 
 bool protocol_try_parse(ring_buffer_t *rb, protocol_frame_t *out);
 uint16_t protocol_crc(const protocol_header_t *hdr, const uint8_t *payload, size_t len);
+size_t protocol_build_frame(uint8_t type, uint32_t seq, const uint8_t *payload, size_t len,
+                            uint8_t *out, size_t out_max);
 
 #ifdef __cplusplus
 }

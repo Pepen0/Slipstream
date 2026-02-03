@@ -5,6 +5,11 @@
 // Safety timing
 #define APP_HEARTBEAT_TIMEOUT_MS 100u
 #define APP_WATCHDOG_TIMEOUT_MS 200u
+#define APP_TORQUE_DECAY_MS 100u
+#define APP_TORQUE_DECAY_WINDOW_MS 10u
+
+// Status telemetry
+#define APP_STATUS_PERIOD_MS 100u
 
 // LED status
 #define LED_GPIO_PORT GPIOC

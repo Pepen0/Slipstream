@@ -1,6 +1,7 @@
 #include "stm32f1xx_hal.h"
 #include "app_config.h"
 #include "mcu_core.h"
+#include "mcu_status.h"
 #include "protocol.h"
 #include "usb_cdc.h"
 #include "led.h"
@@ -29,9 +30,12 @@ int main(void) {
   usb_cdc_init();
 
   mcu_core_t core;
-  mcu_core_init(&core, HAL_GetTick(), APP_HEARTBEAT_TIMEOUT_MS);
+  mcu_core_init(&core, HAL_GetTick(), APP_HEARTBEAT_TIMEOUT_MS, APP_TORQUE_DECAY_MS);
 
   protocol_frame_t frame;
+  uint32_t status_seq = 0;
+  uint32_t last_status_ms = 0;
+  uint8_t status_buf[sizeof(protocol_header_t) + sizeof(mcu_status_t) + sizeof(uint16_t)] = {0};
 
   while (1) {
     uint32_t now = HAL_GetTick();
@@ -51,8 +55,20 @@ int main(void) {
 
     mcu_core_tick(&core, now);
 
+    float torque_scale = mcu_core_torque_scale(&core, now);
     if (mcu_core_should_energize(&core, now)) {
-      safety_set_pwm_enabled(true);
+      if (torque_scale >= 0.99f) {
+        safety_set_pwm_enabled(true);
+      } else {
+        uint32_t window = APP_TORQUE_DECAY_WINDOW_MS;
+        if (window == 0) {
+          safety_set_pwm_enabled(false);
+        } else {
+          uint32_t phase = now % window;
+          uint32_t on_time = (uint32_t)(torque_scale * (float)window);
+          safety_set_pwm_enabled(phase < on_time);
+        }
+      }
     } else {
       safety_force_stop();
     }
@@ -73,6 +89,26 @@ int main(void) {
     }
     led_set_state(led_state);
     led_tick(now);
+
+    if (usb_ok && (now - last_status_ms) >= APP_STATUS_PERIOD_MS) {
+      last_status_ms = now;
+      mcu_status_t status = {0};
+      status.uptime_ms = now;
+      status.last_heartbeat_ms = core.last_heartbeat_ms;
+      status.state = (uint8_t)mcu_core_state(&core);
+      status.flags = 0;
+      if (core.usb_connected) status.flags |= MCU_STATUS_FLAG_USB;
+      if (core.estop_active) status.flags |= MCU_STATUS_FLAG_ESTOP;
+      if (safety_is_pwm_enabled()) status.flags |= MCU_STATUS_FLAG_PWM;
+      if (torque_scale < 1.0f && torque_scale > 0.0f) status.flags |= MCU_STATUS_FLAG_DECAY;
+
+      size_t out_len = protocol_build_frame(PROTOCOL_TYPE_STATUS, status_seq++,
+                                            (const uint8_t *)&status, sizeof(status),
+                                            status_buf, sizeof(status_buf));
+      if (out_len > 0) {
+        usb_cdc_write(status_buf, out_len);
+      }
+    }
 
     HAL_IWDG_Refresh(&hiwdg);
   }
