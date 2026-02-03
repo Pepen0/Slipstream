@@ -1,0 +1,31 @@
+name: PC Heartbeat CI
+
+on:
+  push:
+    paths:
+      - 'hotpath/services/heartbeat/**'
+      - '.github/workflows/pc-heartbeat.yml'
+  pull_request:
+    paths:
+      - 'hotpath/services/heartbeat/**'
+      - '.github/workflows/pc-heartbeat.yml'
+  workflow_dispatch:
+
+jobs:
+  heartbeat-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: |
+          cmake -S hotpath/services/heartbeat -B hotpath/services/heartbeat/build
+
+      - name: Build
+        run: |
+          cmake --build hotpath/services/heartbeat/build
+
+      - name: Run tests
+        run: |
+          ctest --test-dir hotpath/services/heartbeat/build --output-on-failure

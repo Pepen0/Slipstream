@@ -143,6 +143,12 @@ Electronics/kibot_yaml/kicost_config_local.yaml
 
 
 ####################################
+# CMake build outputs
+####################################
+hotpath/services/heartbeat/build/
+
+
+####################################
 # Python virtualenv
 ####################################
 .venv/
