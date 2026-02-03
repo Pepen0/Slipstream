@@ -146,6 +146,7 @@ Electronics/kibot_yaml/kicost_config_local.yaml
 # CMake build outputs
 ####################################
 hotpath/services/heartbeat/build/
+hotpath/services/physics/build/
 
 
 ####################################
