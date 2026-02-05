@@ -25,8 +25,18 @@ else()
   target_sources(physics_core PRIVATE src/assetto_corsa_adapter_stub.cpp)
 endif()
 
-add_executable(physics_tests tests/test_filters.cpp tests/test_transform.cpp tests/test_kinematics.cpp tests/test_engine.cpp)
-target_link_libraries(physics_tests PRIVATE physics_core)
-
 enable_testing()
-add_test(NAME physics COMMAND physics_tests)
+
+set(PHYSICS_TEST_SOURCES
+  tests/test_filters.cpp
+  tests/test_transform.cpp
+  tests/test_kinematics.cpp
+  tests/test_engine.cpp
+)
+
+foreach(test_src IN LISTS PHYSICS_TEST_SOURCES)
+  get_filename_component(test_name ${test_src} NAME_WE)
+  add_executable(${test_name} ${test_src})
+  target_link_libraries(${test_name} PRIVATE physics_core)
+  add_test(NAME ${test_name} COMMAND ${test_name})
+endforeach()
