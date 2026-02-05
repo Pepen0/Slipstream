@@ -1,0 +1,33 @@
+name: Dashboard Backbone CI
+
+on:
+  push:
+    paths:
+      - 'hotpath/services/dashboard/**'
+      - 'shared/protos/dashboard/**'
+      - '.github/workflows/dashboard-backbone.yml'
+  pull_request:
+    paths:
+      - 'hotpath/services/dashboard/**'
+      - 'shared/protos/dashboard/**'
+      - '.github/workflows/dashboard-backbone.yml'
+  workflow_dispatch:
+
+jobs:
+  dashboard-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: |
+          cmake -S hotpath/services/dashboard -B hotpath/services/dashboard/build
+
+      - name: Build
+        run: |
+          cmake --build hotpath/services/dashboard/build
+
+      - name: Run tests
+        run: |
+          ctest --test-dir hotpath/services/dashboard/build --output-on-failure
