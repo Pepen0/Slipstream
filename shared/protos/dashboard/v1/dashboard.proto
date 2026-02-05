@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package dashboard.v1;
+
+option cpp_namespace = "slipstream::dashboard::v1";
+
+message Status {
+  enum State {
+    STATE_INIT = 0;
+    STATE_IDLE = 1;
+    STATE_ACTIVE = 2;
+    STATE_FAULT = 3;
+  }
+  State state = 1;
+  bool estop_active = 2;
+  bool session_active = 3;
+  string active_profile = 4;
+  string session_id = 5;
+  string last_error = 6;
+  uint64 updated_at_ns = 7;
+}
+
+message GetStatusRequest {}
+message GetStatusResponse { Status status = 1; }
+
+message CalibrateRequest { string profile_id = 1; }
+message CalibrateResponse { bool ok = 1; string message = 2; }
+
+message SetProfileRequest { string profile_id = 1; }
+message SetProfileResponse { bool ok = 1; string active_profile = 2; }
+
+message EStopRequest { bool engaged = 1; string reason = 2; }
+message EStopResponse { bool ok = 1; }
+
+message StartSessionRequest { string session_id = 1; }
+message StartSessionResponse { bool ok = 1; }
+
+message EndSessionRequest { string session_id = 1; }
+message EndSessionResponse { bool ok = 1; }
+
+message TelemetrySample {
+  uint64 timestamp_ns = 1;
+  float pitch_rad = 2;
+  float roll_rad = 3;
+  float left_target_m = 4;
+  float right_target_m = 5;
+  float latency_ms = 6;
+}
+
+message TelemetryStreamRequest { string session_id = 1; }
+
+service DashboardService {
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc Calibrate(CalibrateRequest) returns (CalibrateResponse);
+  rpc SetProfile(SetProfileRequest) returns (SetProfileResponse);
+  rpc EStop(EStopRequest) returns (EStopResponse);
+  rpc StartSession(StartSessionRequest) returns (StartSessionResponse);
+  rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
+  rpc StreamTelemetry(TelemetryStreamRequest) returns (stream TelemetrySample);
+}
