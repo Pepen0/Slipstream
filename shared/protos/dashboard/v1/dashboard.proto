@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package dashboard.v1;
 
-option cpp_namespace = "slipstream::dashboard::v1";
-
 message Status {
   enum State {
     STATE_INIT = 0;

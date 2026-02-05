@@ -5,7 +5,7 @@
 namespace slipstream::dashboard {
 
 static uint64_t now_ns() {
-  using clock = std::chrono::steady_clock;
+  using clock = std::chrono::system_clock;
   return std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now().time_since_epoch()).count();
 }
 
