@@ -1,0 +1,870 @@
+// This is a generated file - do not edit.
+//
+// Generated from dashboard/v1/dashboard.proto.
+
+// @dart = 3.3
+
+// ignore_for_file: annotate_overrides, camel_case_types, comment_references
+// ignore_for_file: constant_identifier_names
+// ignore_for_file: curly_braces_in_flow_control_structures
+// ignore_for_file: deprecated_member_use_from_same_package, library_prefixes
+// ignore_for_file: non_constant_identifier_names
+
+import 'dart:core' as $core;
+
+import 'package:fixnum/fixnum.dart' as $fixnum;
+import 'package:protobuf/protobuf.dart' as $pb;
+
+import 'dashboard.pbenum.dart';
+
+export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
+
+export 'dashboard.pbenum.dart';
+
+class Status extends $pb.GeneratedMessage {
+  factory Status({
+    Status_State? state,
+    $core.bool? estopActive,
+    $core.bool? sessionActive,
+    $core.String? activeProfile,
+    $core.String? sessionId,
+    $core.String? lastError,
+    $fixnum.Int64? updatedAtNs,
+  }) {
+    final result = create();
+    if (state != null) result.state = state;
+    if (estopActive != null) result.estopActive = estopActive;
+    if (sessionActive != null) result.sessionActive = sessionActive;
+    if (activeProfile != null) result.activeProfile = activeProfile;
+    if (sessionId != null) result.sessionId = sessionId;
+    if (lastError != null) result.lastError = lastError;
+    if (updatedAtNs != null) result.updatedAtNs = updatedAtNs;
+    return result;
+  }
+
+  Status._();
+
+  factory Status.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory Status.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'Status', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..e<Status_State>(1, _omitFieldNames ? '' : 'state', $pb.PbFieldType.OE, defaultOrMaker: Status_State.STATE_INIT, valueOf: Status_State.valueOf, enumValues: Status_State.values)
+    ..aOB(2, _omitFieldNames ? '' : 'estopActive')
+    ..aOB(3, _omitFieldNames ? '' : 'sessionActive')
+    ..aOS(4, _omitFieldNames ? '' : 'activeProfile')
+    ..aOS(5, _omitFieldNames ? '' : 'sessionId')
+    ..aOS(6, _omitFieldNames ? '' : 'lastError')
+    ..a<$fixnum.Int64>(7, _omitFieldNames ? '' : 'updatedAtNs', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Status clone() => Status()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  Status copyWith(void Function(Status) updates) => super.copyWith((message) => updates(message as Status)) as Status;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static Status create() => Status._();
+  @$core.override
+  Status createEmptyInstance() => create();
+  static $pb.PbList<Status> createRepeated() => $pb.PbList<Status>();
+  @$core.pragma('dart2js:noInline')
+  static Status getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<Status>(create);
+  static Status? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  Status_State get state => $_getN(0);
+  @$pb.TagNumber(1)
+  set state(Status_State value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasState() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearState() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get estopActive => $_getBF(1);
+  @$pb.TagNumber(2)
+  set estopActive($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasEstopActive() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearEstopActive() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.bool get sessionActive => $_getBF(2);
+  @$pb.TagNumber(3)
+  set sessionActive($core.bool value) => $_setBool(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasSessionActive() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearSessionActive() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get activeProfile => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set activeProfile($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasActiveProfile() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearActiveProfile() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get sessionId => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set sessionId($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasSessionId() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearSessionId() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get lastError => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set lastError($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasLastError() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearLastError() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $fixnum.Int64 get updatedAtNs => $_getI64(6);
+  @$pb.TagNumber(7)
+  set updatedAtNs($fixnum.Int64 value) => $_setInt64(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasUpdatedAtNs() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearUpdatedAtNs() => $_clearField(7);
+}
+
+class GetStatusRequest extends $pb.GeneratedMessage {
+  factory GetStatusRequest() => create();
+
+  GetStatusRequest._();
+
+  factory GetStatusRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory GetStatusRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'GetStatusRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetStatusRequest clone() => GetStatusRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetStatusRequest copyWith(void Function(GetStatusRequest) updates) => super.copyWith((message) => updates(message as GetStatusRequest)) as GetStatusRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetStatusRequest create() => GetStatusRequest._();
+  @$core.override
+  GetStatusRequest createEmptyInstance() => create();
+  static $pb.PbList<GetStatusRequest> createRepeated() => $pb.PbList<GetStatusRequest>();
+  @$core.pragma('dart2js:noInline')
+  static GetStatusRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetStatusRequest>(create);
+  static GetStatusRequest? _defaultInstance;
+}
+
+class GetStatusResponse extends $pb.GeneratedMessage {
+  factory GetStatusResponse({
+    Status? status,
+  }) {
+    final result = create();
+    if (status != null) result.status = status;
+    return result;
+  }
+
+  GetStatusResponse._();
+
+  factory GetStatusResponse.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory GetStatusResponse.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'GetStatusResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOM<Status>(1, _omitFieldNames ? '' : 'status', subBuilder: Status.create)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetStatusResponse clone() => GetStatusResponse()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetStatusResponse copyWith(void Function(GetStatusResponse) updates) => super.copyWith((message) => updates(message as GetStatusResponse)) as GetStatusResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetStatusResponse create() => GetStatusResponse._();
+  @$core.override
+  GetStatusResponse createEmptyInstance() => create();
+  static $pb.PbList<GetStatusResponse> createRepeated() => $pb.PbList<GetStatusResponse>();
+  @$core.pragma('dart2js:noInline')
+  static GetStatusResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetStatusResponse>(create);
+  static GetStatusResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  Status get status => $_getN(0);
+  @$pb.TagNumber(1)
+  set status(Status value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasStatus() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearStatus() => $_clearField(1);
+  @$pb.TagNumber(1)
+  Status ensureStatus() => $_ensure(0);
+}
+
+class CalibrateRequest extends $pb.GeneratedMessage {
+  factory CalibrateRequest({
+    $core.String? profileId,
+  }) {
+    final result = create();
+    if (profileId != null) result.profileId = profileId;
+    return result;
+  }
+
+  CalibrateRequest._();
+
+  factory CalibrateRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory CalibrateRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'CalibrateRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'profileId')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CalibrateRequest clone() => CalibrateRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CalibrateRequest copyWith(void Function(CalibrateRequest) updates) => super.copyWith((message) => updates(message as CalibrateRequest)) as CalibrateRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CalibrateRequest create() => CalibrateRequest._();
+  @$core.override
+  CalibrateRequest createEmptyInstance() => create();
+  static $pb.PbList<CalibrateRequest> createRepeated() => $pb.PbList<CalibrateRequest>();
+  @$core.pragma('dart2js:noInline')
+  static CalibrateRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<CalibrateRequest>(create);
+  static CalibrateRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get profileId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set profileId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasProfileId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearProfileId() => $_clearField(1);
+}
+
+class CalibrateResponse extends $pb.GeneratedMessage {
+  factory CalibrateResponse({
+    $core.bool? ok,
+    $core.String? message,
+  }) {
+    final result = create();
+    if (ok != null) result.ok = ok;
+    if (message != null) result.message = message;
+    return result;
+  }
+
+  CalibrateResponse._();
+
+  factory CalibrateResponse.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory CalibrateResponse.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'CalibrateResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'message')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CalibrateResponse clone() => CalibrateResponse()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CalibrateResponse copyWith(void Function(CalibrateResponse) updates) => super.copyWith((message) => updates(message as CalibrateResponse)) as CalibrateResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CalibrateResponse create() => CalibrateResponse._();
+  @$core.override
+  CalibrateResponse createEmptyInstance() => create();
+  static $pb.PbList<CalibrateResponse> createRepeated() => $pb.PbList<CalibrateResponse>();
+  @$core.pragma('dart2js:noInline')
+  static CalibrateResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<CalibrateResponse>(create);
+  static CalibrateResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get message => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set message($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMessage() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMessage() => $_clearField(2);
+}
+
+class SetProfileRequest extends $pb.GeneratedMessage {
+  factory SetProfileRequest({
+    $core.String? profileId,
+  }) {
+    final result = create();
+    if (profileId != null) result.profileId = profileId;
+    return result;
+  }
+
+  SetProfileRequest._();
+
+  factory SetProfileRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory SetProfileRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'SetProfileRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'profileId')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SetProfileRequest clone() => SetProfileRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SetProfileRequest copyWith(void Function(SetProfileRequest) updates) => super.copyWith((message) => updates(message as SetProfileRequest)) as SetProfileRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SetProfileRequest create() => SetProfileRequest._();
+  @$core.override
+  SetProfileRequest createEmptyInstance() => create();
+  static $pb.PbList<SetProfileRequest> createRepeated() => $pb.PbList<SetProfileRequest>();
+  @$core.pragma('dart2js:noInline')
+  static SetProfileRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SetProfileRequest>(create);
+  static SetProfileRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get profileId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set profileId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasProfileId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearProfileId() => $_clearField(1);
+}
+
+class SetProfileResponse extends $pb.GeneratedMessage {
+  factory SetProfileResponse({
+    $core.bool? ok,
+    $core.String? activeProfile,
+  }) {
+    final result = create();
+    if (ok != null) result.ok = ok;
+    if (activeProfile != null) result.activeProfile = activeProfile;
+    return result;
+  }
+
+  SetProfileResponse._();
+
+  factory SetProfileResponse.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory SetProfileResponse.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'SetProfileResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'activeProfile')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SetProfileResponse clone() => SetProfileResponse()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SetProfileResponse copyWith(void Function(SetProfileResponse) updates) => super.copyWith((message) => updates(message as SetProfileResponse)) as SetProfileResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SetProfileResponse create() => SetProfileResponse._();
+  @$core.override
+  SetProfileResponse createEmptyInstance() => create();
+  static $pb.PbList<SetProfileResponse> createRepeated() => $pb.PbList<SetProfileResponse>();
+  @$core.pragma('dart2js:noInline')
+  static SetProfileResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SetProfileResponse>(create);
+  static SetProfileResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get activeProfile => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set activeProfile($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasActiveProfile() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearActiveProfile() => $_clearField(2);
+}
+
+class EStopRequest extends $pb.GeneratedMessage {
+  factory EStopRequest({
+    $core.bool? engaged,
+    $core.String? reason,
+  }) {
+    final result = create();
+    if (engaged != null) result.engaged = engaged;
+    if (reason != null) result.reason = reason;
+    return result;
+  }
+
+  EStopRequest._();
+
+  factory EStopRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory EStopRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'EStopRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'engaged')
+    ..aOS(2, _omitFieldNames ? '' : 'reason')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  EStopRequest clone() => EStopRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  EStopRequest copyWith(void Function(EStopRequest) updates) => super.copyWith((message) => updates(message as EStopRequest)) as EStopRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static EStopRequest create() => EStopRequest._();
+  @$core.override
+  EStopRequest createEmptyInstance() => create();
+  static $pb.PbList<EStopRequest> createRepeated() => $pb.PbList<EStopRequest>();
+  @$core.pragma('dart2js:noInline')
+  static EStopRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<EStopRequest>(create);
+  static EStopRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get engaged => $_getBF(0);
+  @$pb.TagNumber(1)
+  set engaged($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasEngaged() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearEngaged() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get reason => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set reason($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasReason() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearReason() => $_clearField(2);
+}
+
+class EStopResponse extends $pb.GeneratedMessage {
+  factory EStopResponse({
+    $core.bool? ok,
+  }) {
+    final result = create();
+    if (ok != null) result.ok = ok;
+    return result;
+  }
+
+  EStopResponse._();
+
+  factory EStopResponse.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory EStopResponse.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'EStopResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  EStopResponse clone() => EStopResponse()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  EStopResponse copyWith(void Function(EStopResponse) updates) => super.copyWith((message) => updates(message as EStopResponse)) as EStopResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static EStopResponse create() => EStopResponse._();
+  @$core.override
+  EStopResponse createEmptyInstance() => create();
+  static $pb.PbList<EStopResponse> createRepeated() => $pb.PbList<EStopResponse>();
+  @$core.pragma('dart2js:noInline')
+  static EStopResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<EStopResponse>(create);
+  static EStopResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+}
+
+class StartSessionRequest extends $pb.GeneratedMessage {
+  factory StartSessionRequest({
+    $core.String? sessionId,
+  }) {
+    final result = create();
+    if (sessionId != null) result.sessionId = sessionId;
+    return result;
+  }
+
+  StartSessionRequest._();
+
+  factory StartSessionRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory StartSessionRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'StartSessionRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'sessionId')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  StartSessionRequest clone() => StartSessionRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  StartSessionRequest copyWith(void Function(StartSessionRequest) updates) => super.copyWith((message) => updates(message as StartSessionRequest)) as StartSessionRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static StartSessionRequest create() => StartSessionRequest._();
+  @$core.override
+  StartSessionRequest createEmptyInstance() => create();
+  static $pb.PbList<StartSessionRequest> createRepeated() => $pb.PbList<StartSessionRequest>();
+  @$core.pragma('dart2js:noInline')
+  static StartSessionRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<StartSessionRequest>(create);
+  static StartSessionRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get sessionId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set sessionId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSessionId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSessionId() => $_clearField(1);
+}
+
+class StartSessionResponse extends $pb.GeneratedMessage {
+  factory StartSessionResponse({
+    $core.bool? ok,
+  }) {
+    final result = create();
+    if (ok != null) result.ok = ok;
+    return result;
+  }
+
+  StartSessionResponse._();
+
+  factory StartSessionResponse.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory StartSessionResponse.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'StartSessionResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  StartSessionResponse clone() => StartSessionResponse()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  StartSessionResponse copyWith(void Function(StartSessionResponse) updates) => super.copyWith((message) => updates(message as StartSessionResponse)) as StartSessionResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static StartSessionResponse create() => StartSessionResponse._();
+  @$core.override
+  StartSessionResponse createEmptyInstance() => create();
+  static $pb.PbList<StartSessionResponse> createRepeated() => $pb.PbList<StartSessionResponse>();
+  @$core.pragma('dart2js:noInline')
+  static StartSessionResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<StartSessionResponse>(create);
+  static StartSessionResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+}
+
+class EndSessionRequest extends $pb.GeneratedMessage {
+  factory EndSessionRequest({
+    $core.String? sessionId,
+  }) {
+    final result = create();
+    if (sessionId != null) result.sessionId = sessionId;
+    return result;
+  }
+
+  EndSessionRequest._();
+
+  factory EndSessionRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory EndSessionRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'EndSessionRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'sessionId')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  EndSessionRequest clone() => EndSessionRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  EndSessionRequest copyWith(void Function(EndSessionRequest) updates) => super.copyWith((message) => updates(message as EndSessionRequest)) as EndSessionRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static EndSessionRequest create() => EndSessionRequest._();
+  @$core.override
+  EndSessionRequest createEmptyInstance() => create();
+  static $pb.PbList<EndSessionRequest> createRepeated() => $pb.PbList<EndSessionRequest>();
+  @$core.pragma('dart2js:noInline')
+  static EndSessionRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<EndSessionRequest>(create);
+  static EndSessionRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get sessionId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set sessionId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSessionId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSessionId() => $_clearField(1);
+}
+
+class EndSessionResponse extends $pb.GeneratedMessage {
+  factory EndSessionResponse({
+    $core.bool? ok,
+  }) {
+    final result = create();
+    if (ok != null) result.ok = ok;
+    return result;
+  }
+
+  EndSessionResponse._();
+
+  factory EndSessionResponse.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory EndSessionResponse.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'EndSessionResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  EndSessionResponse clone() => EndSessionResponse()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  EndSessionResponse copyWith(void Function(EndSessionResponse) updates) => super.copyWith((message) => updates(message as EndSessionResponse)) as EndSessionResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static EndSessionResponse create() => EndSessionResponse._();
+  @$core.override
+  EndSessionResponse createEmptyInstance() => create();
+  static $pb.PbList<EndSessionResponse> createRepeated() => $pb.PbList<EndSessionResponse>();
+  @$core.pragma('dart2js:noInline')
+  static EndSessionResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<EndSessionResponse>(create);
+  static EndSessionResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+}
+
+class TelemetrySample extends $pb.GeneratedMessage {
+  factory TelemetrySample({
+    $fixnum.Int64? timestampNs,
+    $core.double? pitchRad,
+    $core.double? rollRad,
+    $core.double? leftTargetM,
+    $core.double? rightTargetM,
+    $core.double? latencyMs,
+  }) {
+    final result = create();
+    if (timestampNs != null) result.timestampNs = timestampNs;
+    if (pitchRad != null) result.pitchRad = pitchRad;
+    if (rollRad != null) result.rollRad = rollRad;
+    if (leftTargetM != null) result.leftTargetM = leftTargetM;
+    if (rightTargetM != null) result.rightTargetM = rightTargetM;
+    if (latencyMs != null) result.latencyMs = latencyMs;
+    return result;
+  }
+
+  TelemetrySample._();
+
+  factory TelemetrySample.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory TelemetrySample.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'TelemetrySample', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..a<$fixnum.Int64>(1, _omitFieldNames ? '' : 'timestampNs', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$core.double>(2, _omitFieldNames ? '' : 'pitchRad', $pb.PbFieldType.OF)
+    ..a<$core.double>(3, _omitFieldNames ? '' : 'rollRad', $pb.PbFieldType.OF)
+    ..a<$core.double>(4, _omitFieldNames ? '' : 'leftTargetM', $pb.PbFieldType.OF)
+    ..a<$core.double>(5, _omitFieldNames ? '' : 'rightTargetM', $pb.PbFieldType.OF)
+    ..a<$core.double>(6, _omitFieldNames ? '' : 'latencyMs', $pb.PbFieldType.OF)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  TelemetrySample clone() => TelemetrySample()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  TelemetrySample copyWith(void Function(TelemetrySample) updates) => super.copyWith((message) => updates(message as TelemetrySample)) as TelemetrySample;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static TelemetrySample create() => TelemetrySample._();
+  @$core.override
+  TelemetrySample createEmptyInstance() => create();
+  static $pb.PbList<TelemetrySample> createRepeated() => $pb.PbList<TelemetrySample>();
+  @$core.pragma('dart2js:noInline')
+  static TelemetrySample getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<TelemetrySample>(create);
+  static TelemetrySample? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get timestampNs => $_getI64(0);
+  @$pb.TagNumber(1)
+  set timestampNs($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasTimestampNs() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearTimestampNs() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get pitchRad => $_getN(1);
+  @$pb.TagNumber(2)
+  set pitchRad($core.double value) => $_setFloat(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasPitchRad() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearPitchRad() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.double get rollRad => $_getN(2);
+  @$pb.TagNumber(3)
+  set rollRad($core.double value) => $_setFloat(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasRollRad() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearRollRad() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.double get leftTargetM => $_getN(3);
+  @$pb.TagNumber(4)
+  set leftTargetM($core.double value) => $_setFloat(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasLeftTargetM() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearLeftTargetM() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.double get rightTargetM => $_getN(4);
+  @$pb.TagNumber(5)
+  set rightTargetM($core.double value) => $_setFloat(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasRightTargetM() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearRightTargetM() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.double get latencyMs => $_getN(5);
+  @$pb.TagNumber(6)
+  set latencyMs($core.double value) => $_setFloat(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasLatencyMs() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearLatencyMs() => $_clearField(6);
+}
+
+class TelemetryStreamRequest extends $pb.GeneratedMessage {
+  factory TelemetryStreamRequest({
+    $core.String? sessionId,
+  }) {
+    final result = create();
+    if (sessionId != null) result.sessionId = sessionId;
+    return result;
+  }
+
+  TelemetryStreamRequest._();
+
+  factory TelemetryStreamRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory TelemetryStreamRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'TelemetryStreamRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'sessionId')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  TelemetryStreamRequest clone() => TelemetryStreamRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  TelemetryStreamRequest copyWith(void Function(TelemetryStreamRequest) updates) => super.copyWith((message) => updates(message as TelemetryStreamRequest)) as TelemetryStreamRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static TelemetryStreamRequest create() => TelemetryStreamRequest._();
+  @$core.override
+  TelemetryStreamRequest createEmptyInstance() => create();
+  static $pb.PbList<TelemetryStreamRequest> createRepeated() => $pb.PbList<TelemetryStreamRequest>();
+  @$core.pragma('dart2js:noInline')
+  static TelemetryStreamRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<TelemetryStreamRequest>(create);
+  static TelemetryStreamRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get sessionId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set sessionId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSessionId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSessionId() => $_clearField(1);
+}
+
+
+const $core.bool _omitFieldNames = $core.bool.fromEnvironment('protobuf.omit_field_names');
+const $core.bool _omitMessageNames = $core.bool.fromEnvironment('protobuf.omit_message_names');

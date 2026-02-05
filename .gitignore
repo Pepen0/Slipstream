@@ -154,3 +154,21 @@ hotpath/services/dashboard/build/
 # Python virtualenv
 ####################################
 .venv/
+
+
+####################################
+# Flutter (Software-code/App)
+####################################
+Software-code/App/.dart_tool/
+Software-code/App/.flutter-plugins
+Software-code/App/.flutter-plugins-dependencies
+Software-code/App/.pub-cache/
+Software-code/App/.pub/
+Software-code/App/build/
+Software-code/App/ios/Flutter/.last_build_id
+Software-code/App/android/app/debug
+Software-code/App/android/app/profile
+Software-code/App/android/app/release
+Software-code/App/linux/flutter/ephemeral/
+Software-code/App/macos/Flutter/ephemeral/
+Software-code/App/windows/flutter/ephemeral/
