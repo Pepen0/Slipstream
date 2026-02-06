@@ -32,6 +32,8 @@ set(PHYSICS_TEST_SOURCES
   tests/test_transform.cpp
   tests/test_kinematics.cpp
   tests/test_engine.cpp
+  tests/test_jitter_filter.cpp
+  tests/test_profiling.cpp
 )
 
 foreach(test_src IN LISTS PHYSICS_TEST_SOURCES)

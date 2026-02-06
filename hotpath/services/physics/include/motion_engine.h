@@ -1,6 +1,7 @@
 #pragma once
 
 #include "filters.h"
+#include "jitter_filter.h"
 #include "kinematics.h"
 #include "telemetry_sample.h"
 #include "transform.h"
@@ -16,6 +17,7 @@ struct MotionConfig {
   float roll_gain = 0.015f;
   TransformConfig transform{};
   RigKinematics kinematics{};
+  JitterFilterConfig jitter{};
 };
 
 struct MotionCommand {
@@ -37,6 +39,7 @@ private:
   HighPassFilter hp_sway_;
   LowPassFilter lp_pitch_;
   LowPassFilter lp_roll_;
+  JitterFilter jitter_;
   uint64_t last_sample_ns_ = 0;
 };
 

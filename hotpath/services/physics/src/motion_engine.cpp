@@ -15,7 +15,8 @@ MotionEngine::MotionEngine(const MotionConfig &config)
     hp_surge_(config.hp_cutoff_hz),
     hp_sway_(config.hp_cutoff_hz),
     lp_pitch_(config.lp_cutoff_hz),
-    lp_roll_(config.lp_cutoff_hz) {}
+    lp_roll_(config.lp_cutoff_hz),
+    jitter_(config.jitter) {}
 
 MotionCommand MotionEngine::process(const TelemetrySample &sample, uint64_t now_ns) {
   float dt_s = 0.0f;
@@ -40,6 +41,8 @@ MotionCommand MotionEngine::process(const TelemetrySample &sample, uint64_t now_
 
   float pitch = lp_pitch_.process(pitch_raw, dt_s);
   float roll = lp_roll_.process(roll_raw, dt_s);
+
+  jitter_.apply(pitch, roll, dt_s);
 
   MotorTargets targets = pitch_roll_to_targets(pitch, roll, config_.kinematics);
 

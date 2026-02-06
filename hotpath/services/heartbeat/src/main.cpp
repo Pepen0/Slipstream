@@ -1,3 +1,4 @@
+#include "frame_batcher.h"
 #include "protocol.h"
 #include "serial_port.h"
 
@@ -37,6 +38,11 @@ struct Options {
   int interval_ms = 50;
   int reconnect_ms = 1000;
   bool print_status = false;
+  bool batch = false;
+  size_t batch_max_bytes = 64;
+  bool send_command = false;
+  float cmd_left_m = 0.0f;
+  float cmd_right_m = 0.0f;
 };
 
 Options parse_args(int argc, char **argv) {
@@ -59,8 +65,23 @@ Options parse_args(int argc, char **argv) {
       opt.reconnect_ms = std::stoi(argv[++i]);
     } else if (arg == "--status") {
       opt.print_status = true;
+    } else if (arg == "--batch") {
+      opt.batch = true;
+    } else if (arg == "--batch-max" && i + 1 < argc) {
+      opt.batch = true;
+      opt.batch_max_bytes = static_cast<size_t>(std::stoul(argv[++i]));
+    } else if (arg == "--command") {
+      opt.send_command = true;
+    } else if (arg == "--cmd-left" && i + 1 < argc) {
+      opt.send_command = true;
+      opt.cmd_left_m = std::stof(argv[++i]);
+    } else if (arg == "--cmd-right" && i + 1 < argc) {
+      opt.send_command = true;
+      opt.cmd_right_m = std::stof(argv[++i]);
     } else if (arg == "--help") {
-      std::cout << "Usage: heartbeat_sender [--port COM3] [--baud 115200] [--interval 50] [--reconnect 1000] [--status]\n";
+      std::cout << "Usage: heartbeat_sender [--port COM3] [--baud 115200] [--interval 50] [--reconnect 1000]\n"
+                   "                         [--status] [--batch] [--batch-max 64]\n"
+                   "                         [--command] [--cmd-left 0.0] [--cmd-right 0.0]\n";
       std::exit(0);
     }
   }
@@ -89,6 +110,21 @@ struct McuStatus {
   uint16_t reserved;
 };
 
+#pragma pack(push, 1)
+struct CommandPayload {
+  float left_m;
+  float right_m;
+  uint64_t send_timestamp_ns;
+};
+#pragma pack(pop)
+
+static_assert(sizeof(CommandPayload) == 16, "CommandPayload size unexpected");
+
+static uint64_t now_ns() {
+  using clock = std::chrono::steady_clock;
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now().time_since_epoch()).count();
+}
+
 int main(int argc, char **argv) {
   auto opt = parse_args(argc, argv);
 
@@ -106,6 +142,7 @@ int main(int argc, char **argv) {
   SerialPort port;
   uint32_t seq = 0;
   std::vector<uint8_t> rx_buffer;
+  FrameBatcher batcher(opt.batch_max_bytes);
 
   auto next_tick = std::chrono::steady_clock::now();
 
@@ -122,11 +159,60 @@ int main(int argc, char **argv) {
 
     next_tick += std::chrono::milliseconds(opt.interval_ms);
 
-    auto frame = build_frame(PacketType::Heartbeat, seq++, nullptr, 0);
-    if (!port.write(frame.data(), frame.size())) {
-      std::cerr << "Write failed: " << port.last_error() << "\n";
-      port.close();
-      continue;
+    auto heartbeat = build_frame(PacketType::Heartbeat, seq++, nullptr, 0);
+    if (opt.batch) {
+      batcher.clear();
+      if (!batcher.append(heartbeat)) {
+        std::cerr << "Batch buffer too small for heartbeat frame. Sending directly.\n";
+        if (!port.write(heartbeat.data(), heartbeat.size())) {
+          std::cerr << "Write failed: " << port.last_error() << "\n";
+          port.close();
+          continue;
+        }
+      }
+      if (opt.send_command) {
+        CommandPayload payload{opt.cmd_left_m, opt.cmd_right_m, now_ns()};
+        auto cmd_frame = build_frame(PacketType::Command, seq++,
+                                     reinterpret_cast<const uint8_t *>(&payload),
+                                     sizeof(payload));
+        if (!batcher.append(cmd_frame)) {
+          if (!batcher.empty() && !port.write(batcher.data(), batcher.size())) {
+            std::cerr << "Write failed: " << port.last_error() << "\n";
+            port.close();
+            continue;
+          }
+          batcher.clear();
+          if (!batcher.append(cmd_frame)) {
+            if (!port.write(cmd_frame.data(), cmd_frame.size())) {
+              std::cerr << "Write failed: " << port.last_error() << "\n";
+              port.close();
+              continue;
+            }
+          }
+        }
+      }
+      if (!batcher.empty() && !port.write(batcher.data(), batcher.size())) {
+        std::cerr << "Write failed: " << port.last_error() << "\n";
+        port.close();
+        continue;
+      }
+    } else {
+      if (!port.write(heartbeat.data(), heartbeat.size())) {
+        std::cerr << "Write failed: " << port.last_error() << "\n";
+        port.close();
+        continue;
+      }
+      if (opt.send_command) {
+        CommandPayload payload{opt.cmd_left_m, opt.cmd_right_m, now_ns()};
+        auto cmd_frame = build_frame(PacketType::Command, seq++,
+                                     reinterpret_cast<const uint8_t *>(&payload),
+                                     sizeof(payload));
+        if (!port.write(cmd_frame.data(), cmd_frame.size())) {
+          std::cerr << "Write failed: " << port.last_error() << "\n";
+          port.close();
+          continue;
+        }
+      }
     }
 
     if (opt.print_status) {

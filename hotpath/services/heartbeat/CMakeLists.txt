@@ -24,5 +24,9 @@ target_link_libraries(heartbeat_sender PRIVATE heartbeat_core)
 add_executable(heartbeat_tests tests/test_protocol.cpp)
 target_link_libraries(heartbeat_tests PRIVATE heartbeat_core)
 
+add_executable(heartbeat_batch_tests tests/test_batcher.cpp)
+target_link_libraries(heartbeat_batch_tests PRIVATE heartbeat_core)
+
 enable_testing()
 add_test(NAME protocol COMMAND heartbeat_tests)
+add_test(NAME batcher COMMAND heartbeat_batch_tests)

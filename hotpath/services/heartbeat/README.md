@@ -28,6 +28,18 @@ Optional: print MCU status frames
 ./build/heartbeat_sender --port /dev/ttyACM0 --status
 ```
 
+Optional: batch heartbeat + command frames into a single USB write
+
+```bash
+./build/heartbeat_sender --port /dev/ttyACM0 --batch --command --cmd-left 0.01 --cmd-right 0.01
+```
+
+Tune the batch byte budget (default 64 bytes):
+
+```bash
+./build/heartbeat_sender --port /dev/ttyACM0 --batch --batch-max 128
+```
+
 ## Tests
 
 ```bash

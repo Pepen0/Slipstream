@@ -24,6 +24,14 @@ ctest --test-dir build
 
 `MotionCommand.latency_ms` is the elapsed time from telemetry read to command output.
 
+For end‑to‑end profiling, pass a `MotionProfiler` into `MotionLoop::run(...)` to
+capture read/process/dispatch timing and loop slip.
+
+## Jitter reduction
+
+`MotionConfig.jitter` applies a deadband + slew‑rate limiter on pitch/roll to
+reduce small oscillations without delaying large corrections.
+
 ## Notes
 
 - On non‑Windows platforms, the Assetto Corsa adapter is stubbed (builds, but returns no data).
