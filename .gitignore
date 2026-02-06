@@ -148,6 +148,7 @@ Electronics/kibot_yaml/kicost_config_local.yaml
 hotpath/services/heartbeat/build/
 hotpath/services/physics/build/
 hotpath/services/dashboard/build/
+hotpath/services/dashboard/data/
 
 
 ####################################

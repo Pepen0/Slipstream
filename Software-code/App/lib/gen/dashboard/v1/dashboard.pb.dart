@@ -680,9 +680,15 @@ class EStopResponse extends $pb.GeneratedMessage {
 class StartSessionRequest extends $pb.GeneratedMessage {
   factory StartSessionRequest({
     $core.String? sessionId,
+    $core.String? track,
+    $core.String? car,
+    $fixnum.Int64? startTimeNs,
   }) {
     final result = create();
     if (sessionId != null) result.sessionId = sessionId;
+    if (track != null) result.track = track;
+    if (car != null) result.car = car;
+    if (startTimeNs != null) result.startTimeNs = startTimeNs;
     return result;
   }
 
@@ -693,6 +699,9 @@ class StartSessionRequest extends $pb.GeneratedMessage {
 
   static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'StartSessionRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
     ..aOS(1, _omitFieldNames ? '' : 'sessionId')
+    ..aOS(2, _omitFieldNames ? '' : 'track')
+    ..aOS(3, _omitFieldNames ? '' : 'car')
+    ..a<$fixnum.Int64>(4, _omitFieldNames ? '' : 'startTimeNs', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
     ..hasRequiredFields = false
   ;
 
@@ -721,6 +730,33 @@ class StartSessionRequest extends $pb.GeneratedMessage {
   $core.bool hasSessionId() => $_has(0);
   @$pb.TagNumber(1)
   void clearSessionId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get track => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set track($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTrack() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTrack() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get car => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set car($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasCar() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearCar() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get startTimeNs => $_getI64(3);
+  @$pb.TagNumber(4)
+  set startTimeNs($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasStartTimeNs() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearStartTimeNs() => $_clearField(4);
 }
 
 class StartSessionResponse extends $pb.GeneratedMessage {
@@ -859,6 +895,182 @@ class EndSessionResponse extends $pb.GeneratedMessage {
   $core.bool hasOk() => $_has(0);
   @$pb.TagNumber(1)
   void clearOk() => $_clearField(1);
+}
+
+class SessionMetadata extends $pb.GeneratedMessage {
+  factory SessionMetadata({
+    $core.String? sessionId,
+    $core.String? track,
+    $core.String? car,
+    $fixnum.Int64? startTimeNs,
+    $fixnum.Int64? endTimeNs,
+    $fixnum.Int64? durationMs,
+  }) {
+    final result = create();
+    if (sessionId != null) result.sessionId = sessionId;
+    if (track != null) result.track = track;
+    if (car != null) result.car = car;
+    if (startTimeNs != null) result.startTimeNs = startTimeNs;
+    if (endTimeNs != null) result.endTimeNs = endTimeNs;
+    if (durationMs != null) result.durationMs = durationMs;
+    return result;
+  }
+
+  SessionMetadata._();
+
+  factory SessionMetadata.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory SessionMetadata.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'SessionMetadata', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'sessionId')
+    ..aOS(2, _omitFieldNames ? '' : 'track')
+    ..aOS(3, _omitFieldNames ? '' : 'car')
+    ..a<$fixnum.Int64>(4, _omitFieldNames ? '' : 'startTimeNs', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$fixnum.Int64>(5, _omitFieldNames ? '' : 'endTimeNs', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$fixnum.Int64>(6, _omitFieldNames ? '' : 'durationMs', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SessionMetadata clone() => SessionMetadata()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  SessionMetadata copyWith(void Function(SessionMetadata) updates) => super.copyWith((message) => updates(message as SessionMetadata)) as SessionMetadata;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static SessionMetadata create() => SessionMetadata._();
+  @$core.override
+  SessionMetadata createEmptyInstance() => create();
+  static $pb.PbList<SessionMetadata> createRepeated() => $pb.PbList<SessionMetadata>();
+  @$core.pragma('dart2js:noInline')
+  static SessionMetadata getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<SessionMetadata>(create);
+  static SessionMetadata? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get sessionId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set sessionId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSessionId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSessionId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get track => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set track($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasTrack() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearTrack() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get car => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set car($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasCar() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearCar() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get startTimeNs => $_getI64(3);
+  @$pb.TagNumber(4)
+  set startTimeNs($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasStartTimeNs() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearStartTimeNs() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $fixnum.Int64 get endTimeNs => $_getI64(4);
+  @$pb.TagNumber(5)
+  set endTimeNs($fixnum.Int64 value) => $_setInt64(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasEndTimeNs() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearEndTimeNs() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $fixnum.Int64 get durationMs => $_getI64(5);
+  @$pb.TagNumber(6)
+  set durationMs($fixnum.Int64 value) => $_setInt64(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasDurationMs() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearDurationMs() => $_clearField(6);
+}
+
+class ListSessionsRequest extends $pb.GeneratedMessage {
+  factory ListSessionsRequest() => create();
+
+  ListSessionsRequest._();
+
+  factory ListSessionsRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory ListSessionsRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'ListSessionsRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ListSessionsRequest clone() => ListSessionsRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ListSessionsRequest copyWith(void Function(ListSessionsRequest) updates) => super.copyWith((message) => updates(message as ListSessionsRequest)) as ListSessionsRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static ListSessionsRequest create() => ListSessionsRequest._();
+  @$core.override
+  ListSessionsRequest createEmptyInstance() => create();
+  static $pb.PbList<ListSessionsRequest> createRepeated() => $pb.PbList<ListSessionsRequest>();
+  @$core.pragma('dart2js:noInline')
+  static ListSessionsRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ListSessionsRequest>(create);
+  static ListSessionsRequest? _defaultInstance;
+}
+
+class ListSessionsResponse extends $pb.GeneratedMessage {
+  factory ListSessionsResponse({
+    $core.Iterable<SessionMetadata>? sessions,
+  }) {
+    final result = create();
+    if (sessions != null) result.sessions.addAll(sessions);
+    return result;
+  }
+
+  ListSessionsResponse._();
+
+  factory ListSessionsResponse.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory ListSessionsResponse.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'ListSessionsResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..pc<SessionMetadata>(1, _omitFieldNames ? '' : 'sessions', $pb.PbFieldType.PM, subBuilder: SessionMetadata.create)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ListSessionsResponse clone() => ListSessionsResponse()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  ListSessionsResponse copyWith(void Function(ListSessionsResponse) updates) => super.copyWith((message) => updates(message as ListSessionsResponse)) as ListSessionsResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static ListSessionsResponse create() => ListSessionsResponse._();
+  @$core.override
+  ListSessionsResponse createEmptyInstance() => create();
+  static $pb.PbList<ListSessionsResponse> createRepeated() => $pb.PbList<ListSessionsResponse>();
+  @$core.pragma('dart2js:noInline')
+  static ListSessionsResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<ListSessionsResponse>(create);
+  static ListSessionsResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<SessionMetadata> get sessions => $_getList(0);
 }
 
 class TelemetrySample extends $pb.GeneratedMessage {

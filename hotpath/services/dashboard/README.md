@@ -12,6 +12,7 @@ RPCs:
 - SetProfile
 - EStop
 - StartSession / EndSession
+- ListSessions
 - StreamTelemetry (server streaming)
 
 ## Build & test (core)
@@ -38,3 +39,4 @@ cmake --build build
 - Core state machine is independent of gRPC for easy testing.
 - `StreamTelemetry` currently replays the latest sample; integrate a real feed by calling `update_telemetry`.
 - Logging is timestamped in `logger.cpp`.
+- Sessions are stored locally under `hotpath/services/dashboard/data/sessions` as JSON + JSONL telemetry.

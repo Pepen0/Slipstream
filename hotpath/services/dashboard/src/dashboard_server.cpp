@@ -1,5 +1,6 @@
 #include "dashboard_state.h"
 #include "logger.h"
+#include "session_store.h"
 
 #include "dashboard/v1/dashboard.grpc.pb.h"
 
@@ -18,6 +19,8 @@ using dashboard::v1::EndSessionRequest;
 using dashboard::v1::EndSessionResponse;
 using dashboard::v1::GetStatusRequest;
 using dashboard::v1::GetStatusResponse;
+using dashboard::v1::ListSessionsRequest;
+using dashboard::v1::ListSessionsResponse;
 using dashboard::v1::SetProfileRequest;
 using dashboard::v1::SetProfileResponse;
 using dashboard::v1::StartSessionRequest;
@@ -63,6 +66,20 @@ public:
   DashboardServiceImpl() = default;
 
   void update_telemetry(const TelemetrySample &sample) {
+    {
+      std::lock_guard<std::mutex> lock(mu_);
+      auto status = state_.get_status();
+      if (status.session_active && !status.session_id.empty()) {
+        TelemetryRecord record{};
+        record.timestamp_ns = sample.timestamp_ns();
+        record.pitch_rad = sample.pitch_rad();
+        record.roll_rad = sample.roll_rad();
+        record.left_target_m = sample.left_target_m();
+        record.right_target_m = sample.right_target_m();
+        record.latency_ms = sample.latency_ms();
+        store_.append_telemetry(status.session_id, record);
+      }
+    }
     std::lock_guard<std::mutex> lock(telemetry_mu_);
     last_sample_ = sample;
     telemetry_ready_ = true;
@@ -126,6 +143,18 @@ public:
   grpc::Status StartSession(grpc::ServerContext *, const StartSessionRequest *req, StartSessionResponse *resp) override {
     std::lock_guard<std::mutex> lock(mu_);
     state_.start_session(req->session_id());
+    SessionMetadata meta;
+    meta.session_id = req->session_id();
+    meta.track = req->track();
+    meta.car = req->car();
+    meta.start_time_ns = req->start_time_ns();
+    if (meta.start_time_ns == 0) {
+      meta.start_time_ns = state_.get_status().updated_at_ns;
+    }
+    meta.end_time_ns = 0;
+    meta.duration_ms = 0;
+
+    store_.start_session(meta);
     log_info("StartSession id=" + req->session_id());
     resp->set_ok(true);
     return grpc::Status::OK;
@@ -134,8 +163,24 @@ public:
   grpc::Status EndSession(grpc::ServerContext *, const EndSessionRequest *req, EndSessionResponse *resp) override {
     std::lock_guard<std::mutex> lock(mu_);
     state_.end_session(req->session_id());
+    store_.end_session(req->session_id(), state_.get_status().updated_at_ns);
     log_info("EndSession id=" + req->session_id());
     resp->set_ok(true);
+    return grpc::Status::OK;
+  }
+
+  grpc::Status ListSessions(grpc::ServerContext *, const ListSessionsRequest *, ListSessionsResponse *resp) override {
+    std::lock_guard<std::mutex> lock(mu_);
+    auto sessions = store_.list_sessions();
+    for (const auto &session : sessions) {
+      auto *out = resp->add_sessions();
+      out->set_session_id(session.session_id);
+      out->set_track(session.track);
+      out->set_car(session.car);
+      out->set_start_time_ns(session.start_time_ns);
+      out->set_end_time_ns(session.end_time_ns);
+      out->set_duration_ms(session.duration_ms);
+    }
     return grpc::Status::OK;
   }
 
@@ -161,6 +206,7 @@ public:
 private:
   std::mutex mu_;
   DashboardStateMachine state_{};
+  SessionStore store_{"data/sessions"};
 
   std::mutex telemetry_mu_;
   TelemetrySample last_sample_{};

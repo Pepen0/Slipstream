@@ -202,12 +202,17 @@ const StartSessionRequest$json = {
   '1': 'StartSessionRequest',
   '2': [
     {'1': 'session_id', '3': 1, '4': 1, '5': 9, '10': 'sessionId'},
+    {'1': 'track', '3': 2, '4': 1, '5': 9, '10': 'track'},
+    {'1': 'car', '3': 3, '4': 1, '5': 9, '10': 'car'},
+    {'1': 'start_time_ns', '3': 4, '4': 1, '5': 4, '10': 'startTimeNs'},
   ],
 };
 
 /// Descriptor for `StartSessionRequest`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List startSessionRequestDescriptor = $convert.base64Decode(
-    'ChNTdGFydFNlc3Npb25SZXF1ZXN0Eh0KCnNlc3Npb25faWQYASABKAlSCXNlc3Npb25JZA==');
+    'ChNTdGFydFNlc3Npb25SZXF1ZXN0Eh0KCnNlc3Npb25faWQYASABKAlSCXNlc3Npb25JZBIUCg'
+    'V0cmFjaxgCIAEoCVIFdHJhY2sSEAoDY2FyGAMgASgJUgNjYXISIgoNc3RhcnRfdGltZV9ucxgE'
+    'IAEoBFILc3RhcnRUaW1lTnM=');
 
 @$core.Deprecated('Use startSessionResponseDescriptor instead')
 const StartSessionResponse$json = {
@@ -244,6 +249,48 @@ const EndSessionResponse$json = {
 /// Descriptor for `EndSessionResponse`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List endSessionResponseDescriptor = $convert.base64Decode(
     'ChJFbmRTZXNzaW9uUmVzcG9uc2USDgoCb2sYASABKAhSAm9r');
+
+@$core.Deprecated('Use sessionMetadataDescriptor instead')
+const SessionMetadata$json = {
+  '1': 'SessionMetadata',
+  '2': [
+    {'1': 'session_id', '3': 1, '4': 1, '5': 9, '10': 'sessionId'},
+    {'1': 'track', '3': 2, '4': 1, '5': 9, '10': 'track'},
+    {'1': 'car', '3': 3, '4': 1, '5': 9, '10': 'car'},
+    {'1': 'start_time_ns', '3': 4, '4': 1, '5': 4, '10': 'startTimeNs'},
+    {'1': 'end_time_ns', '3': 5, '4': 1, '5': 4, '10': 'endTimeNs'},
+    {'1': 'duration_ms', '3': 6, '4': 1, '5': 4, '10': 'durationMs'},
+  ],
+};
+
+/// Descriptor for `SessionMetadata`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List sessionMetadataDescriptor = $convert.base64Decode(
+    'Cg9TZXNzaW9uTWV0YWRhdGESHQoKc2Vzc2lvbl9pZBgBIAEoCVIJc2Vzc2lvbklkEhQKBXRyYW'
+    'NrGAIgASgJUgV0cmFjaxIQCgNjYXIYAyABKAlSA2NhchIiCg1zdGFydF90aW1lX25zGAQgASgE'
+    'UgtzdGFydFRpbWVOcxIeCgtlbmRfdGltZV9ucxgFIAEoBFIJZW5kVGltZU5zEh8KC2R1cmF0aW'
+    '9uX21zGAYgASgEUgpkdXJhdGlvbk1z');
+
+@$core.Deprecated('Use listSessionsRequestDescriptor instead')
+const ListSessionsRequest$json = {
+  '1': 'ListSessionsRequest',
+};
+
+/// Descriptor for `ListSessionsRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List listSessionsRequestDescriptor = $convert.base64Decode(
+    'ChNMaXN0U2Vzc2lvbnNSZXF1ZXN0');
+
+@$core.Deprecated('Use listSessionsResponseDescriptor instead')
+const ListSessionsResponse$json = {
+  '1': 'ListSessionsResponse',
+  '2': [
+    {'1': 'sessions', '3': 1, '4': 3, '5': 11, '6': '.dashboard.v1.SessionMetadata', '10': 'sessions'},
+  ],
+};
+
+/// Descriptor for `ListSessionsResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List listSessionsResponseDescriptor = $convert.base64Decode(
+    'ChRMaXN0U2Vzc2lvbnNSZXNwb25zZRI5CghzZXNzaW9ucxgBIAMoCzIdLmRhc2hib2FyZC52MS'
+    '5TZXNzaW9uTWV0YWRhdGFSCHNlc3Npb25z');
 
 @$core.Deprecated('Use telemetrySampleDescriptor instead')
 const TelemetrySample$json = {

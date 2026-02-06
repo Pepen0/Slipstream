@@ -1,6 +1,7 @@
 #include "dashboard_state.h"
 
 #include <cassert>
+#include <chrono>
 #include <thread>
 
 using slipstream::dashboard::DashboardState;
