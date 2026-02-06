@@ -7,7 +7,7 @@ namespace heartbeat {
 
 constexpr uint32_t kMagic = 0xA5C3F00Du;
 constexpr uint8_t kVersion = 1u;
-constexpr size_t kMaxPayload = 64u;
+constexpr size_t kMaxPayload = 48u;
 
 enum class PacketType : uint8_t {
   Heartbeat = 0x01,

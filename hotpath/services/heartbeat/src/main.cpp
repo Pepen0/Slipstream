@@ -102,13 +102,25 @@ static uint16_t read_u16(const uint8_t *data) {
          (static_cast<uint16_t>(data[1]) << 8);
 }
 
+#pragma pack(push, 1)
 struct McuStatus {
   uint32_t uptime_ms;
   uint32_t last_heartbeat_ms;
+  uint32_t last_cmd_rx_ms;
+  uint64_t last_cmd_host_ns;
+  float left_setpoint_m;
+  float right_setpoint_m;
+  float left_pos_m;
+  float right_pos_m;
+  float left_cmd;
+  float right_cmd;
   uint8_t state;
   uint8_t flags;
-  uint16_t reserved;
+  uint16_t fault_code;
 };
+#pragma pack(pop)
+
+static_assert(sizeof(McuStatus) <= 48, "McuStatus payload exceeds protocol limit");
 
 #pragma pack(push, 1)
 struct CommandPayload {
@@ -245,7 +257,9 @@ int main(int argc, char **argv) {
           std::memcpy(&status, parsed.payload.data(), sizeof(McuStatus));
           std::cout << "MCU status: uptime=" << status.uptime_ms
                     << " last_hb=" << status.last_heartbeat_ms
+                    << " last_cmd_rx=" << status.last_cmd_rx_ms
                     << " state=" << static_cast<int>(status.state)
+                    << " fault=" << status.fault_code
                     << " flags=0x" << std::hex << static_cast<int>(status.flags)
                     << std::dec << "\n";
         }

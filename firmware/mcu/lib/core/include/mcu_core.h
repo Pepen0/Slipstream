@@ -21,6 +21,7 @@ typedef struct {
   bool heartbeat_seen;
   uint32_t last_heartbeat_ms;
   uint32_t last_fault_ms;
+  uint16_t fault_code;
   bool decay_active;
   uint32_t decay_start_ms;
   uint32_t heartbeat_timeout_ms;
@@ -33,8 +34,10 @@ void mcu_core_on_usb(mcu_core_t *ctx, bool connected, uint32_t now_ms);
 void mcu_core_on_estop(mcu_core_t *ctx, bool active, uint32_t now_ms);
 void mcu_core_on_heartbeat(mcu_core_t *ctx, uint32_t now_ms);
 void mcu_core_tick(mcu_core_t *ctx, uint32_t now_ms);
+void mcu_core_set_fault(mcu_core_t *ctx, uint16_t fault_code, uint32_t now_ms);
 
 mcu_state_t mcu_core_state(const mcu_core_t *ctx);
+uint16_t mcu_core_fault(const mcu_core_t *ctx);
 bool mcu_core_should_energize(const mcu_core_t *ctx, uint32_t now_ms);
 float mcu_core_torque_scale(const mcu_core_t *ctx, uint32_t now_ms);
 

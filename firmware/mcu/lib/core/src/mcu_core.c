@@ -1,4 +1,5 @@
 #include "mcu_core.h"
+#include "mcu_faults.h"
 
 static bool heartbeat_ok(const mcu_core_t *ctx, uint32_t now_ms) {
   if (!ctx->heartbeat_seen) {
@@ -15,6 +16,7 @@ void mcu_core_init(mcu_core_t *ctx, uint32_t now_ms, uint32_t heartbeat_timeout_
   ctx->heartbeat_seen = false;
   ctx->last_heartbeat_ms = 0;
   ctx->last_fault_ms = 0;
+  ctx->fault_code = MCU_FAULT_NONE;
   ctx->heartbeat_timeout_ms = heartbeat_timeout_ms;
   ctx->decay_active = false;
   ctx->decay_start_ms = 0;
@@ -27,6 +29,7 @@ void mcu_core_on_usb(mcu_core_t *ctx, bool connected, uint32_t now_ms) {
   if (!connected) {
     ctx->state = MCU_STATE_FAULT;
     ctx->last_fault_ms = now_ms;
+    ctx->fault_code = MCU_FAULT_USB_DISCONNECT;
     ctx->decay_active = false;
   } else if (ctx->state == MCU_STATE_INIT) {
     ctx->state = MCU_STATE_IDLE;
@@ -39,6 +42,7 @@ void mcu_core_on_estop(mcu_core_t *ctx, bool active, uint32_t now_ms) {
   if (active) {
     ctx->state = MCU_STATE_FAULT;
     ctx->last_fault_ms = now_ms;
+    ctx->fault_code = MCU_FAULT_ESTOP;
     ctx->decay_active = false;
   } else if (ctx->state == MCU_STATE_INIT) {
     ctx->state = MCU_STATE_IDLE;
@@ -70,6 +74,7 @@ void mcu_core_tick(mcu_core_t *ctx, uint32_t now_ms) {
     if (!heartbeat_ok(ctx, now_ms)) {
       ctx->state = MCU_STATE_FAULT;
       ctx->last_fault_ms = now_ms;
+      ctx->fault_code = MCU_FAULT_HEARTBEAT_TIMEOUT;
       if (ctx->decay_duration_ms > 0) {
         ctx->decay_active = true;
         ctx->decay_start_ms = now_ms;
@@ -95,6 +100,17 @@ void mcu_core_tick(mcu_core_t *ctx, uint32_t now_ms) {
 
 mcu_state_t mcu_core_state(const mcu_core_t *ctx) {
   return ctx->state;
+}
+
+uint16_t mcu_core_fault(const mcu_core_t *ctx) {
+  return ctx->fault_code;
+}
+
+void mcu_core_set_fault(mcu_core_t *ctx, uint16_t fault_code, uint32_t now_ms) {
+  ctx->state = MCU_STATE_FAULT;
+  ctx->last_fault_ms = now_ms;
+  ctx->fault_code = fault_code;
+  ctx->decay_active = false;
 }
 
 bool mcu_core_should_energize(const mcu_core_t *ctx, uint32_t now_ms) {

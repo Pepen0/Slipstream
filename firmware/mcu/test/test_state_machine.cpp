@@ -1,10 +1,16 @@
 #include <unity.h>
 #include "mcu_core.h"
+#include "mcu_faults.h"
 
 void setUp(void) {}
 void tearDown(void) {}
 
 static mcu_core_t core;
+
+void test_pid_clamp(void);
+void test_homing_complete(void);
+void test_sensor_fault(void);
+void test_torque_scale_zero(void);
 
 void test_usb_disconnect_fault(void) {
   mcu_core_init(&core, 0, 100, 0);
@@ -16,6 +22,7 @@ void test_usb_disconnect_fault(void) {
   mcu_core_on_usb(&core, false, 20);
   mcu_core_tick(&core, 20);
   TEST_ASSERT_EQUAL(MCU_STATE_FAULT, mcu_core_state(&core));
+  TEST_ASSERT_EQUAL_UINT16(MCU_FAULT_USB_DISCONNECT, mcu_core_fault(&core));
   TEST_ASSERT_FALSE(mcu_core_should_energize(&core, 20));
 }
 
@@ -28,6 +35,7 @@ void test_heartbeat_timeout_fault(void) {
 
   mcu_core_tick(&core, 101);
   TEST_ASSERT_EQUAL(MCU_STATE_FAULT, mcu_core_state(&core));
+  TEST_ASSERT_EQUAL_UINT16(MCU_FAULT_HEARTBEAT_TIMEOUT, mcu_core_fault(&core));
   TEST_ASSERT_FALSE(mcu_core_should_energize(&core, 101));
 }
 
@@ -41,6 +49,7 @@ void test_estop_fault(void) {
   mcu_core_on_estop(&core, true, 6);
   mcu_core_tick(&core, 6);
   TEST_ASSERT_EQUAL(MCU_STATE_FAULT, mcu_core_state(&core));
+  TEST_ASSERT_EQUAL_UINT16(MCU_FAULT_ESTOP, mcu_core_fault(&core));
   TEST_ASSERT_FALSE(mcu_core_should_energize(&core, 6));
 }
 
@@ -97,5 +106,9 @@ int main(int argc, char **argv) {
   RUN_TEST(test_fault_recover);
   RUN_TEST(test_no_heartbeat_no_active);
   RUN_TEST(test_torque_decay_ramp);
+  RUN_TEST(test_pid_clamp);
+  RUN_TEST(test_homing_complete);
+  RUN_TEST(test_sensor_fault);
+  RUN_TEST(test_torque_scale_zero);
   return UNITY_END();
 }
