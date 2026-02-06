@@ -1081,6 +1081,10 @@ class TelemetrySample extends $pb.GeneratedMessage {
     $core.double? leftTargetM,
     $core.double? rightTargetM,
     $core.double? latencyMs,
+    $core.double? speedKmh,
+    $core.int? gear,
+    $core.double? engineRpm,
+    $core.double? trackProgress,
   }) {
     final result = create();
     if (timestampNs != null) result.timestampNs = timestampNs;
@@ -1089,6 +1093,10 @@ class TelemetrySample extends $pb.GeneratedMessage {
     if (leftTargetM != null) result.leftTargetM = leftTargetM;
     if (rightTargetM != null) result.rightTargetM = rightTargetM;
     if (latencyMs != null) result.latencyMs = latencyMs;
+    if (speedKmh != null) result.speedKmh = speedKmh;
+    if (gear != null) result.gear = gear;
+    if (engineRpm != null) result.engineRpm = engineRpm;
+    if (trackProgress != null) result.trackProgress = trackProgress;
     return result;
   }
 
@@ -1104,6 +1112,10 @@ class TelemetrySample extends $pb.GeneratedMessage {
     ..a<$core.double>(4, _omitFieldNames ? '' : 'leftTargetM', $pb.PbFieldType.OF)
     ..a<$core.double>(5, _omitFieldNames ? '' : 'rightTargetM', $pb.PbFieldType.OF)
     ..a<$core.double>(6, _omitFieldNames ? '' : 'latencyMs', $pb.PbFieldType.OF)
+    ..a<$core.double>(7, _omitFieldNames ? '' : 'speedKmh', $pb.PbFieldType.OF)
+    ..a<$core.int>(8, _omitFieldNames ? '' : 'gear', $pb.PbFieldType.O3)
+    ..a<$core.double>(9, _omitFieldNames ? '' : 'engineRpm', $pb.PbFieldType.OF)
+    ..a<$core.double>(10, _omitFieldNames ? '' : 'trackProgress', $pb.PbFieldType.OF)
     ..hasRequiredFields = false
   ;
 
@@ -1177,6 +1189,42 @@ class TelemetrySample extends $pb.GeneratedMessage {
   $core.bool hasLatencyMs() => $_has(5);
   @$pb.TagNumber(6)
   void clearLatencyMs() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.double get speedKmh => $_getN(6);
+  @$pb.TagNumber(7)
+  set speedKmh($core.double value) => $_setFloat(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasSpeedKmh() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearSpeedKmh() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.int get gear => $_getIZ(7);
+  @$pb.TagNumber(8)
+  set gear($core.int value) => $_setSignedInt32(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasGear() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearGear() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.double get engineRpm => $_getN(8);
+  @$pb.TagNumber(9)
+  set engineRpm($core.double value) => $_setFloat(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasEngineRpm() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearEngineRpm() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.double get trackProgress => $_getN(9);
+  @$pb.TagNumber(10)
+  set trackProgress($core.double value) => $_setFloat(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasTrackProgress() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearTrackProgress() => $_clearField(10);
 }
 
 class TelemetryStreamRequest extends $pb.GeneratedMessage {
@@ -1223,6 +1271,104 @@ class TelemetryStreamRequest extends $pb.GeneratedMessage {
   $core.bool hasSessionId() => $_has(0);
   @$pb.TagNumber(1)
   void clearSessionId() => $_clearField(1);
+}
+
+class GetSessionTelemetryRequest extends $pb.GeneratedMessage {
+  factory GetSessionTelemetryRequest({
+    $core.String? sessionId,
+    $core.int? maxSamples,
+  }) {
+    final result = create();
+    if (sessionId != null) result.sessionId = sessionId;
+    if (maxSamples != null) result.maxSamples = maxSamples;
+    return result;
+  }
+
+  GetSessionTelemetryRequest._();
+
+  factory GetSessionTelemetryRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory GetSessionTelemetryRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'GetSessionTelemetryRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'sessionId')
+    ..a<$core.int>(2, _omitFieldNames ? '' : 'maxSamples', $pb.PbFieldType.OU3)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetSessionTelemetryRequest clone() => GetSessionTelemetryRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetSessionTelemetryRequest copyWith(void Function(GetSessionTelemetryRequest) updates) => super.copyWith((message) => updates(message as GetSessionTelemetryRequest)) as GetSessionTelemetryRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetSessionTelemetryRequest create() => GetSessionTelemetryRequest._();
+  @$core.override
+  GetSessionTelemetryRequest createEmptyInstance() => create();
+  static $pb.PbList<GetSessionTelemetryRequest> createRepeated() => $pb.PbList<GetSessionTelemetryRequest>();
+  @$core.pragma('dart2js:noInline')
+  static GetSessionTelemetryRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetSessionTelemetryRequest>(create);
+  static GetSessionTelemetryRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get sessionId => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set sessionId($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSessionId() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSessionId() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.int get maxSamples => $_getIZ(1);
+  @$pb.TagNumber(2)
+  set maxSamples($core.int value) => $_setUnsignedInt32(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMaxSamples() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMaxSamples() => $_clearField(2);
+}
+
+class GetSessionTelemetryResponse extends $pb.GeneratedMessage {
+  factory GetSessionTelemetryResponse({
+    $core.Iterable<TelemetrySample>? samples,
+  }) {
+    final result = create();
+    if (samples != null) result.samples.addAll(samples);
+    return result;
+  }
+
+  GetSessionTelemetryResponse._();
+
+  factory GetSessionTelemetryResponse.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory GetSessionTelemetryResponse.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'GetSessionTelemetryResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..pc<TelemetrySample>(1, _omitFieldNames ? '' : 'samples', $pb.PbFieldType.PM, subBuilder: TelemetrySample.create)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetSessionTelemetryResponse clone() => GetSessionTelemetryResponse()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  GetSessionTelemetryResponse copyWith(void Function(GetSessionTelemetryResponse) updates) => super.copyWith((message) => updates(message as GetSessionTelemetryResponse)) as GetSessionTelemetryResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static GetSessionTelemetryResponse create() => GetSessionTelemetryResponse._();
+  @$core.override
+  GetSessionTelemetryResponse createEmptyInstance() => create();
+  static $pb.PbList<GetSessionTelemetryResponse> createRepeated() => $pb.PbList<GetSessionTelemetryResponse>();
+  @$core.pragma('dart2js:noInline')
+  static GetSessionTelemetryResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<GetSessionTelemetryResponse>(create);
+  static GetSessionTelemetryResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $pb.PbList<TelemetrySample> get samples => $_getList(0);
 }
 
 

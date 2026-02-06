@@ -19,6 +19,8 @@ using dashboard::v1::EndSessionRequest;
 using dashboard::v1::EndSessionResponse;
 using dashboard::v1::GetStatusRequest;
 using dashboard::v1::GetStatusResponse;
+using dashboard::v1::GetSessionTelemetryRequest;
+using dashboard::v1::GetSessionTelemetryResponse;
 using dashboard::v1::ListSessionsRequest;
 using dashboard::v1::ListSessionsResponse;
 using dashboard::v1::SetProfileRequest;
@@ -77,6 +79,10 @@ public:
         record.left_target_m = sample.left_target_m();
         record.right_target_m = sample.right_target_m();
         record.latency_ms = sample.latency_ms();
+        record.speed_kmh = sample.speed_kmh();
+        record.gear = sample.gear();
+        record.engine_rpm = sample.engine_rpm();
+        record.track_progress = sample.track_progress();
         store_.append_telemetry(status.session_id, record);
       }
     }
@@ -180,6 +186,26 @@ public:
       out->set_start_time_ns(session.start_time_ns);
       out->set_end_time_ns(session.end_time_ns);
       out->set_duration_ms(session.duration_ms);
+    }
+    return grpc::Status::OK;
+  }
+
+  grpc::Status GetSessionTelemetry(grpc::ServerContext *, const GetSessionTelemetryRequest *req,
+                                   GetSessionTelemetryResponse *resp) override {
+    std::lock_guard<std::mutex> lock(mu_);
+    auto records = store_.read_telemetry(req->session_id(), req->max_samples());
+    for (const auto &record : records) {
+      auto *out = resp->add_samples();
+      out->set_timestamp_ns(record.timestamp_ns);
+      out->set_pitch_rad(record.pitch_rad);
+      out->set_roll_rad(record.roll_rad);
+      out->set_left_target_m(record.left_target_m);
+      out->set_right_target_m(record.right_target_m);
+      out->set_latency_ms(record.latency_ms);
+      out->set_speed_kmh(record.speed_kmh);
+      out->set_gear(record.gear);
+      out->set_engine_rpm(record.engine_rpm);
+      out->set_track_progress(record.track_progress);
     }
     return grpc::Status::OK;
   }

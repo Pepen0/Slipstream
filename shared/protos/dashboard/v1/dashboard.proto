@@ -75,9 +75,19 @@ message TelemetrySample {
   float left_target_m = 4;
   float right_target_m = 5;
   float latency_ms = 6;
+  float speed_kmh = 7;
+  int32 gear = 8;
+  float engine_rpm = 9;
+  float track_progress = 10;
 }
 
 message TelemetryStreamRequest { string session_id = 1; }
+
+message GetSessionTelemetryRequest {
+  string session_id = 1;
+  uint32 max_samples = 2;
+}
+message GetSessionTelemetryResponse { repeated TelemetrySample samples = 1; }
 
 service DashboardService {
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
@@ -89,4 +99,5 @@ service DashboardService {
   rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
   rpc StreamTelemetry(TelemetryStreamRequest) returns (stream TelemetrySample);
+  rpc GetSessionTelemetry(GetSessionTelemetryRequest) returns (GetSessionTelemetryResponse);
 }

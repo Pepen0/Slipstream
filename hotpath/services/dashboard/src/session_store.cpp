@@ -1,6 +1,7 @@
 #include "session_store.h"
 
 #include <algorithm>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -92,6 +93,29 @@ uint64_t find_uint_field(const std::string &content, const std::string &key) {
   return value;
 }
 
+double find_double_field(const std::string &content, const std::string &key) {
+  auto needle = "\"" + key + "\"";
+  auto pos = content.find(needle);
+  if (pos == std::string::npos) return 0.0;
+  pos = content.find(':', pos);
+  if (pos == std::string::npos) return 0.0;
+  pos += 1;
+  while (pos < content.size() && (content[pos] == ' ' || content[pos] == '\t')) {
+    pos += 1;
+  }
+  const char *start = content.c_str() + pos;
+  char *end = nullptr;
+  double value = std::strtod(start, &end);
+  if (end == start) {
+    return 0.0;
+  }
+  return value;
+}
+
+int32_t find_int_field(const std::string &content, const std::string &key) {
+  return static_cast<int32_t>(find_double_field(content, key));
+}
+
 SessionMetadata parse_metadata(const std::string &content) {
   SessionMetadata metadata;
   metadata.session_id = find_string_field(content, "session_id");
@@ -101,6 +125,21 @@ SessionMetadata parse_metadata(const std::string &content) {
   metadata.end_time_ns = find_uint_field(content, "end_time_ns");
   metadata.duration_ms = find_uint_field(content, "duration_ms");
   return metadata;
+}
+
+TelemetryRecord parse_telemetry_line(const std::string &content) {
+  TelemetryRecord record;
+  record.timestamp_ns = find_uint_field(content, "timestamp_ns");
+  record.pitch_rad = static_cast<float>(find_double_field(content, "pitch_rad"));
+  record.roll_rad = static_cast<float>(find_double_field(content, "roll_rad"));
+  record.left_target_m = static_cast<float>(find_double_field(content, "left_target_m"));
+  record.right_target_m = static_cast<float>(find_double_field(content, "right_target_m"));
+  record.latency_ms = static_cast<float>(find_double_field(content, "latency_ms"));
+  record.speed_kmh = static_cast<float>(find_double_field(content, "speed_kmh"));
+  record.gear = find_int_field(content, "gear");
+  record.engine_rpm = static_cast<float>(find_double_field(content, "engine_rpm"));
+  record.track_progress = static_cast<float>(find_double_field(content, "track_progress"));
+  return record;
 }
 
 } // namespace
@@ -155,7 +194,11 @@ bool SessionStore::append_telemetry(const std::string &session_id, const Telemet
   out << "\"roll_rad\":" << sample.roll_rad << ",";
   out << "\"left_target_m\":" << sample.left_target_m << ",";
   out << "\"right_target_m\":" << sample.right_target_m << ",";
-  out << "\"latency_ms\":" << sample.latency_ms;
+  out << "\"latency_ms\":" << sample.latency_ms << ",";
+  out << "\"speed_kmh\":" << sample.speed_kmh << ",";
+  out << "\"gear\":" << sample.gear << ",";
+  out << "\"engine_rpm\":" << sample.engine_rpm << ",";
+  out << "\"track_progress\":" << sample.track_progress;
   out << "}\n";
   return true;
 }
@@ -183,6 +226,32 @@ std::vector<SessionMetadata> SessionStore::list_sessions() const {
     return a.start_time_ns > b.start_time_ns;
   });
   return sessions;
+}
+
+std::vector<TelemetryRecord> SessionStore::read_telemetry(const std::string &session_id,
+                                                          std::size_t max_samples) const {
+  std::vector<TelemetryRecord> records;
+  if (session_id.empty()) {
+    return records;
+  }
+  auto tel_path = telemetry_path(base_dir_, session_id);
+  std::ifstream in(tel_path);
+  if (!in.is_open()) {
+    return records;
+  }
+  std::string line;
+  while (std::getline(in, line)) {
+    if (line.empty()) {
+      continue;
+    }
+    records.push_back(parse_telemetry_line(line));
+  }
+  if (max_samples > 0 && records.size() > max_samples) {
+    auto start = records.end() -
+                 static_cast<std::vector<TelemetryRecord>::difference_type>(max_samples);
+    records.erase(records.begin(), start);
+  }
+  return records;
 }
 
 } // namespace slipstream::dashboard

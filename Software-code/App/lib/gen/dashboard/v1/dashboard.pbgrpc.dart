@@ -68,6 +68,10 @@ class DashboardServiceClient extends $grpc.Client {
     return $createStreamingCall(_$streamTelemetry, $async.Stream.fromIterable([request]), options: options);
   }
 
+  $grpc.ResponseFuture<$0.GetSessionTelemetryResponse> getSessionTelemetry($0.GetSessionTelemetryRequest request, {$grpc.CallOptions? options,}) {
+    return $createUnaryCall(_$getSessionTelemetry, request, options: options);
+  }
+
     // method descriptors
 
   static final _$getStatus = $grpc.ClientMethod<$0.GetStatusRequest, $0.GetStatusResponse>(
@@ -106,6 +110,10 @@ class DashboardServiceClient extends $grpc.Client {
       '/dashboard.v1.DashboardService/StreamTelemetry',
       ($0.TelemetryStreamRequest value) => value.writeToBuffer(),
       $0.TelemetrySample.fromBuffer);
+  static final _$getSessionTelemetry = $grpc.ClientMethod<$0.GetSessionTelemetryRequest, $0.GetSessionTelemetryResponse>(
+      '/dashboard.v1.DashboardService/GetSessionTelemetry',
+      ($0.GetSessionTelemetryRequest value) => value.writeToBuffer(),
+      $0.GetSessionTelemetryResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('dashboard.v1.DashboardService')
@@ -176,6 +184,13 @@ abstract class DashboardServiceBase extends $grpc.Service {
         true,
         ($core.List<$core.int> value) => $0.TelemetryStreamRequest.fromBuffer(value),
         ($0.TelemetrySample value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.GetSessionTelemetryRequest, $0.GetSessionTelemetryResponse>(
+        'GetSessionTelemetry',
+        getSessionTelemetry_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.GetSessionTelemetryRequest.fromBuffer(value),
+        ($0.GetSessionTelemetryResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.GetStatusResponse> getStatus_Pre($grpc.ServiceCall $call, $async.Future<$0.GetStatusRequest> $request) async {
@@ -231,5 +246,11 @@ abstract class DashboardServiceBase extends $grpc.Service {
   }
 
   $async.Stream<$0.TelemetrySample> streamTelemetry($grpc.ServiceCall call, $0.TelemetryStreamRequest request);
+
+  $async.Future<$0.GetSessionTelemetryResponse> getSessionTelemetry_Pre($grpc.ServiceCall $call, $async.Future<$0.GetSessionTelemetryRequest> $request) async {
+    return getSessionTelemetry($call, await $request);
+  }
+
+  $async.Future<$0.GetSessionTelemetryResponse> getSessionTelemetry($grpc.ServiceCall call, $0.GetSessionTelemetryRequest request);
 
 }

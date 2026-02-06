@@ -302,6 +302,10 @@ const TelemetrySample$json = {
     {'1': 'left_target_m', '3': 4, '4': 1, '5': 2, '10': 'leftTargetM'},
     {'1': 'right_target_m', '3': 5, '4': 1, '5': 2, '10': 'rightTargetM'},
     {'1': 'latency_ms', '3': 6, '4': 1, '5': 2, '10': 'latencyMs'},
+    {'1': 'speed_kmh', '3': 7, '4': 1, '5': 2, '10': 'speedKmh'},
+    {'1': 'gear', '3': 8, '4': 1, '5': 5, '10': 'gear'},
+    {'1': 'engine_rpm', '3': 9, '4': 1, '5': 2, '10': 'engineRpm'},
+    {'1': 'track_progress', '3': 10, '4': 1, '5': 2, '10': 'trackProgress'},
   ],
 };
 
@@ -310,7 +314,9 @@ final $typed_data.Uint8List telemetrySampleDescriptor = $convert.base64Decode(
     'Cg9UZWxlbWV0cnlTYW1wbGUSIQoMdGltZXN0YW1wX25zGAEgASgEUgt0aW1lc3RhbXBOcxIbCg'
     'lwaXRjaF9yYWQYAiABKAJSCHBpdGNoUmFkEhkKCHJvbGxfcmFkGAMgASgCUgdyb2xsUmFkEiIK'
     'DWxlZnRfdGFyZ2V0X20YBCABKAJSC2xlZnRUYXJnZXRNEiQKDnJpZ2h0X3RhcmdldF9tGAUgAS'
-    'gCUgxyaWdodFRhcmdldE0SHQoKbGF0ZW5jeV9tcxgGIAEoAlIJbGF0ZW5jeU1z');
+    'gCUgxyaWdodFRhcmdldE0SHQoKbGF0ZW5jeV9tcxgGIAEoAlIJbGF0ZW5jeU1zEhsKCXNwZWVk'
+    'X2ttaBgHIAEoAlIIc3BlZWRLbWgSEgoEZ2VhchgIIAEoBVIEZ2VhchIdCgplbmdpbmVfcnBtGA'
+    'kgASgCUgllbmdpbmVScG0SJQoOdHJhY2tfcHJvZ3Jlc3MYCiABKAJSDXRyYWNrUHJvZ3Jlc3M=');
 
 @$core.Deprecated('Use telemetryStreamRequestDescriptor instead')
 const TelemetryStreamRequest$json = {
@@ -324,4 +330,31 @@ const TelemetryStreamRequest$json = {
 final $typed_data.Uint8List telemetryStreamRequestDescriptor = $convert.base64Decode(
     'ChZUZWxlbWV0cnlTdHJlYW1SZXF1ZXN0Eh0KCnNlc3Npb25faWQYASABKAlSCXNlc3Npb25JZA'
     '==');
+
+@$core.Deprecated('Use getSessionTelemetryRequestDescriptor instead')
+const GetSessionTelemetryRequest$json = {
+  '1': 'GetSessionTelemetryRequest',
+  '2': [
+    {'1': 'session_id', '3': 1, '4': 1, '5': 9, '10': 'sessionId'},
+    {'1': 'max_samples', '3': 2, '4': 1, '5': 13, '10': 'maxSamples'},
+  ],
+};
+
+/// Descriptor for `GetSessionTelemetryRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getSessionTelemetryRequestDescriptor = $convert.base64Decode(
+    'ChpHZXRTZXNzaW9uVGVsZW1ldHJ5UmVxdWVzdBIdCgpzZXNzaW9uX2lkGAEgASgJUglzZXNzaW'
+    '9uSWQSHwoLbWF4X3NhbXBsZXMYAiABKA1SCm1heFNhbXBsZXM=');
+
+@$core.Deprecated('Use getSessionTelemetryResponseDescriptor instead')
+const GetSessionTelemetryResponse$json = {
+  '1': 'GetSessionTelemetryResponse',
+  '2': [
+    {'1': 'samples', '3': 1, '4': 3, '5': 11, '6': '.dashboard.v1.TelemetrySample', '10': 'samples'},
+  ],
+};
+
+/// Descriptor for `GetSessionTelemetryResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List getSessionTelemetryResponseDescriptor = $convert.base64Decode(
+    'ChtHZXRTZXNzaW9uVGVsZW1ldHJ5UmVzcG9uc2USNwoHc2FtcGxlcxgBIAMoCzIdLmRhc2hib2'
+    'FyZC52MS5UZWxlbWV0cnlTYW1wbGVSB3NhbXBsZXM=');
 

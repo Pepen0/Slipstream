@@ -152,6 +152,16 @@ class DashboardClient {
     return resp.sessions;
   }
 
+  Future<List<TelemetrySample>> getSessionTelemetry(String sessionId,
+      {int maxSamples = 240}) async {
+    if (_stub == null) return [];
+    final req = GetSessionTelemetryRequest()
+      ..sessionId = sessionId
+      ..maxSamples = maxSamples;
+    final resp = await _stub!.getSessionTelemetry(req);
+    return resp.samples;
+  }
+
   void startTelemetryStream({String sessionId = ''}) {
     if (_stub == null) return;
     _telemetrySub?.cancel();

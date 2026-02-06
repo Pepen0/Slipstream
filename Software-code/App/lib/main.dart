@@ -125,6 +125,8 @@ class _DashboardHomeState extends State<DashboardHome> {
   final List<_CalibrationAttempt> calibrationHistory = [];
   int _lastCalibrationAtNs = 0;
 
+  static const int _reviewMaxSamples = 240;
+
   final Map<String, List<_SpeedSample>> _sessionHistory = {};
   List<_SpeedSample> _liveHistory = [];
   List<_SpeedSample> _reviewSamples = [];
@@ -133,6 +135,8 @@ class _DashboardHomeState extends State<DashboardHome> {
   bool _lastSessionActive = false;
   bool _reviewMode = false;
   bool _reviewSimulated = false;
+  bool _reviewFetching = false;
+  String? _reviewNotice;
   SessionMetadata? _reviewSession;
   double _reviewProgress = 1.0;
   DateTime? _lastSampleAt;
@@ -231,11 +235,13 @@ class _DashboardHomeState extends State<DashboardHome> {
       timestamp: now,
       speedKmh: derived.speedKmh,
       trackProgress: derived.trackProgress,
+      gear: derived.gear,
+      rpm: derived.rpm,
     );
     final list = _sessionHistory.putIfAbsent(sessionId, () => []);
     list.add(sample);
-    if (list.length > 240) {
-      list.removeRange(0, list.length - 240);
+    if (list.length > _reviewMaxSamples) {
+      list.removeRange(0, list.length - _reviewMaxSamples);
     }
     if (!_reviewMode) {
       _liveHistory = list;
@@ -245,7 +251,7 @@ class _DashboardHomeState extends State<DashboardHome> {
   Future<void> _refreshSessions() async {
     try {
       final sessions = await client.listSessions();
-      if (!mounted) return;
+      if (!mounted || !_reviewMode || _reviewSession?.sessionId != session.sessionId) return;
       setState(() {
         _sessions = sessions;
       });
@@ -301,26 +307,16 @@ class _DashboardHomeState extends State<DashboardHome> {
   }
 
   void _enterReview(SessionMetadata session) {
-    final stored = _sessionHistory[session.sessionId];
-    if (stored != null && stored.isNotEmpty) {
-      setState(() {
-        _reviewMode = true;
-        _reviewSession = session;
-        _reviewSimulated = false;
-        _reviewSamples = List.of(stored);
-        _reviewProgress = 1.0;
-      });
-      return;
-    }
-
-    final simulated = _generateSyntheticSamples(session);
+    final fallback = _fallbackReviewSamples(session);
     setState(() {
       _reviewMode = true;
       _reviewSession = session;
-      _reviewSimulated = true;
-      _reviewSamples = simulated;
+      _reviewSimulated = fallback.simulated;
+      _reviewSamples = fallback.samples;
       _reviewProgress = 1.0;
+      _reviewNotice = 'Fetching session telemetry…';
     });
+    _fetchSessionTelemetry(session);
   }
 
   void _exitReview() {
@@ -330,10 +326,68 @@ class _DashboardHomeState extends State<DashboardHome> {
       _reviewSimulated = false;
       _reviewSamples = [];
       _reviewProgress = 1.0;
+      _reviewNotice = null;
+      _reviewFetching = false;
       if (_activeSessionId != null) {
         _liveHistory = _sessionHistory[_activeSessionId!] ?? _liveHistory;
       }
     });
+  }
+
+  _ReviewFallback _fallbackReviewSamples(SessionMetadata session) {
+    final stored = _sessionHistory[session.sessionId];
+    if (stored != null && stored.isNotEmpty) {
+      return _ReviewFallback(samples: List.of(stored), simulated: false);
+    }
+    return _ReviewFallback(samples: _generateSyntheticSamples(session), simulated: true);
+  }
+
+  Future<void> _fetchSessionTelemetry(SessionMetadata session) async {
+    if (_reviewFetching) return;
+    setState(() {
+      _reviewFetching = true;
+    });
+    try {
+      final samples = await client.getSessionTelemetry(
+        session.sessionId,
+        maxSamples: _reviewMaxSamples,
+      );
+      if (!mounted) return;
+      if (samples.isEmpty) {
+        setState(() {
+          _reviewNotice = 'No session telemetry returned. Using fallback data.';
+        });
+        return;
+      }
+      final mapped = _mapTelemetrySamples(samples);
+      final hasReal = mapped.any((s) {
+        final rpm = s.rpm ?? 0.0;
+        final gear = s.gear ?? 0;
+        return s.speedKmh > 0 || rpm > 0 || s.trackProgress > 0 || gear != 0;
+      });
+      if (!hasReal) {
+        setState(() {
+          _reviewNotice = 'Session telemetry missing speed/track fields. Using fallback data.';
+        });
+        return;
+      }
+      setState(() {
+        _reviewSamples = mapped;
+        _reviewSimulated = false;
+        _reviewNotice = null;
+        _reviewProgress = 1.0;
+      });
+    } catch (_) {
+      if (!mounted || !_reviewMode || _reviewSession?.sessionId != session.sessionId) return;
+      setState(() {
+        _reviewNotice = 'Telemetry fetch failed. Using fallback data.';
+      });
+    } finally {
+      if (!mounted || !_reviewMode || _reviewSession?.sessionId != session.sessionId) return;
+      setState(() {
+        _reviewFetching = false;
+      });
+    }
   }
 
   void _startDfu() {
@@ -371,8 +425,8 @@ class _DashboardHomeState extends State<DashboardHome> {
     if (!forceLive && _reviewMode && _reviewSamples.isNotEmpty) {
       final idx = (_reviewProgress * (_reviewSamples.length - 1)).round().clamp(0, _reviewSamples.length - 1);
       final sample = _reviewSamples[idx];
-      final gear = _gearForSpeed(sample.speedKmh, active: true);
-      final rpm = _rpmForSpeed(sample.speedKmh, gear);
+      final gear = sample.gear ?? _gearForSpeed(sample.speedKmh, active: true);
+      final rpm = sample.rpm ?? _rpmForSpeed(sample.speedKmh, gear);
       return _DerivedTelemetry(
         speedKmh: sample.speedKmh,
         gear: gear,
@@ -382,6 +436,40 @@ class _DashboardHomeState extends State<DashboardHome> {
       );
     }
 
+    final real = _deriveFromRealTelemetry(snapshot);
+    if (real != null) {
+      return real;
+    }
+
+    return _deriveSyntheticTelemetry(snapshot);
+  }
+
+  _DerivedTelemetry? _deriveFromRealTelemetry(DashboardSnapshot snapshot) {
+    final telemetry = snapshot.telemetry;
+    if (telemetry == null) {
+      return null;
+    }
+    final speed = telemetry.speedKmh;
+    final rpm = telemetry.engineRpm;
+    final trackProgress = telemetry.trackProgress;
+    final gearRaw = telemetry.gear;
+    final hasReal = speed > 0 || rpm > 0 || trackProgress > 0 || gearRaw != 0;
+    if (!hasReal) {
+      return null;
+    }
+    final active = snapshot.status?.sessionActive ?? false;
+    final gear = gearRaw != 0 ? gearRaw : (speed > 1 ? _gearForSpeed(speed, active: active) : 0);
+    final derivedRpm = rpm > 0 ? rpm : _rpmForSpeed(speed, gear);
+    return _DerivedTelemetry(
+      speedKmh: speed,
+      gear: gear,
+      rpm: derivedRpm,
+      latencyMs: telemetry.latencyMs,
+      trackProgress: trackProgress,
+    );
+  }
+
+  _DerivedTelemetry _deriveSyntheticTelemetry(DashboardSnapshot snapshot) {
     final status = snapshot.status;
     final telemetry = snapshot.telemetry;
     final nowNs = telemetry?.timestampNs.toInt() ?? DateTime.now().microsecondsSinceEpoch * 1000;
@@ -406,6 +494,22 @@ class _DashboardHomeState extends State<DashboardHome> {
     );
   }
 
+  List<_SpeedSample> _mapTelemetrySamples(List<TelemetrySample> samples) {
+    return samples.map((sample) {
+      final timestampNs = sample.timestampNs.toInt();
+      final timestamp = timestampNs > 0
+          ? DateTime.fromMillisecondsSinceEpoch(timestampNs ~/ 1000000)
+          : DateTime.now();
+      return _SpeedSample(
+        timestamp: timestamp,
+        speedKmh: sample.speedKmh,
+        trackProgress: sample.trackProgress,
+        gear: sample.gear,
+        rpm: sample.engineRpm,
+      );
+    }).toList();
+  }
+
   List<_SpeedSample> _generateSyntheticSamples(SessionMetadata session) {
     final durationMs = session.durationMs.toInt() > 0 ? session.durationMs.toInt() : 90000;
     final totalSamples = 160;
@@ -415,10 +519,14 @@ class _DashboardHomeState extends State<DashboardHome> {
       final t = index / totalSamples;
       final speed = 80 + 60 * sin(t * pi * 2) + 30 * sin(t * pi * 6);
       final progress = (t * 1.2) % 1.0;
+      final gear = _gearForSpeed(speed, active: true);
+      final rpm = _rpmForSpeed(speed, gear);
       return _SpeedSample(
         timestamp: start.add(Duration(milliseconds: (step * index).toInt())),
         speedKmh: speed.clamp(10, 220),
         trackProgress: progress,
+        gear: gear,
+        rpm: rpm,
       );
     });
   }
@@ -679,25 +787,55 @@ class _DashboardHomeState extends State<DashboardHome> {
     }
 
     return _HudCard(
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.play_circle_fill, color: _kWarning),
-          Text(
-            _reviewSession == null ? 'Reviewing latest session capture.' : 'Reviewing ${_reviewSession!.sessionId}',
-            style: const TextStyle(color: Colors.white),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Icon(Icons.play_circle_fill, color: _kWarning),
+              Text(
+                _reviewSession == null ? 'Reviewing latest session capture.' : 'Reviewing ${_reviewSession!.sessionId}',
+                style: const TextStyle(color: Colors.white),
+              ),
+              if (_reviewSimulated)
+                Text(
+                  'SIMULATED REPLAY',
+                  style: TextStyle(color: _kWarning.withOpacity(0.9), fontWeight: FontWeight.w700),
+                ),
+              FilledButton(
+                onPressed: _exitReview,
+                child: const Text('Exit Review'),
+              ),
+            ],
           ),
-          if (_reviewSimulated)
-            Text(
-              'SIMULATED REPLAY',
-              style: TextStyle(color: _kWarning.withOpacity(0.9), fontWeight: FontWeight.w700),
+          if (_reviewNotice != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  _reviewFetching ? Icons.hourglass_top : Icons.info_outline,
+                  color: _reviewFetching ? _kAccentAlt : _kWarning,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _reviewNotice!,
+                    style: const TextStyle(color: _kMuted),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _reviewFetching || _reviewSession == null
+                      ? null
+                      : () => _fetchSessionTelemetry(_reviewSession!),
+                  child: const Text('Retry'),
+                ),
+              ],
             ),
-          FilledButton(
-            onPressed: _exitReview,
-            child: const Text('Exit Review'),
-          ),
+          ],
         ],
       ),
     );
@@ -1830,12 +1968,27 @@ class _DerivedTelemetry {
   final double trackProgress;
 }
 
+class _ReviewFallback {
+  const _ReviewFallback({required this.samples, required this.simulated});
+
+  final List<_SpeedSample> samples;
+  final bool simulated;
+}
+
 class _SpeedSample {
-  const _SpeedSample({required this.timestamp, required this.speedKmh, required this.trackProgress});
+  const _SpeedSample({
+    required this.timestamp,
+    required this.speedKmh,
+    required this.trackProgress,
+    this.gear,
+    this.rpm,
+  });
 
   final DateTime timestamp;
   final double speedKmh;
   final double trackProgress;
+  final int? gear;
+  final double? rpm;
 }
 
 class _CalibrationAttempt {
