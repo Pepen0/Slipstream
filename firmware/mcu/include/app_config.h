@@ -40,6 +40,10 @@
 // Setpoint deadband
 #define APP_SETPOINT_DEADBAND_M 0.0005f
 
+// Jog/test commands
+#define APP_JOG_DEFAULT_DURATION_MS 150u
+#define APP_JOG_MAX_DURATION_MS 1000u
+
 // LED status
 #define LED_GPIO_PORT GPIOC
 #define LED_GPIO_CLK_ENABLE() __HAL_RCC_GPIOC_CLK_ENABLE()

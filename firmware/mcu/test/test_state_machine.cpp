@@ -15,6 +15,9 @@ void test_update_request_blocks_energize(void);
 void test_update_arm_ready(void);
 void test_update_request_timeout_rollback(void);
 void test_update_abort_estop(void);
+void test_jog_start_and_timeout(void);
+void test_jog_stop_command(void);
+void test_jog_default_duration(void);
 
 void test_usb_disconnect_fault(void) {
   mcu_core_init(&core, 0, 100, 0, 200, 200, 50);
@@ -118,5 +121,8 @@ int main(int argc, char **argv) {
   RUN_TEST(test_update_arm_ready);
   RUN_TEST(test_update_request_timeout_rollback);
   RUN_TEST(test_update_abort_estop);
+  RUN_TEST(test_jog_start_and_timeout);
+  RUN_TEST(test_jog_stop_command);
+  RUN_TEST(test_jog_default_duration);
   return UNITY_END();
 }
