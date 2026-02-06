@@ -251,7 +251,7 @@ class _DashboardHomeState extends State<DashboardHome> {
   Future<void> _refreshSessions() async {
     try {
       final sessions = await client.listSessions();
-      if (!mounted || !_reviewMode || _reviewSession?.sessionId != session.sessionId) return;
+      if (!mounted) return;
       setState(() {
         _sessions = sessions;
       });
