@@ -4,7 +4,7 @@
 
 void test_pid_clamp(void) {
   control_config_t cfg = {0};
-  cfg.pid.kp = 5.0f;
+  cfg.pid.kp = 15.0f;
   cfg.pid.ki = 0.0f;
   cfg.pid.kd = 0.0f;
   cfg.pid.out_min = -1.0f;
