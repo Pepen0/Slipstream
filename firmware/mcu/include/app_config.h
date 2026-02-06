@@ -11,6 +11,12 @@
 // Status telemetry
 #define APP_STATUS_PERIOD_MS 100u
 
+// Firmware update / DFU
+#define APP_UPDATE_REQUEST_TIMEOUT_MS 3000u
+#define APP_UPDATE_ARM_TIMEOUT_MS 3000u
+#define APP_UPDATE_DFU_DELAY_MS 200u
+#define APP_DFU_BOOTLOADER_ADDR 0x1FFFF000u // STM32F1 system memory base
+
 // Control loop (1 kHz)
 #define APP_CONTROL_LOOP_HZ 1000u
 
@@ -56,5 +62,5 @@
 
 // Packet settings
 #ifndef APP_PROTOCOL_MAX_PAYLOAD
-#define APP_PROTOCOL_MAX_PAYLOAD 48u
+#define APP_PROTOCOL_MAX_PAYLOAD 64u
 #endif

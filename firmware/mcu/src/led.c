@@ -26,6 +26,8 @@ static uint32_t period_for_state(led_state_t state) {
       return 0; // solid on
     case LED_STATE_FAULT:
       return 200; // fast blink
+    case LED_STATE_MAINTENANCE:
+      return 500; // medium blink
     case LED_STATE_IDLE:
     default:
       return 1000; // slow blink

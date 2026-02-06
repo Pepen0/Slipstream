@@ -9,7 +9,8 @@ extern "C" {
 typedef enum {
   LED_STATE_IDLE = 0,
   LED_STATE_ACTIVE,
-  LED_STATE_FAULT
+  LED_STATE_FAULT,
+  LED_STATE_MAINTENANCE
 } led_state_t;
 
 void led_init(void);

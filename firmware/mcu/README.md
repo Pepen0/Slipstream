@@ -24,7 +24,7 @@ Update pin mappings, timing, and control settings in `firmware/mcu/include/app_c
 ```
 Header (packed)
   uint32 magic   = 0xA5C3F00D
-  uint8  version = 1
+  uint8  version = 2
   uint8  type    = 0x01 heartbeat
   uint16 length  = payload bytes
   uint32 seq
@@ -82,14 +82,44 @@ struct mcu_status_t {
   uint8  state;
   uint8  flags;      // bit0 USB, bit1 E‑Stop, bit2 PWM, bit3 Decay, bit4 Homing, bit5 Sensor OK
   uint16 fault_code;
+  uint32 fw_version; // packed: major.minor.patch.build (8 bits each)
+  uint32 fw_build;   // optional build identifier
+  uint8  update_state;
+  uint8  update_result;
+  uint16 update_reserved;
 }
 ```
+
+### Firmware update / DFU
+
+The MCU accepts a maintenance packet to request DFU entry. The update flow is a two‑step
+handshake to avoid accidental resets:
+
+1. Send `MAINTENANCE` with opcode `UPDATE_REQUEST` and a token.
+2. Send `MAINTENANCE` with opcode `UPDATE_ARM` and the same token within
+   `APP_UPDATE_REQUEST_TIMEOUT_MS`.
+3. The MCU disables outputs and reboots into the system DFU bootloader after
+   `APP_UPDATE_DFU_DELAY_MS`.
+
+The maintenance payload is:
+
+```
+struct mcu_maintenance_t {
+  uint16 magic = 0xB007;
+  uint8  opcode;
+  uint8  reserved;
+  uint32 token;
+}
+```
+
+> Configure `APP_DFU_BOOTLOADER_ADDR` if your STM32 variant uses a different system memory base.
 
 ## LED states
 
 - **Idle**: 1 Hz blink
 - **Active**: solid ON
 - **Fault**: 5 Hz blink
+- **Maintenance**: 2 Hz blink
 
 ## Build
 

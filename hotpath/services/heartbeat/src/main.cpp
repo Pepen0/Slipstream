@@ -43,6 +43,7 @@ struct Options {
   bool send_command = false;
   float cmd_left_m = 0.0f;
   float cmd_right_m = 0.0f;
+  bool enter_dfu = false;
 };
 
 Options parse_args(int argc, char **argv) {
@@ -78,10 +79,13 @@ Options parse_args(int argc, char **argv) {
     } else if (arg == "--cmd-right" && i + 1 < argc) {
       opt.send_command = true;
       opt.cmd_right_m = std::stof(argv[++i]);
+    } else if (arg == "--dfu") {
+      opt.enter_dfu = true;
     } else if (arg == "--help") {
       std::cout << "Usage: heartbeat_sender [--port COM3] [--baud 115200] [--interval 50] [--reconnect 1000]\n"
                    "                         [--status] [--batch] [--batch-max 64]\n"
-                   "                         [--command] [--cmd-left 0.0] [--cmd-right 0.0]\n";
+                   "                         [--command] [--cmd-left 0.0] [--cmd-right 0.0]\n"
+                   "                         [--dfu]\n";
       std::exit(0);
     }
   }
@@ -117,10 +121,15 @@ struct McuStatus {
   uint8_t state;
   uint8_t flags;
   uint16_t fault_code;
+  uint32_t fw_version;
+  uint32_t fw_build;
+  uint8_t update_state;
+  uint8_t update_result;
+  uint16_t update_reserved;
 };
 #pragma pack(pop)
 
-static_assert(sizeof(McuStatus) <= 48, "McuStatus payload exceeds protocol limit");
+static_assert(sizeof(McuStatus) <= 64, "McuStatus payload exceeds protocol limit");
 
 #pragma pack(push, 1)
 struct CommandPayload {
@@ -131,6 +140,24 @@ struct CommandPayload {
 #pragma pack(pop)
 
 static_assert(sizeof(CommandPayload) == 16, "CommandPayload size unexpected");
+
+#pragma pack(push, 1)
+struct MaintenancePayload {
+  uint16_t magic;
+  uint8_t opcode;
+  uint8_t reserved;
+  uint32_t token;
+};
+#pragma pack(pop)
+
+static_assert(sizeof(MaintenancePayload) == 8, "MaintenancePayload size unexpected");
+
+constexpr uint16_t kMaintenanceMagic = 0xB007u;
+enum class MaintenanceOp : uint8_t {
+  UpdateRequest = 1,
+  UpdateArm = 2,
+  UpdateAbort = 3
+};
 
 static uint64_t now_ns() {
   using clock = std::chrono::steady_clock;
@@ -155,6 +182,36 @@ int main(int argc, char **argv) {
   uint32_t seq = 0;
   std::vector<uint8_t> rx_buffer;
   FrameBatcher batcher(opt.batch_max_bytes);
+
+  if (opt.enter_dfu) {
+    if (!port.open(opt.port, opt.baud)) {
+      std::cerr << "Connect failed: " << port.last_error() << "\n";
+      return 1;
+    }
+    uint32_t token = static_cast<uint32_t>(now_ns());
+    MaintenancePayload payload{ kMaintenanceMagic,
+                                static_cast<uint8_t>(MaintenanceOp::UpdateRequest),
+                                0,
+                                token };
+    auto req = build_frame(PacketType::Maintenance, seq++,
+                           reinterpret_cast<const uint8_t *>(&payload),
+                           sizeof(payload));
+    if (!port.write(req.data(), req.size())) {
+      std::cerr << "Write failed: " << port.last_error() << "\n";
+      return 1;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    payload.opcode = static_cast<uint8_t>(MaintenanceOp::UpdateArm);
+    auto arm = build_frame(PacketType::Maintenance, seq++,
+                           reinterpret_cast<const uint8_t *>(&payload),
+                           sizeof(payload));
+    if (!port.write(arm.data(), arm.size())) {
+      std::cerr << "Write failed: " << port.last_error() << "\n";
+      return 1;
+    }
+    std::cout << "DFU request sent (token=" << token << ").\n";
+    return 0;
+  }
 
   auto next_tick = std::chrono::steady_clock::now();
 
@@ -251,17 +308,29 @@ int main(int argc, char **argv) {
           rx_buffer.erase(rx_buffer.begin());
           continue;
         }
-        if (parsed.header.type == static_cast<uint8_t>(PacketType::Status) &&
+          if (parsed.header.type == static_cast<uint8_t>(PacketType::Status) &&
             parsed.payload.size() >= sizeof(McuStatus)) {
           McuStatus status{};
           std::memcpy(&status, parsed.payload.data(), sizeof(McuStatus));
+          uint8_t fw_major = static_cast<uint8_t>((status.fw_version >> 24) & 0xFFu);
+          uint8_t fw_minor = static_cast<uint8_t>((status.fw_version >> 16) & 0xFFu);
+          uint8_t fw_patch = static_cast<uint8_t>((status.fw_version >> 8) & 0xFFu);
+          uint8_t fw_build = static_cast<uint8_t>(status.fw_version & 0xFFu);
           std::cout << "MCU status: uptime=" << status.uptime_ms
                     << " last_hb=" << status.last_heartbeat_ms
                     << " last_cmd_rx=" << status.last_cmd_rx_ms
                     << " state=" << static_cast<int>(status.state)
                     << " fault=" << status.fault_code
                     << " flags=0x" << std::hex << static_cast<int>(status.flags)
-                    << std::dec << "\n";
+                    << std::dec
+                    << " fw=" << static_cast<int>(fw_major) << "."
+                    << static_cast<int>(fw_minor) << "."
+                    << static_cast<int>(fw_patch) << "+"
+                    << static_cast<int>(fw_build)
+                    << " build_id=" << status.fw_build
+                    << " update_state=" << static_cast<int>(status.update_state)
+                    << " update_result=" << static_cast<int>(status.update_result)
+                    << "\n";
         }
         rx_buffer.erase(rx_buffer.begin(), rx_buffer.begin() + total);
       }

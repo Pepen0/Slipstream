@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 #define PROTOCOL_MAGIC 0xA5C3F00Du
-#define PROTOCOL_VERSION 1u
+#define PROTOCOL_VERSION 2u
 #ifdef APP_PROTOCOL_MAX_PAYLOAD
 #define PROTOCOL_MAX_PAYLOAD APP_PROTOCOL_MAX_PAYLOAD
 #else
@@ -20,7 +20,8 @@ extern "C" {
 typedef enum {
   PROTOCOL_TYPE_HEARTBEAT = 0x01,
   PROTOCOL_TYPE_COMMAND   = 0x02,
-  PROTOCOL_TYPE_STATUS    = 0x10
+  PROTOCOL_TYPE_STATUS    = 0x10,
+  PROTOCOL_TYPE_MAINTENANCE = 0x20
 } protocol_type_t;
 
 #pragma pack(push, 1)

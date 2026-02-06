@@ -6,12 +6,15 @@
 #include "mcu_command.h"
 #include "mcu_core.h"
 #include "mcu_faults.h"
+#include "mcu_maintenance.h"
 #include "mcu_status.h"
 #include "protocol.h"
 #include "sensors.h"
 #include "usb_cdc.h"
 #include "led.h"
 #include "safety.h"
+#include "bootloader.h"
+#include "firmware_version.h"
 
 IWDG_HandleTypeDef hiwdg;
 
@@ -29,6 +32,11 @@ int main(void) {
   HAL_Init();
   SystemClock_Config();
   MX_GPIO_Init();
+
+  if (bootloader_dfu_requested()) {
+    bootloader_enter_dfu();
+  }
+
   MX_IWDG_Init();
 
   led_init();
@@ -38,7 +46,9 @@ int main(void) {
   usb_cdc_init();
 
   mcu_core_t core;
-  mcu_core_init(&core, HAL_GetTick(), APP_HEARTBEAT_TIMEOUT_MS, APP_TORQUE_DECAY_MS);
+  mcu_core_init(&core, HAL_GetTick(), APP_HEARTBEAT_TIMEOUT_MS, APP_TORQUE_DECAY_MS,
+                APP_UPDATE_REQUEST_TIMEOUT_MS, APP_UPDATE_ARM_TIMEOUT_MS,
+                APP_UPDATE_DFU_DELAY_MS);
 
   control_config_t ctrl_cfg = {0};
   ctrl_cfg.pid.kp = APP_PID_KP;
@@ -87,6 +97,9 @@ int main(void) {
       if (frame.header.type == PROTOCOL_TYPE_HEARTBEAT) {
         mcu_core_on_heartbeat(&core, now);
       } else if (frame.header.type == PROTOCOL_TYPE_COMMAND) {
+        if (mcu_core_update_state(&core) != MCU_UPDATE_STATE_IDLE) {
+          continue;
+        }
         if (frame.header.length >= sizeof(mcu_command_t)) {
           mcu_command_t cmd;
           memcpy(&cmd, frame.payload, sizeof(mcu_command_t));
@@ -96,10 +109,40 @@ int main(void) {
         } else {
           mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
         }
+      } else if (frame.header.type == PROTOCOL_TYPE_MAINTENANCE) {
+        if (frame.header.length >= sizeof(mcu_maintenance_t)) {
+          mcu_maintenance_t maint;
+          memcpy(&maint, frame.payload, sizeof(mcu_maintenance_t));
+          if (maint.magic == MCU_MAINTENANCE_MAGIC) {
+            switch (maint.opcode) {
+              case MCU_MAINTENANCE_OP_UPDATE_REQUEST:
+                mcu_core_request_update(&core, maint.token, now);
+                break;
+              case MCU_MAINTENANCE_OP_UPDATE_ARM:
+                mcu_core_arm_update(&core, maint.token, now);
+                break;
+              case MCU_MAINTENANCE_OP_UPDATE_ABORT:
+                mcu_core_abort_update(&core, MCU_UPDATE_RESULT_ABORT_HOST);
+                break;
+              default:
+                break;
+            }
+          } else {
+            mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
+          }
+        } else {
+          mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
+        }
       }
     }
 
     mcu_core_tick(&core, now);
+
+    if (mcu_core_update_ready(&core, now)) {
+      safety_force_stop();
+      actuators_set_torque(0.0f, 0.0f);
+      bootloader_request_dfu();
+    }
 
     float torque_scale = mcu_core_torque_scale(&core, now);
     bool allow_control = mcu_core_should_energize(&core, now);
@@ -157,6 +200,9 @@ int main(void) {
       case MCU_STATE_FAULT:
         led_state = LED_STATE_FAULT;
         break;
+      case MCU_STATE_MAINTENANCE:
+        led_state = LED_STATE_MAINTENANCE;
+        break;
       case MCU_STATE_INIT:
       case MCU_STATE_IDLE:
       default:
@@ -188,6 +234,11 @@ int main(void) {
       if (ctrl.homing_active) status.flags |= MCU_STATUS_FLAG_HOMING;
       if (control_fault(&ctrl) == MCU_FAULT_NONE) status.flags |= MCU_STATUS_FLAG_SENSOR_OK;
       status.fault_code = mcu_core_fault(&core);
+      status.fw_version = FW_VERSION;
+      status.fw_build = FW_BUILD_ID;
+      status.update_state = (uint8_t)mcu_core_update_state(&core);
+      status.update_result = (uint8_t)mcu_core_update_result(&core);
+      status.update_reserved = 0;
 
       size_t out_len = protocol_build_frame(PROTOCOL_TYPE_STATUS, status_seq++,
                                             (const uint8_t *)&status, sizeof(status),

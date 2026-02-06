@@ -6,13 +6,14 @@
 namespace heartbeat {
 
 constexpr uint32_t kMagic = 0xA5C3F00Du;
-constexpr uint8_t kVersion = 1u;
-constexpr size_t kMaxPayload = 48u;
+constexpr uint8_t kVersion = 2u;
+constexpr size_t kMaxPayload = 64u;
 
 enum class PacketType : uint8_t {
   Heartbeat = 0x01,
   Command = 0x02,
-  Status = 0x10
+  Status = 0x10,
+  Maintenance = 0x20
 };
 
 #pragma pack(push, 1)

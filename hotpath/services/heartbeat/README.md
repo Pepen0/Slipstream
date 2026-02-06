@@ -28,10 +28,18 @@ Optional: print MCU status frames
 ./build/heartbeat_sender --port /dev/ttyACM0 --status
 ```
 
+Status output includes firmware version and maintenance state.
+
 Optional: batch heartbeat + command frames into a single USB write
 
 ```bash
 ./build/heartbeat_sender --port /dev/ttyACM0 --batch --command --cmd-left 0.01 --cmd-right 0.01
+```
+
+Request the MCU to enter DFU mode:
+
+```bash
+./build/heartbeat_sender --port /dev/ttyACM0 --dfu
 ```
 
 Tune the batch byte budget (default 64 bytes):
@@ -56,7 +64,7 @@ Matches MCU firmware (`protocol.h`):
 ```
 Header (packed)
   uint32 magic   = 0xA5C3F00D
-  uint8  version = 1
+  uint8  version = 2
   uint8  type    = 0x01 heartbeat
   uint16 length  = payload bytes
   uint32 seq

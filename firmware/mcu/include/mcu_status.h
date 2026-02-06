@@ -24,9 +24,14 @@ typedef struct {
   uint8_t state;
   uint8_t flags;
   uint16_t fault_code;
+  uint32_t fw_version;
+  uint32_t fw_build;
+  uint8_t update_state;
+  uint8_t update_result;
+  uint16_t update_reserved;
 } mcu_status_t;
 #pragma pack(pop)
 
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
-_Static_assert(sizeof(mcu_status_t) <= 48, "mcu_status_t exceeds protocol payload budget");
+_Static_assert(sizeof(mcu_status_t) <= 64, "mcu_status_t exceeds protocol payload budget");
 #endif
