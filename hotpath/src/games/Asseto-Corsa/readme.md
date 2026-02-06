@@ -13,8 +13,7 @@ Stream live telemetry from Assetto Corsa via a small Windows C++ bridge into a P
 ├── shared/protos/telemetry/v1/telemetry.proto  # Protobuf + gRPC service
 ├── scripts/gen_proto_py.sh              # Python stub generator
 ├── server/reference_ingest_server.py    # Async Python ingest (gRPC)
-├── tools/                               # Parquet conversion + plotting tools
-└── hotpath/src/games/Asseto-Corsa/requirements.txt
+└── tools/                               # Parquet conversion + plotting tools 
 ```
 
 ---
@@ -33,7 +32,7 @@ Create/activate a virtualenv (recommended), then:
 
 ```powershell
 py -m pip install --upgrade pip
-py -m pip install -r hotpath/src/games/Asseto-Corsa/requirements.txt
+py -m pip install -r requirements.txt
 ```
 
 Generate Python protobuf and gRPC stubs:
@@ -147,7 +146,7 @@ python tools/plot_parquet.py out.parquet --cols speed_kmh rpm gear --limit 5000
 Install with:
 
 ```powershell
-py -m pip install -r hotpath/src/games/Asseto-Corsa/requirements.txt
+py -m pip install -r requirements.txt
 ```
 
 ---

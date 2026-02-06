@@ -1,0 +1,103 @@
+syntax = "proto3";
+
+package dashboard.v1;
+
+message Status {
+  enum State {
+    STATE_INIT = 0;
+    STATE_IDLE = 1;
+    STATE_ACTIVE = 2;
+    STATE_FAULT = 3;
+  }
+  enum CalibrationState {
+    CALIBRATION_UNKNOWN = 0;
+    CALIBRATION_IDLE = 1;
+    CALIBRATION_RUNNING = 2;
+    CALIBRATION_PASSED = 3;
+    CALIBRATION_FAILED = 4;
+  }
+  State state = 1;
+  bool estop_active = 2;
+  bool session_active = 3;
+  string active_profile = 4;
+  string session_id = 5;
+  string last_error = 6;
+  uint64 updated_at_ns = 7;
+  CalibrationState calibration_state = 8;
+  float calibration_progress = 9;
+  string calibration_message = 10;
+  uint32 calibration_attempts = 11;
+  uint64 last_calibration_at_ns = 12;
+}
+
+message GetStatusRequest {}
+message GetStatusResponse { Status status = 1; }
+
+message CalibrateRequest { string profile_id = 1; }
+message CalibrateResponse { bool ok = 1; string message = 2; }
+
+message CancelCalibrationRequest {}
+message CancelCalibrationResponse { bool ok = 1; string message = 2; }
+
+message SetProfileRequest { string profile_id = 1; }
+message SetProfileResponse { bool ok = 1; string active_profile = 2; }
+
+message EStopRequest { bool engaged = 1; string reason = 2; }
+message EStopResponse { bool ok = 1; }
+
+message StartSessionRequest {
+  string session_id = 1;
+  string track = 2;
+  string car = 3;
+  uint64 start_time_ns = 4;
+}
+message StartSessionResponse { bool ok = 1; }
+
+message EndSessionRequest { string session_id = 1; }
+message EndSessionResponse { bool ok = 1; }
+
+message SessionMetadata {
+  string session_id = 1;
+  string track = 2;
+  string car = 3;
+  uint64 start_time_ns = 4;
+  uint64 end_time_ns = 5;
+  uint64 duration_ms = 6;
+}
+
+message ListSessionsRequest {}
+message ListSessionsResponse { repeated SessionMetadata sessions = 1; }
+
+message TelemetrySample {
+  uint64 timestamp_ns = 1;
+  float pitch_rad = 2;
+  float roll_rad = 3;
+  float left_target_m = 4;
+  float right_target_m = 5;
+  float latency_ms = 6;
+  float speed_kmh = 7;
+  int32 gear = 8;
+  float engine_rpm = 9;
+  float track_progress = 10;
+}
+
+message TelemetryStreamRequest { string session_id = 1; }
+
+message GetSessionTelemetryRequest {
+  string session_id = 1;
+  uint32 max_samples = 2;
+}
+message GetSessionTelemetryResponse { repeated TelemetrySample samples = 1; }
+
+service DashboardService {
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc Calibrate(CalibrateRequest) returns (CalibrateResponse);
+  rpc CancelCalibration(CancelCalibrationRequest) returns (CancelCalibrationResponse);
+  rpc SetProfile(SetProfileRequest) returns (SetProfileResponse);
+  rpc EStop(EStopRequest) returns (EStopResponse);
+  rpc StartSession(StartSessionRequest) returns (StartSessionResponse);
+  rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc StreamTelemetry(TelemetryStreamRequest) returns (stream TelemetrySample);
+  rpc GetSessionTelemetry(GetSessionTelemetryRequest) returns (GetSessionTelemetryResponse);
+}

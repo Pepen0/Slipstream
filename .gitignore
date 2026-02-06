@@ -65,13 +65,9 @@ Software-code/Asseto-Corsa-telemetry/build/_generated/**
 ####################################
 # Local Scripts / Context Dumps
 ####################################
-concat.sh
-context.txt
+*concat.sh
+*context.txt
 
-Software-code/concat.sh
-Software-code/context.txt
-Software-code/Asseto-Corsa-telemetry/concat.sh
-Software-code/Asseto-Corsa-telemetry/context.txt
 
 
 ####################################
@@ -88,6 +84,7 @@ _autosave-*
 *-save.pro
 *-save.kicad_pcb
 fp-info-cache
+*.kicad_sch.lck
 
 
 ####################################
@@ -135,3 +132,44 @@ fp-info-cache
 # Kibot
 ####################################
 Electronics/kibot_yaml/kicost_config_local.yaml
+
+
+####################################
+# PlatformIO
+####################################
+.pio/
+.pioenvs/
+.piolibdeps/
+
+
+####################################
+# CMake build outputs
+####################################
+hotpath/services/heartbeat/build/
+hotpath/services/physics/build/
+hotpath/services/dashboard/build/
+hotpath/services/dashboard/data/
+
+
+####################################
+# Python virtualenv
+####################################
+.venv/
+
+
+####################################
+# Flutter (Software-code/App)
+####################################
+Software-code/App/.dart_tool/
+Software-code/App/.flutter-plugins
+Software-code/App/.flutter-plugins-dependencies
+Software-code/App/.pub-cache/
+Software-code/App/.pub/
+Software-code/App/build/
+Software-code/App/ios/Flutter/.last_build_id
+Software-code/App/android/app/debug
+Software-code/App/android/app/profile
+Software-code/App/android/app/release
+Software-code/App/linux/flutter/ephemeral/
+Software-code/App/macos/Flutter/ephemeral/
+Software-code/App/windows/flutter/ephemeral/
