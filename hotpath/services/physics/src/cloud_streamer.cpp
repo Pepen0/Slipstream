@@ -91,14 +91,15 @@ void CloudTelemetryStreamer::ingest(const TelemetrySample &sample) {
   ingested_.fetch_add(1, std::memory_order_relaxed);
   const auto interval = period_ns();
   if (interval > 0) {
-    uint64_t last = last_emit_ns_.load(std::memory_order_relaxed);
-    if (sample.timestamp_ns <= last || (sample.timestamp_ns - last) < interval) {
-      downsampled_.fetch_add(1, std::memory_order_relaxed);
-      return;
-    }
-    if (!last_emit_ns_.compare_exchange_weak(last, sample.timestamp_ns, std::memory_order_relaxed)) {
-      downsampled_.fetch_add(1, std::memory_order_relaxed);
-      return;
+    while (true) {
+      uint64_t last = last_emit_ns_.load(std::memory_order_relaxed);
+      if (sample.timestamp_ns <= last || (sample.timestamp_ns - last) < interval) {
+        downsampled_.fetch_add(1, std::memory_order_relaxed);
+        return;
+      }
+      if (last_emit_ns_.compare_exchange_weak(last, sample.timestamp_ns, std::memory_order_relaxed)) {
+        break;
+      }
     }
   }
 

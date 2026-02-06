@@ -41,7 +41,7 @@ int main() {
     auto sink = std::make_shared<FakeSink>();
     streamer.set_sink(sink);
 
-    uint64_t ts = 0;
+    uint64_t ts = 1000000ull;
     for (int i = 0; i < 1000; ++i) {
       streamer.ingest(make_sample(ts, 10.0f));
       ts += 1000000ull; // 1 ms
@@ -60,7 +60,7 @@ int main() {
     auto sink = std::make_shared<FakeSink>();
     streamer.set_sink(sink);
 
-    uint64_t ts = 0;
+    uint64_t ts = 1000000ull;
     for (int i = 0; i < 10; ++i) {
       streamer.ingest(make_sample(ts, static_cast<float>(i)));
       ts += 1000000ull;
