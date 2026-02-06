@@ -102,16 +102,24 @@ class DashboardClient {
     }
   }
 
-  Future<void> calibrate(String profileId) async {
-    if (_stub == null) return;
-    await _stub!.calibrate(CalibrateRequest()..profileId = profileId);
+  Future<CalibrateResponse?> calibrate(String profileId) async {
+    if (_stub == null) return null;
+    final resp = await _stub!.calibrate(CalibrateRequest()..profileId = profileId);
     await refreshStatus();
+    return resp;
   }
 
   Future<void> setProfile(String profileId) async {
     if (_stub == null) return;
     await _stub!.setProfile(SetProfileRequest()..profileId = profileId);
     await refreshStatus();
+  }
+
+  Future<CancelCalibrationResponse?> cancelCalibration() async {
+    if (_stub == null) return null;
+    final resp = await _stub!.cancelCalibration(CancelCalibrationRequest());
+    await refreshStatus();
+    return resp;
   }
 
   Future<void> setEStop(bool engaged, {String reason = ''}) async {

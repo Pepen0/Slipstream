@@ -12,6 +12,14 @@ enum class DashboardState {
   Fault = 3
 };
 
+enum class CalibrationState {
+  Unknown = 0,
+  Idle = 1,
+  Running = 2,
+  Passed = 3,
+  Failed = 4
+};
+
 struct DashboardStatus {
   DashboardState state = DashboardState::Init;
   bool estop_active = false;
@@ -20,14 +28,20 @@ struct DashboardStatus {
   std::string session_id;
   std::string last_error;
   uint64_t updated_at_ns = 0;
+  CalibrationState calibration_state = CalibrationState::Idle;
+  float calibration_progress = 0.0f;
+  std::string calibration_message;
+  uint32_t calibration_attempts = 0;
+  uint64_t last_calibration_at_ns = 0;
 };
 
 class DashboardStateMachine {
 public:
   DashboardStateMachine();
 
-  DashboardStatus get_status() const;
+  DashboardStatus get_status();
   DashboardStatus calibrate(const std::string &profile_id);
+  DashboardStatus cancel_calibration();
   DashboardStatus set_profile(const std::string &profile_id);
   DashboardStatus estop(bool engaged, const std::string &reason);
   DashboardStatus start_session(const std::string &session_id);
@@ -35,7 +49,9 @@ public:
 
 private:
   DashboardStatus status_{};
+  uint64_t calibration_start_ns_ = 0;
   void touch();
+  void update_calibration(uint64_t now_ns);
 };
 
 } // namespace slipstream::dashboard

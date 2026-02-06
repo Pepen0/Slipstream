@@ -30,6 +30,11 @@ class Status extends $pb.GeneratedMessage {
     $core.String? sessionId,
     $core.String? lastError,
     $fixnum.Int64? updatedAtNs,
+    Status_CalibrationState? calibrationState,
+    $core.double? calibrationProgress,
+    $core.String? calibrationMessage,
+    $core.int? calibrationAttempts,
+    $fixnum.Int64? lastCalibrationAtNs,
   }) {
     final result = create();
     if (state != null) result.state = state;
@@ -39,6 +44,11 @@ class Status extends $pb.GeneratedMessage {
     if (sessionId != null) result.sessionId = sessionId;
     if (lastError != null) result.lastError = lastError;
     if (updatedAtNs != null) result.updatedAtNs = updatedAtNs;
+    if (calibrationState != null) result.calibrationState = calibrationState;
+    if (calibrationProgress != null) result.calibrationProgress = calibrationProgress;
+    if (calibrationMessage != null) result.calibrationMessage = calibrationMessage;
+    if (calibrationAttempts != null) result.calibrationAttempts = calibrationAttempts;
+    if (lastCalibrationAtNs != null) result.lastCalibrationAtNs = lastCalibrationAtNs;
     return result;
   }
 
@@ -55,6 +65,11 @@ class Status extends $pb.GeneratedMessage {
     ..aOS(5, _omitFieldNames ? '' : 'sessionId')
     ..aOS(6, _omitFieldNames ? '' : 'lastError')
     ..a<$fixnum.Int64>(7, _omitFieldNames ? '' : 'updatedAtNs', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
+    ..e<Status_CalibrationState>(8, _omitFieldNames ? '' : 'calibrationState', $pb.PbFieldType.OE, defaultOrMaker: Status_CalibrationState.CALIBRATION_UNKNOWN, valueOf: Status_CalibrationState.valueOf, enumValues: Status_CalibrationState.values)
+    ..a<$core.double>(9, _omitFieldNames ? '' : 'calibrationProgress', $pb.PbFieldType.OF)
+    ..aOS(10, _omitFieldNames ? '' : 'calibrationMessage')
+    ..a<$core.int>(11, _omitFieldNames ? '' : 'calibrationAttempts', $pb.PbFieldType.OU3)
+    ..a<$fixnum.Int64>(12, _omitFieldNames ? '' : 'lastCalibrationAtNs', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
     ..hasRequiredFields = false
   ;
 
@@ -137,6 +152,51 @@ class Status extends $pb.GeneratedMessage {
   $core.bool hasUpdatedAtNs() => $_has(6);
   @$pb.TagNumber(7)
   void clearUpdatedAtNs() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  Status_CalibrationState get calibrationState => $_getN(7);
+  @$pb.TagNumber(8)
+  set calibrationState(Status_CalibrationState value) => $_setField(8, value);
+  @$pb.TagNumber(8)
+  $core.bool hasCalibrationState() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearCalibrationState() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $core.double get calibrationProgress => $_getN(8);
+  @$pb.TagNumber(9)
+  set calibrationProgress($core.double value) => $_setFloat(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasCalibrationProgress() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearCalibrationProgress() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $core.String get calibrationMessage => $_getSZ(9);
+  @$pb.TagNumber(10)
+  set calibrationMessage($core.String value) => $_setString(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasCalibrationMessage() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearCalibrationMessage() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.int get calibrationAttempts => $_getIZ(10);
+  @$pb.TagNumber(11)
+  set calibrationAttempts($core.int value) => $_setUnsignedInt32(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasCalibrationAttempts() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearCalibrationAttempts() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $fixnum.Int64 get lastCalibrationAtNs => $_getI64(11);
+  @$pb.TagNumber(12)
+  set lastCalibrationAtNs($fixnum.Int64 value) => $_setInt64(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasLastCalibrationAtNs() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearLastCalibrationAtNs() => $_clearField(12);
 }
 
 class GetStatusRequest extends $pb.GeneratedMessage {
@@ -301,6 +361,94 @@ class CalibrateResponse extends $pb.GeneratedMessage {
   @$core.pragma('dart2js:noInline')
   static CalibrateResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<CalibrateResponse>(create);
   static CalibrateResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get message => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set message($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMessage() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMessage() => $_clearField(2);
+}
+
+class CancelCalibrationRequest extends $pb.GeneratedMessage {
+  factory CancelCalibrationRequest() => create();
+
+  CancelCalibrationRequest._();
+
+  factory CancelCalibrationRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory CancelCalibrationRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'CancelCalibrationRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CancelCalibrationRequest clone() => CancelCalibrationRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CancelCalibrationRequest copyWith(void Function(CancelCalibrationRequest) updates) => super.copyWith((message) => updates(message as CancelCalibrationRequest)) as CancelCalibrationRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CancelCalibrationRequest create() => CancelCalibrationRequest._();
+  @$core.override
+  CancelCalibrationRequest createEmptyInstance() => create();
+  static $pb.PbList<CancelCalibrationRequest> createRepeated() => $pb.PbList<CancelCalibrationRequest>();
+  @$core.pragma('dart2js:noInline')
+  static CancelCalibrationRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<CancelCalibrationRequest>(create);
+  static CancelCalibrationRequest? _defaultInstance;
+}
+
+class CancelCalibrationResponse extends $pb.GeneratedMessage {
+  factory CancelCalibrationResponse({
+    $core.bool? ok,
+    $core.String? message,
+  }) {
+    final result = create();
+    if (ok != null) result.ok = ok;
+    if (message != null) result.message = message;
+    return result;
+  }
+
+  CancelCalibrationResponse._();
+
+  factory CancelCalibrationResponse.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory CancelCalibrationResponse.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'CancelCalibrationResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'message')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CancelCalibrationResponse clone() => CancelCalibrationResponse()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CancelCalibrationResponse copyWith(void Function(CancelCalibrationResponse) updates) => super.copyWith((message) => updates(message as CancelCalibrationResponse)) as CancelCalibrationResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CancelCalibrationResponse create() => CancelCalibrationResponse._();
+  @$core.override
+  CancelCalibrationResponse createEmptyInstance() => create();
+  static $pb.PbList<CancelCalibrationResponse> createRepeated() => $pb.PbList<CancelCalibrationResponse>();
+  @$core.pragma('dart2js:noInline')
+  static CancelCalibrationResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<CancelCalibrationResponse>(create);
+  static CancelCalibrationResponse? _defaultInstance;
 
   @$pb.TagNumber(1)
   $core.bool get ok => $_getBF(0);

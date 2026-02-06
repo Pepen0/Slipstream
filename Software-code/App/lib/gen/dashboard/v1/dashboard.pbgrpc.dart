@@ -40,6 +40,10 @@ class DashboardServiceClient extends $grpc.Client {
     return $createUnaryCall(_$calibrate, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.CancelCalibrationResponse> cancelCalibration($0.CancelCalibrationRequest request, {$grpc.CallOptions? options,}) {
+    return $createUnaryCall(_$cancelCalibration, request, options: options);
+  }
+
   $grpc.ResponseFuture<$0.SetProfileResponse> setProfile($0.SetProfileRequest request, {$grpc.CallOptions? options,}) {
     return $createUnaryCall(_$setProfile, request, options: options);
   }
@@ -70,6 +74,10 @@ class DashboardServiceClient extends $grpc.Client {
       '/dashboard.v1.DashboardService/Calibrate',
       ($0.CalibrateRequest value) => value.writeToBuffer(),
       $0.CalibrateResponse.fromBuffer);
+  static final _$cancelCalibration = $grpc.ClientMethod<$0.CancelCalibrationRequest, $0.CancelCalibrationResponse>(
+      '/dashboard.v1.DashboardService/CancelCalibration',
+      ($0.CancelCalibrationRequest value) => value.writeToBuffer(),
+      $0.CancelCalibrationResponse.fromBuffer);
   static final _$setProfile = $grpc.ClientMethod<$0.SetProfileRequest, $0.SetProfileResponse>(
       '/dashboard.v1.DashboardService/SetProfile',
       ($0.SetProfileRequest value) => value.writeToBuffer(),
@@ -111,6 +119,13 @@ abstract class DashboardServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.CalibrateRequest.fromBuffer(value),
         ($0.CalibrateResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.CancelCalibrationRequest, $0.CancelCalibrationResponse>(
+        'CancelCalibration',
+        cancelCalibration_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.CancelCalibrationRequest.fromBuffer(value),
+        ($0.CancelCalibrationResponse value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.SetProfileRequest, $0.SetProfileResponse>(
         'SetProfile',
         setProfile_Pre,
@@ -159,6 +174,12 @@ abstract class DashboardServiceBase extends $grpc.Service {
   }
 
   $async.Future<$0.CalibrateResponse> calibrate($grpc.ServiceCall call, $0.CalibrateRequest request);
+
+  $async.Future<$0.CancelCalibrationResponse> cancelCalibration_Pre($grpc.ServiceCall $call, $async.Future<$0.CancelCalibrationRequest> $request) async {
+    return cancelCalibration($call, await $request);
+  }
+
+  $async.Future<$0.CancelCalibrationResponse> cancelCalibration($grpc.ServiceCall call, $0.CancelCalibrationRequest request);
 
   $async.Future<$0.SetProfileResponse> setProfile_Pre($grpc.ServiceCall $call, $async.Future<$0.SetProfileRequest> $request) async {
     return setProfile($call, await $request);

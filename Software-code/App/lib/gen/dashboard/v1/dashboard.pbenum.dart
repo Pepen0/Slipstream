@@ -33,5 +33,26 @@ class Status_State extends $pb.ProtobufEnum {
   const Status_State._(super.value, super.name);
 }
 
+class Status_CalibrationState extends $pb.ProtobufEnum {
+  static const Status_CalibrationState CALIBRATION_UNKNOWN = Status_CalibrationState._(0, _omitEnumNames ? '' : 'CALIBRATION_UNKNOWN');
+  static const Status_CalibrationState CALIBRATION_IDLE = Status_CalibrationState._(1, _omitEnumNames ? '' : 'CALIBRATION_IDLE');
+  static const Status_CalibrationState CALIBRATION_RUNNING = Status_CalibrationState._(2, _omitEnumNames ? '' : 'CALIBRATION_RUNNING');
+  static const Status_CalibrationState CALIBRATION_PASSED = Status_CalibrationState._(3, _omitEnumNames ? '' : 'CALIBRATION_PASSED');
+  static const Status_CalibrationState CALIBRATION_FAILED = Status_CalibrationState._(4, _omitEnumNames ? '' : 'CALIBRATION_FAILED');
+
+  static const $core.List<Status_CalibrationState> values = <Status_CalibrationState> [
+    CALIBRATION_UNKNOWN,
+    CALIBRATION_IDLE,
+    CALIBRATION_RUNNING,
+    CALIBRATION_PASSED,
+    CALIBRATION_FAILED,
+  ];
+
+  static final $core.List<Status_CalibrationState?> _byValue = $pb.ProtobufEnum.$_initByValueList(values, 4);
+  static Status_CalibrationState? valueOf($core.int value) =>  value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const Status_CalibrationState._(super.value, super.name);
+}
+
 
 const $core.bool _omitEnumNames = $core.bool.fromEnvironment('protobuf.omit_enum_names');

@@ -9,6 +9,13 @@ message Status {
     STATE_ACTIVE = 2;
     STATE_FAULT = 3;
   }
+  enum CalibrationState {
+    CALIBRATION_UNKNOWN = 0;
+    CALIBRATION_IDLE = 1;
+    CALIBRATION_RUNNING = 2;
+    CALIBRATION_PASSED = 3;
+    CALIBRATION_FAILED = 4;
+  }
   State state = 1;
   bool estop_active = 2;
   bool session_active = 3;
@@ -16,6 +23,11 @@ message Status {
   string session_id = 5;
   string last_error = 6;
   uint64 updated_at_ns = 7;
+  CalibrationState calibration_state = 8;
+  float calibration_progress = 9;
+  string calibration_message = 10;
+  uint32 calibration_attempts = 11;
+  uint64 last_calibration_at_ns = 12;
 }
 
 message GetStatusRequest {}
@@ -23,6 +35,9 @@ message GetStatusResponse { Status status = 1; }
 
 message CalibrateRequest { string profile_id = 1; }
 message CalibrateResponse { bool ok = 1; string message = 2; }
+
+message CancelCalibrationRequest {}
+message CancelCalibrationResponse { bool ok = 1; string message = 2; }
 
 message SetProfileRequest { string profile_id = 1; }
 message SetProfileResponse { bool ok = 1; string active_profile = 2; }
@@ -50,6 +65,7 @@ message TelemetryStreamRequest { string session_id = 1; }
 service DashboardService {
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
   rpc Calibrate(CalibrateRequest) returns (CalibrateResponse);
+  rpc CancelCalibration(CancelCalibrationRequest) returns (CancelCalibrationResponse);
   rpc SetProfile(SetProfileRequest) returns (SetProfileResponse);
   rpc EStop(EStopRequest) returns (EStopResponse);
   rpc StartSession(StartSessionRequest) returns (StartSessionResponse);

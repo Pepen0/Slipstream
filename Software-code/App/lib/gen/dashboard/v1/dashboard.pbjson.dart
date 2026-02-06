@@ -25,8 +25,13 @@ const Status$json = {
     {'1': 'session_id', '3': 5, '4': 1, '5': 9, '10': 'sessionId'},
     {'1': 'last_error', '3': 6, '4': 1, '5': 9, '10': 'lastError'},
     {'1': 'updated_at_ns', '3': 7, '4': 1, '5': 4, '10': 'updatedAtNs'},
+    {'1': 'calibration_state', '3': 8, '4': 1, '5': 14, '6': '.dashboard.v1.Status.CalibrationState', '10': 'calibrationState'},
+    {'1': 'calibration_progress', '3': 9, '4': 1, '5': 2, '10': 'calibrationProgress'},
+    {'1': 'calibration_message', '3': 10, '4': 1, '5': 9, '10': 'calibrationMessage'},
+    {'1': 'calibration_attempts', '3': 11, '4': 1, '5': 13, '10': 'calibrationAttempts'},
+    {'1': 'last_calibration_at_ns', '3': 12, '4': 1, '5': 4, '10': 'lastCalibrationAtNs'},
   ],
-  '4': [Status_State$json],
+  '4': [Status_State$json, Status_CalibrationState$json],
 };
 
 @$core.Deprecated('Use statusDescriptor instead')
@@ -40,15 +45,34 @@ const Status_State$json = {
   ],
 };
 
+@$core.Deprecated('Use statusDescriptor instead')
+const Status_CalibrationState$json = {
+  '1': 'CalibrationState',
+  '2': [
+    {'1': 'CALIBRATION_UNKNOWN', '2': 0},
+    {'1': 'CALIBRATION_IDLE', '2': 1},
+    {'1': 'CALIBRATION_RUNNING', '2': 2},
+    {'1': 'CALIBRATION_PASSED', '2': 3},
+    {'1': 'CALIBRATION_FAILED', '2': 4},
+  ],
+};
+
 /// Descriptor for `Status`. Decode as a `google.protobuf.DescriptorProto`.
 final $typed_data.Uint8List statusDescriptor = $convert.base64Decode(
     'CgZTdGF0dXMSMAoFc3RhdGUYASABKA4yGi5kYXNoYm9hcmQudjEuU3RhdHVzLlN0YXRlUgVzdG'
     'F0ZRIhCgxlc3RvcF9hY3RpdmUYAiABKAhSC2VzdG9wQWN0aXZlEiUKDnNlc3Npb25fYWN0aXZl'
     'GAMgASgIUg1zZXNzaW9uQWN0aXZlEiUKDmFjdGl2ZV9wcm9maWxlGAQgASgJUg1hY3RpdmVQcm'
     '9maWxlEh0KCnNlc3Npb25faWQYBSABKAlSCXNlc3Npb25JZBIdCgpsYXN0X2Vycm9yGAYgASgJ'
-    'UglsYXN0RXJyb3ISIgoNdXBkYXRlZF9hdF9ucxgHIAEoBFILdXBkYXRlZEF0TnMiSgoFU3RhdG'
-    'USDgoKU1RBVEVfSU5JVBAAEg4KClNUQVRFX0lETEUQARIQCgxTVEFURV9BQ1RJVkUQAhIPCgtT'
-    'VEFURV9GQVVMVBAD');
+    'UglsYXN0RXJyb3ISIgoNdXBkYXRlZF9hdF9ucxgHIAEoBFILdXBkYXRlZEF0TnMSUgoRY2FsaW'
+    'JyYXRpb25fc3RhdGUYCCABKA4yJS5kYXNoYm9hcmQudjEuU3RhdHVzLkNhbGlicmF0aW9uU3Rh'
+    'dGVSEGNhbGlicmF0aW9uU3RhdGUSMQoUY2FsaWJyYXRpb25fcHJvZ3Jlc3MYCSABKAJSE2NhbG'
+    'licmF0aW9uUHJvZ3Jlc3MSLwoTY2FsaWJyYXRpb25fbWVzc2FnZRgKIAEoCVISY2FsaWJyYXRp'
+    'b25NZXNzYWdlEjEKFGNhbGlicmF0aW9uX2F0dGVtcHRzGAsgASgNUhNjYWxpYnJhdGlvbkF0dG'
+    'VtcHRzEjMKFmxhc3RfY2FsaWJyYXRpb25fYXRfbnMYDCABKARSE2xhc3RDYWxpYnJhdGlvbkF0'
+    'TnMiSgoFU3RhdGUSDgoKU1RBVEVfSU5JVBAAEg4KClNUQVRFX0lETEUQARIQCgxTVEFURV9BQ1'
+    'RJVkUQAhIPCgtTVEFURV9GQVVMVBADIooBChBDYWxpYnJhdGlvblN0YXRlEhcKE0NBTElCUkFU'
+    'SU9OX1VOS05PV04QABIUChBDQUxJQlJBVElPTl9JRExFEAESFwoTQ0FMSUJSQVRJT05fUlVOTk'
+    'lORxACEhYKEkNBTElCUkFUSU9OX1BBU1NFRBADEhYKEkNBTElCUkFUSU9OX0ZBSUxFRBAE');
 
 @$core.Deprecated('Use getStatusRequestDescriptor instead')
 const GetStatusRequest$json = {
@@ -97,6 +121,29 @@ const CalibrateResponse$json = {
 final $typed_data.Uint8List calibrateResponseDescriptor = $convert.base64Decode(
     'ChFDYWxpYnJhdGVSZXNwb25zZRIOCgJvaxgBIAEoCFICb2sSGAoHbWVzc2FnZRgCIAEoCVIHbW'
     'Vzc2FnZQ==');
+
+@$core.Deprecated('Use cancelCalibrationRequestDescriptor instead')
+const CancelCalibrationRequest$json = {
+  '1': 'CancelCalibrationRequest',
+};
+
+/// Descriptor for `CancelCalibrationRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List cancelCalibrationRequestDescriptor = $convert.base64Decode(
+    'ChhDYW5jZWxDYWxpYnJhdGlvblJlcXVlc3Q=');
+
+@$core.Deprecated('Use cancelCalibrationResponseDescriptor instead')
+const CancelCalibrationResponse$json = {
+  '1': 'CancelCalibrationResponse',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
+  ],
+};
+
+/// Descriptor for `CancelCalibrationResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List cancelCalibrationResponseDescriptor = $convert.base64Decode(
+    'ChlDYW5jZWxDYWxpYnJhdGlvblJlc3BvbnNlEg4KAm9rGAEgASgIUgJvaxIYCgdtZXNzYWdlGA'
+    'IgASgJUgdtZXNzYWdl');
 
 @$core.Deprecated('Use setProfileRequestDescriptor instead')
 const SetProfileRequest$json = {

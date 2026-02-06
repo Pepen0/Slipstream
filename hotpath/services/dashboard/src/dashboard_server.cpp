@@ -9,6 +9,8 @@
 
 using dashboard::v1::CalibrateRequest;
 using dashboard::v1::CalibrateResponse;
+using dashboard::v1::CancelCalibrationRequest;
+using dashboard::v1::CancelCalibrationResponse;
 using dashboard::v1::DashboardService;
 using dashboard::v1::EStopRequest;
 using dashboard::v1::EStopResponse;
@@ -40,6 +42,22 @@ static Status::State to_proto_state(DashboardState state) {
   }
 }
 
+static Status::CalibrationState to_proto_calibration_state(CalibrationState state) {
+  switch (state) {
+    case CalibrationState::Idle:
+      return Status::CALIBRATION_IDLE;
+    case CalibrationState::Running:
+      return Status::CALIBRATION_RUNNING;
+    case CalibrationState::Passed:
+      return Status::CALIBRATION_PASSED;
+    case CalibrationState::Failed:
+      return Status::CALIBRATION_FAILED;
+    case CalibrationState::Unknown:
+    default:
+      return Status::CALIBRATION_UNKNOWN;
+  }
+}
+
 class DashboardServiceImpl final : public DashboardService::Service {
 public:
   DashboardServiceImpl() = default;
@@ -61,6 +79,11 @@ public:
     out->set_session_id(status.session_id);
     out->set_last_error(status.last_error);
     out->set_updated_at_ns(status.updated_at_ns);
+    out->set_calibration_state(to_proto_calibration_state(status.calibration_state));
+    out->set_calibration_progress(status.calibration_progress);
+    out->set_calibration_message(status.calibration_message);
+    out->set_calibration_attempts(status.calibration_attempts);
+    out->set_last_calibration_at_ns(status.last_calibration_at_ns);
     return grpc::Status::OK;
   }
 
@@ -68,8 +91,18 @@ public:
     std::lock_guard<std::mutex> lock(mu_);
     auto status = state_.calibrate(req->profile_id());
     log_info("Calibrate profile=" + req->profile_id());
+    resp->set_ok(status.calibration_state != CalibrationState::Failed);
+    resp->set_message(status.calibration_message);
+    return grpc::Status::OK;
+  }
+
+  grpc::Status CancelCalibration(grpc::ServerContext *, const CancelCalibrationRequest *,
+                                 CancelCalibrationResponse *resp) override {
+    std::lock_guard<std::mutex> lock(mu_);
+    auto status = state_.cancel_calibration();
+    log_warn("Calibration canceled");
     resp->set_ok(true);
-    resp->set_message("Calibration started for profile " + status.active_profile);
+    resp->set_message(status.calibration_message);
     return grpc::Status::OK;
   }
 
