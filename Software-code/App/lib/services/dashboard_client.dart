@@ -130,9 +130,13 @@ class DashboardClient {
     await refreshStatus();
   }
 
-  Future<void> startSession(String sessionId) async {
+  Future<void> startSession(String sessionId, {String track = '', String car = ''}) async {
     if (_stub == null) return;
-    await _stub!.startSession(StartSessionRequest()..sessionId = sessionId);
+    final req = StartSessionRequest()
+      ..sessionId = sessionId
+      ..track = track
+      ..car = car;
+    await _stub!.startSession(req);
     await refreshStatus();
   }
 
@@ -140,6 +144,12 @@ class DashboardClient {
     if (_stub == null) return;
     await _stub!.endSession(EndSessionRequest()..sessionId = sessionId);
     await refreshStatus();
+  }
+
+  Future<List<SessionMetadata>> listSessions() async {
+    if (_stub == null) return [];
+    final resp = await _stub!.listSessions(ListSessionsRequest());
+    return resp.sessions;
   }
 
   void startTelemetryStream({String sessionId = ''}) {
