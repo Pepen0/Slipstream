@@ -11,7 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:client/main.dart';
 
 void main() {
-  testWidgets('Dashboard renders live and system status views', (WidgetTester tester) async {
+  testWidgets('Dashboard renders live and system status views',
+      (WidgetTester tester) async {
     await tester.pumpWidget(const DashboardApp());
     expect(find.text('Slipstream Dashboard'), findsOneWidget);
     expect(find.text('Live Dashboard'), findsOneWidget);
@@ -19,6 +20,9 @@ void main() {
     expect(find.byKey(const Key('track-map')), findsOneWidget);
     expect(find.byKey(const Key('speed-graph')), findsOneWidget);
     expect(find.byKey(const Key('session-list')), findsOneWidget);
+    expect(find.byKey(const Key('session-filter-date')), findsOneWidget);
+    expect(find.byKey(const Key('session-filter-track')), findsOneWidget);
+    expect(find.byKey(const Key('session-filter-type')), findsOneWidget);
     expect(find.byKey(const Key('estop-control')), findsOneWidget);
 
     await tester.tap(find.text('System Status'));

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import 'gen/dashboard/v1/dashboard.pb.dart';
+import 'session_browser.dart';
 import 'services/dashboard_client.dart';
 
 const Color _kBackground = Color(0xFF0A0F14);
@@ -40,11 +41,16 @@ class DashboardApp extends StatelessWidget {
       useMaterial3: true,
       fontFamily: 'SpaceGrotesk',
       textTheme: const TextTheme(
-        displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: 1.2),
-        displayMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: 0.8),
-        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 0.4),
-        titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.2),
-        bodyLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
+        displayLarge: TextStyle(
+            fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: 1.2),
+        displayMedium: TextStyle(
+            fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: 0.8),
+        titleLarge: TextStyle(
+            fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 0.4),
+        titleMedium: TextStyle(
+            fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.2),
+        bodyLarge: TextStyle(
+            fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
         bodyMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
       ),
       cardTheme: CardTheme(
@@ -112,10 +118,14 @@ class DashboardHome extends StatefulWidget {
 
 class _DashboardHomeState extends State<DashboardHome> {
   final DashboardClient client = DashboardClient();
-  final TextEditingController profileController = TextEditingController(text: 'default');
-  final TextEditingController sessionController = TextEditingController(text: 'session-001');
-  final TextEditingController trackController = TextEditingController(text: 'Laguna Seca');
-  final TextEditingController carController = TextEditingController(text: 'GT3');
+  final TextEditingController profileController =
+      TextEditingController(text: 'default');
+  final TextEditingController sessionController =
+      TextEditingController(text: 'session-001');
+  final TextEditingController trackController =
+      TextEditingController(text: 'Laguna Seca');
+  final TextEditingController carController =
+      TextEditingController(text: 'GT3');
 
   bool estopEngaged = false;
   bool profileReady = false;
@@ -131,6 +141,12 @@ class _DashboardHomeState extends State<DashboardHome> {
   List<_SpeedSample> _liveHistory = [];
   List<_SpeedSample> _reviewSamples = [];
   List<SessionMetadata> _sessions = [];
+  bool _sessionsLoading = false;
+  String? _sessionsError;
+  String? _selectedSessionId;
+  SessionDateFilter _sessionDateFilter = SessionDateFilter.all;
+  SessionTypeFilter _sessionTypeFilter = SessionTypeFilter.all;
+  String _sessionTrackFilter = kAllTracksFilter;
   String? _activeSessionId;
   bool _lastSessionActive = false;
   bool _reviewMode = false;
@@ -153,7 +169,8 @@ class _DashboardHomeState extends State<DashboardHome> {
       client.startTelemetryStream();
       _refreshSessions();
     });
-    _sessionsTimer = Timer.periodic(const Duration(seconds: 8), (_) => _refreshSessions());
+    _sessionsTimer = Timer.periodic(
+        const Duration(seconds: 8), (_) => _refreshSessions(silent: true));
   }
 
   @override
@@ -178,11 +195,13 @@ class _DashboardHomeState extends State<DashboardHome> {
       final lastAt = status.lastCalibrationAtNs.toInt();
       if (lastAt > 0 && lastAt != _lastCalibrationAtNs) {
         _lastCalibrationAtNs = lastAt;
-        final success = status.calibrationState == Status_CalibrationState.CALIBRATION_PASSED;
+        final success = status.calibrationState ==
+            Status_CalibrationState.CALIBRATION_PASSED;
         final message = status.calibrationMessage.isNotEmpty
             ? status.calibrationMessage
             : (success ? 'Calibration complete.' : 'Calibration failed.');
-        final timestamp = DateTime.fromMillisecondsSinceEpoch(lastAt ~/ 1000000);
+        final timestamp =
+            DateTime.fromMillisecondsSinceEpoch(lastAt ~/ 1000000);
         setState(() {
           calibrationHistory.insert(
             0,
@@ -226,7 +245,8 @@ class _DashboardHomeState extends State<DashboardHome> {
       return;
     }
     final now = DateTime.now();
-    if (_lastSampleAt != null && now.difference(_lastSampleAt!) < const Duration(milliseconds: 180)) {
+    if (_lastSampleAt != null &&
+        now.difference(_lastSampleAt!) < const Duration(milliseconds: 180)) {
       return;
     }
     _lastSampleAt = now;
@@ -248,15 +268,38 @@ class _DashboardHomeState extends State<DashboardHome> {
     }
   }
 
-  Future<void> _refreshSessions() async {
+  Future<void> _refreshSessions({bool silent = false}) async {
+    if (!silent && mounted) {
+      setState(() {
+        _sessionsLoading = true;
+        _sessionsError = null;
+      });
+    }
     try {
       final sessions = await client.listSessions();
       if (!mounted) return;
       setState(() {
         _sessions = sessions;
+        _sessionsLoading = false;
+        _sessionsError = null;
+        if (_selectedSessionId != null &&
+            !_sessions.any((s) => s.sessionId == _selectedSessionId)) {
+          _selectedSessionId = null;
+        }
+        if (_sessionTrackFilter != kAllTracksFilter &&
+            !trackFilterOptions(_sessions).contains(_sessionTrackFilter)) {
+          _sessionTrackFilter = kAllTracksFilter;
+        }
       });
     } catch (_) {
-      // Ignore session refresh errors while offline.
+      if (!mounted) return;
+      if (silent && _sessions.isNotEmpty) {
+        return;
+      }
+      setState(() {
+        _sessionsLoading = false;
+        _sessionsError = 'Unable to fetch sessions.';
+      });
     }
   }
 
@@ -339,7 +382,8 @@ class _DashboardHomeState extends State<DashboardHome> {
     if (stored != null && stored.isNotEmpty) {
       return _ReviewFallback(samples: List.of(stored), simulated: false);
     }
-    return _ReviewFallback(samples: _generateSyntheticSamples(session), simulated: true);
+    return _ReviewFallback(
+        samples: _generateSyntheticSamples(session), simulated: true);
   }
 
   Future<void> _fetchSessionTelemetry(SessionMetadata session) async {
@@ -367,7 +411,8 @@ class _DashboardHomeState extends State<DashboardHome> {
       });
       if (!hasReal) {
         setState(() {
-          _reviewNotice = 'Session telemetry missing speed/track fields. Using fallback data.';
+          _reviewNotice =
+              'Session telemetry missing speed/track fields. Using fallback data.';
         });
         return;
       }
@@ -378,12 +423,16 @@ class _DashboardHomeState extends State<DashboardHome> {
         _reviewProgress = 1.0;
       });
     } catch (_) {
-      if (!mounted || !_reviewMode || _reviewSession?.sessionId != session.sessionId) return;
+      if (!mounted ||
+          !_reviewMode ||
+          _reviewSession?.sessionId != session.sessionId) return;
       setState(() {
         _reviewNotice = 'Telemetry fetch failed. Using fallback data.';
       });
     } finally {
-      if (!mounted || !_reviewMode || _reviewSession?.sessionId != session.sessionId) return;
+      if (!mounted ||
+          !_reviewMode ||
+          _reviewSession?.sessionId != session.sessionId) return;
       setState(() {
         _reviewFetching = false;
       });
@@ -421,9 +470,12 @@ class _DashboardHomeState extends State<DashboardHome> {
     });
   }
 
-  _DerivedTelemetry _deriveTelemetry(DashboardSnapshot snapshot, {bool forceLive = false}) {
+  _DerivedTelemetry _deriveTelemetry(DashboardSnapshot snapshot,
+      {bool forceLive = false}) {
     if (!forceLive && _reviewMode && _reviewSamples.isNotEmpty) {
-      final idx = (_reviewProgress * (_reviewSamples.length - 1)).round().clamp(0, _reviewSamples.length - 1);
+      final idx = (_reviewProgress * (_reviewSamples.length - 1))
+          .round()
+          .clamp(0, _reviewSamples.length - 1);
       final sample = _reviewSamples[idx];
       final gear = sample.gear ?? _gearForSpeed(sample.speedKmh, active: true);
       final rpm = sample.rpm ?? _rpmForSpeed(sample.speedKmh, gear);
@@ -458,7 +510,9 @@ class _DashboardHomeState extends State<DashboardHome> {
       return null;
     }
     final active = snapshot.status?.sessionActive ?? false;
-    final gear = gearRaw != 0 ? gearRaw : (speed > 1 ? _gearForSpeed(speed, active: active) : 0);
+    final gear = gearRaw != 0
+        ? gearRaw
+        : (speed > 1 ? _gearForSpeed(speed, active: active) : 0);
     final derivedRpm = rpm > 0 ? rpm : _rpmForSpeed(speed, gear);
     return _DerivedTelemetry(
       speedKmh: speed,
@@ -472,7 +526,8 @@ class _DashboardHomeState extends State<DashboardHome> {
   _DerivedTelemetry _deriveSyntheticTelemetry(DashboardSnapshot snapshot) {
     final status = snapshot.status;
     final telemetry = snapshot.telemetry;
-    final nowNs = telemetry?.timestampNs.toInt() ?? DateTime.now().microsecondsSinceEpoch * 1000;
+    final nowNs = telemetry?.timestampNs.toInt() ??
+        DateTime.now().microsecondsSinceEpoch * 1000;
     final seconds = nowNs / 1e9;
     final base = telemetry == null
         ? 0.0
@@ -511,10 +566,12 @@ class _DashboardHomeState extends State<DashboardHome> {
   }
 
   List<_SpeedSample> _generateSyntheticSamples(SessionMetadata session) {
-    final durationMs = session.durationMs.toInt() > 0 ? session.durationMs.toInt() : 90000;
+    final durationMs =
+        session.durationMs.toInt() > 0 ? session.durationMs.toInt() : 90000;
     final totalSamples = 160;
     final step = durationMs / totalSamples;
-    final start = DateTime.now().subtract(Duration(milliseconds: durationMs.toInt()));
+    final start =
+        DateTime.now().subtract(Duration(milliseconds: durationMs.toInt()));
     return List.generate(totalSamples, (index) {
       final t = index / totalSamples;
       final speed = 80 + 60 * sin(t * pi * 2) + 30 * sin(t * pi * 6);
@@ -713,7 +770,8 @@ class _DashboardHomeState extends State<DashboardHome> {
     );
   }
 
-  Widget _buildOverviewStrip(DashboardSnapshot snapshot, _DerivedTelemetry derived) {
+  Widget _buildOverviewStrip(
+      DashboardSnapshot snapshot, _DerivedTelemetry derived) {
     final status = snapshot.status;
     final activeProfile = status?.activeProfile.isNotEmpty == true
         ? status!.activeProfile
@@ -773,13 +831,17 @@ class _DashboardHomeState extends State<DashboardHome> {
           children: [
             const Icon(Icons.hub, color: _kAccentAlt),
             Text(
-              sessionActive ? 'Session $sessionId live telemetry streaming.' : 'Session idle. Select a run to review.',
+              sessionActive
+                  ? 'Session $sessionId live telemetry streaming.'
+                  : 'Session idle. Select a run to review.',
               style: const TextStyle(color: _kMuted),
             ),
             if (!sessionActive)
               Text(
                 'POST-SESSION REVIEW READY',
-                style: TextStyle(color: _kAccent.withOpacity(0.8), fontWeight: FontWeight.w600),
+                style: TextStyle(
+                    color: _kAccent.withOpacity(0.8),
+                    fontWeight: FontWeight.w600),
               ),
           ],
         ),
@@ -797,13 +859,17 @@ class _DashboardHomeState extends State<DashboardHome> {
             children: [
               const Icon(Icons.play_circle_fill, color: _kWarning),
               Text(
-                _reviewSession == null ? 'Reviewing latest session capture.' : 'Reviewing ${_reviewSession!.sessionId}',
+                _reviewSession == null
+                    ? 'Reviewing latest session capture.'
+                    : 'Reviewing ${_reviewSession!.sessionId}',
                 style: const TextStyle(color: Colors.white),
               ),
               if (_reviewSimulated)
                 Text(
                   'SIMULATED REPLAY',
-                  style: TextStyle(color: _kWarning.withOpacity(0.9), fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                      color: _kWarning.withOpacity(0.9),
+                      fontWeight: FontWeight.w700),
                 ),
               FilledButton(
                 onPressed: _exitReview,
@@ -847,7 +913,8 @@ class _DashboardHomeState extends State<DashboardHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Telemetry HUD', subtitle: 'FLT-012 · Speed, Gear, RPM'),
+          _SectionHeader(
+              title: 'Telemetry HUD', subtitle: 'FLT-012 · Speed, Gear, RPM'),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -882,11 +949,17 @@ class _DashboardHomeState extends State<DashboardHome> {
           const SizedBox(height: 16),
           Row(
             children: [
-              _MiniStat(label: 'Track Progress', value: '${(derived.trackProgress * 100).toStringAsFixed(1)}%'),
+              _MiniStat(
+                  label: 'Track Progress',
+                  value:
+                      '${(derived.trackProgress * 100).toStringAsFixed(1)}%'),
               const SizedBox(width: 16),
-              _MiniStat(label: 'Stream', value: _reviewMode ? 'Playback' : 'Live'),
+              _MiniStat(
+                  label: 'Stream', value: _reviewMode ? 'Playback' : 'Live'),
               const SizedBox(width: 16),
-              _MiniStat(label: 'Latency', value: '${derived.latencyMs.toStringAsFixed(1)}ms'),
+              _MiniStat(
+                  label: 'Latency',
+                  value: '${derived.latencyMs.toStringAsFixed(1)}ms'),
             ],
           ),
         ],
@@ -900,7 +973,9 @@ class _DashboardHomeState extends State<DashboardHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Track Map', subtitle: 'FLT-013 · Driver position overlay'),
+          _SectionHeader(
+              title: 'Track Map',
+              subtitle: 'FLT-013 · Driver position overlay'),
           const SizedBox(height: 12),
           AspectRatio(
             aspectRatio: 1.4,
@@ -921,7 +996,9 @@ class _DashboardHomeState extends State<DashboardHome> {
           ),
           const SizedBox(height: 8),
           Text(
-            _reviewMode ? 'Review scrub active' : 'Live position smoothing enabled',
+            _reviewMode
+                ? 'Review scrub active'
+                : 'Live position smoothing enabled',
             style: const TextStyle(color: _kMuted),
           ),
         ],
@@ -929,13 +1006,16 @@ class _DashboardHomeState extends State<DashboardHome> {
     );
   }
 
-  Widget _buildSpeedGraph(List<_SpeedSample> samples, _DerivedTelemetry derived) {
+  Widget _buildSpeedGraph(
+      List<_SpeedSample> samples, _DerivedTelemetry derived) {
     return _HudCard(
       key: const Key('speed-graph'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Speed vs Time', subtitle: 'FLT-016 · Session velocity trend'),
+          _SectionHeader(
+              title: 'Speed vs Time',
+              subtitle: 'FLT-016 · Session velocity trend'),
           const SizedBox(height: 12),
           SizedBox(
             height: 200,
@@ -953,7 +1033,8 @@ class _DashboardHomeState extends State<DashboardHome> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Scrub Timeline', style: Theme.of(context).textTheme.titleMedium),
+                Text('Scrub Timeline',
+                    style: Theme.of(context).textTheme.titleMedium),
                 Slider(
                   value: _reviewProgress,
                   onChanged: (value) {
@@ -979,9 +1060,125 @@ class _DashboardHomeState extends State<DashboardHome> {
     return samples.map((e) => e.speedKmh).reduce(max);
   }
 
+  List<SessionMetadata> _filteredSessions() {
+    return applySessionFilters(
+      _sessions,
+      SessionBrowserFilters(
+        date: _sessionDateFilter,
+        track: _sessionTrackFilter,
+        type: _sessionTypeFilter,
+      ),
+    );
+  }
+
+  SessionMetadata? _selectedSessionFrom(List<SessionMetadata> sessions) {
+    final selectedId = _selectedSessionId;
+    if (selectedId == null) {
+      return null;
+    }
+    for (final session in sessions) {
+      if (session.sessionId == selectedId) {
+        return session;
+      }
+    }
+    return null;
+  }
+
+  String _dateFilterLabel(SessionDateFilter filter) {
+    switch (filter) {
+      case SessionDateFilter.all:
+        return 'All dates';
+      case SessionDateFilter.today:
+        return 'Today';
+      case SessionDateFilter.last7Days:
+        return 'Last 7 days';
+      case SessionDateFilter.last30Days:
+        return 'Last 30 days';
+    }
+  }
+
   Widget _buildSessionList(DashboardSnapshot snapshot) {
     final sessionActive = snapshot.status?.sessionActive ?? false;
     final activeId = snapshot.status?.sessionId ?? '';
+    final connected = client.isConnected && snapshot.connected;
+    final filtered = _filteredSessions();
+    final visibleSelected = _selectedSessionFrom(filtered);
+    final selectedSession = visibleSelected ?? _selectedSessionFrom(_sessions);
+    final tracks = trackFilterOptions(_sessions);
+    final syncedCount = filtered
+        .where((session) =>
+            inferCloudSyncState(session, connected: connected) ==
+            CloudSyncState.synced)
+        .length;
+
+    Widget body;
+    if (_sessionsLoading && _sessions.isEmpty) {
+      body = _SessionBrowserState(
+        key: const Key('session-loading-state'),
+        icon: Icons.hourglass_top_rounded,
+        message: 'Loading session history…',
+      );
+    } else if (_sessionsError != null && _sessions.isEmpty) {
+      body = _SessionBrowserState(
+        key: const Key('session-error-state'),
+        icon: Icons.cloud_off_rounded,
+        message: _sessionsError!,
+        actionLabel: 'Retry',
+        onAction: () => _refreshSessions(),
+      );
+    } else if (filtered.isEmpty) {
+      body = _SessionBrowserState(
+        key: const Key('session-empty-state'),
+        icon: _sessions.isEmpty
+            ? Icons.route_rounded
+            : Icons.filter_alt_off_rounded,
+        message: _sessions.isEmpty
+            ? 'No sessions recorded yet.'
+            : 'No sessions match the active filters.',
+      );
+    } else {
+      final rows = filtered.map((session) {
+        final isActive = session.sessionId == activeId && sessionActive;
+        final isSelected = _selectedSessionId == session.sessionId;
+        final type = classifySessionType(session);
+        final startedAt = sessionTimestamp(session);
+        final startedLabel =
+            startedAt == null ? '--' : _formatTimestamp(startedAt);
+        final syncState = inferCloudSyncState(session, connected: connected);
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: _SessionRow(
+            session: session,
+            active: isActive,
+            selected: isSelected,
+            syncState: syncState,
+            typeLabel: sessionTypeLabel(type),
+            startedAtLabel: startedLabel,
+            onSelect: () {
+              setState(() {
+                _selectedSessionId = session.sessionId;
+              });
+            },
+            onReview: () {
+              setState(() {
+                _selectedSessionId = session.sessionId;
+              });
+              _enterReview(session);
+            },
+          ),
+        );
+      }).toList();
+
+      body = filtered.length > 5
+          ? SizedBox(
+              height: 360,
+              child: ListView(
+                children: rows,
+              ),
+            )
+          : Column(children: rows);
+    }
 
     return _HudCard(
       key: const Key('session-list'),
@@ -992,10 +1189,18 @@ class _DashboardHomeState extends State<DashboardHome> {
             children: [
               Expanded(
                 child: _SectionHeader(
-                  title: 'Sessions',
-                  subtitle: 'FLT-015 · Archived session runs',
+                  title: 'Session Browser',
+                  subtitle: 'FLT-015 · Data access and replay selection',
                 ),
               ),
+              FilledButton.tonalIcon(
+                onPressed: selectedSession == null
+                    ? null
+                    : () => _enterReview(selectedSession),
+                icon: const Icon(Icons.play_circle_outline, size: 18),
+                label: const Text('Review Selected'),
+              ),
+              const SizedBox(width: 8),
               TextButton.icon(
                 onPressed: _refreshSessions,
                 icon: const Icon(Icons.sync, size: 18),
@@ -1004,22 +1209,126 @@ class _DashboardHomeState extends State<DashboardHome> {
             ],
           ),
           const SizedBox(height: 8),
-          if (_sessions.isEmpty)
-            const Text('No sessions recorded yet.', style: TextStyle(color: _kMuted))
-          else
-            Column(
-              children: _sessions.take(6).map((session) {
-                final isActive = session.sessionId == activeId && sessionActive;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: _SessionRow(
-                    session: session,
-                    active: isActive,
-                    onReview: () => _enterReview(session),
+          Row(
+            children: [
+              Text(
+                '${filtered.length} shown · ${_sessions.length} total',
+                style: const TextStyle(color: _kMuted, fontSize: 12),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                '$syncedCount cloud synced',
+                style: TextStyle(
+                    color: _kAccentAlt.withOpacity(0.85), fontSize: 12),
+              ),
+              const Spacer(),
+              if (_sessionsLoading)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              SizedBox(
+                width: 170,
+                child: DropdownButtonFormField<SessionDateFilter>(
+                  key: const Key('session-filter-date'),
+                  isExpanded: true,
+                  value: _sessionDateFilter,
+                  items: SessionDateFilter.values
+                      .map((filter) => DropdownMenuItem(
+                            value: filter,
+                            child: Text(_dateFilterLabel(filter)),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _sessionDateFilter = value;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Date',
+                    isDense: true,
                   ),
-                );
-              }).toList(),
+                ),
+              ),
+              SizedBox(
+                width: 190,
+                child: DropdownButtonFormField<String>(
+                  key: const Key('session-filter-track'),
+                  isExpanded: true,
+                  value: tracks.contains(_sessionTrackFilter)
+                      ? _sessionTrackFilter
+                      : kAllTracksFilter,
+                  items: tracks
+                      .map((track) => DropdownMenuItem(
+                            value: track,
+                            child: Text(track == kAllTracksFilter
+                                ? 'All tracks'
+                                : track),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _sessionTrackFilter = value;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Track',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 180,
+                child: DropdownButtonFormField<SessionTypeFilter>(
+                  key: const Key('session-filter-type'),
+                  isExpanded: true,
+                  value: _sessionTypeFilter,
+                  items: SessionTypeFilter.values
+                      .map((type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(sessionTypeLabel(type)),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _sessionTypeFilter = value;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Type',
+                    isDense: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: body,
+          ),
+          if (visibleSelected != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Selected: ${visibleSelected.sessionId}',
+              key: const Key('session-selected-label'),
+              style: TextStyle(
+                  color: _kAccent.withOpacity(0.9),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600),
             ),
+          ],
         ],
       ),
     );
@@ -1032,7 +1341,9 @@ class _DashboardHomeState extends State<DashboardHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Session Control', subtitle: 'FLT-017 · Run control & post-session review'),
+          _SectionHeader(
+              title: 'Session Control',
+              subtitle: 'FLT-017 · Run control & post-session review'),
           const SizedBox(height: 12),
           Wrap(
             spacing: 12,
@@ -1120,17 +1431,21 @@ class _DashboardHomeState extends State<DashboardHome> {
           const Icon(Icons.security, color: _kAccentAlt),
           const SizedBox(width: 12),
           const Expanded(
-            child: Text('System Status & Safety', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: Text('System Status & Safety',
+                style: TextStyle(fontWeight: FontWeight.w700)),
           ),
           if (snapshot.status?.state == Status_State.STATE_FAULT)
             Text(
               'FAULT ACTIVE',
-              style: TextStyle(color: _kDanger.withOpacity(0.9), fontWeight: FontWeight.w700),
+              style: TextStyle(
+                  color: _kDanger.withOpacity(0.9),
+                  fontWeight: FontWeight.w700),
             )
           else
             Text(
               'SYSTEM NOMINAL',
-              style: TextStyle(color: _kOk.withOpacity(0.9), fontWeight: FontWeight.w700),
+              style: TextStyle(
+                  color: _kOk.withOpacity(0.9), fontWeight: FontWeight.w700),
             ),
         ],
       ),
@@ -1142,21 +1457,28 @@ class _DashboardHomeState extends State<DashboardHome> {
     final state = status?.state.name.replaceAll('STATE_', '') ?? 'UNKNOWN';
     final connected = client.isConnected && snapshot.connected;
     final updatedAt = status?.updatedAtNs.toInt() ?? 0;
-    final updatedText = updatedAt == 0 ? '--' : _formatTimestamp(DateTime.fromMillisecondsSinceEpoch(updatedAt ~/ 1000000));
+    final updatedText = updatedAt == 0
+        ? '--'
+        : _formatTimestamp(
+            DateTime.fromMillisecondsSinceEpoch(updatedAt ~/ 1000000));
 
     return _HudCard(
       key: const Key('system-status'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'System Status', subtitle: 'FLT-019 · MCU state, faults, USB'),
+          _SectionHeader(
+              title: 'System Status',
+              subtitle: 'FLT-019 · MCU state, faults, USB'),
           const SizedBox(height: 12),
           Row(
             children: [
               _StatusTile(
                 label: 'MCU State',
                 value: state,
-                color: status?.state == Status_State.STATE_FAULT ? _kDanger : _kAccent,
+                color: status?.state == Status_State.STATE_FAULT
+                    ? _kDanger
+                    : _kAccent,
               ),
               const SizedBox(width: 12),
               _StatusTile(
@@ -1173,7 +1495,8 @@ class _DashboardHomeState extends State<DashboardHome> {
             ],
           ),
           const SizedBox(height: 12),
-          Text('Last update: $updatedText', style: const TextStyle(color: _kMuted)),
+          Text('Last update: $updatedText',
+              style: const TextStyle(color: _kMuted)),
         ],
       ),
     );
@@ -1185,10 +1508,13 @@ class _DashboardHomeState extends State<DashboardHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Faults & Recovery', subtitle: 'FLT-020 · Actionable recovery steps'),
+          _SectionHeader(
+              title: 'Faults & Recovery',
+              subtitle: 'FLT-020 · Actionable recovery steps'),
           const SizedBox(height: 12),
           if (faults.isEmpty)
-            const Text('No active faults detected.', style: TextStyle(color: _kOk))
+            const Text('No active faults detected.',
+                style: TextStyle(color: _kOk))
           else
             Column(
               children: faults.map((fault) {
@@ -1225,7 +1551,9 @@ class _DashboardHomeState extends State<DashboardHome> {
       faults.add(
         _Fault(
           title: 'MCU Fault State',
-          detail: status?.lastError.isNotEmpty == true ? status!.lastError : 'Fault flag asserted.',
+          detail: status?.lastError.isNotEmpty == true
+              ? status!.lastError
+              : 'Fault flag asserted.',
           color: _kDanger,
           steps: const [
             'Ensure the vehicle is safe and stationary.',
@@ -1275,7 +1603,9 @@ class _DashboardHomeState extends State<DashboardHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Safety Zones', subtitle: 'FLT-021 · Visual safety coverage'),
+          _SectionHeader(
+              title: 'Safety Zones',
+              subtitle: 'FLT-021 · Visual safety coverage'),
           const SizedBox(height: 12),
           SizedBox(
             height: 180,
@@ -1332,7 +1662,8 @@ class _DashboardHomeState extends State<DashboardHome> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Firmware Manager', subtitle: 'FLT-023 · DFU operations'),
+          _SectionHeader(
+              title: 'Firmware Manager', subtitle: 'FLT-023 · DFU operations'),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -1354,7 +1685,8 @@ class _DashboardHomeState extends State<DashboardHome> {
             value: _dfuActive ? _dfuProgress : 0.0,
             minHeight: 6,
             backgroundColor: _kSurfaceGlow,
-            valueColor: AlwaysStoppedAnimation(_dfuActive ? _kWarning : _kAccentAlt),
+            valueColor:
+                AlwaysStoppedAnimation(_dfuActive ? _kWarning : _kAccentAlt),
           ),
           const SizedBox(height: 12),
           Row(
@@ -1384,16 +1716,21 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Widget _buildCalibrationConsole(DashboardSnapshot snapshot) {
     final status = snapshot.status;
-    final calibrationState = status?.calibrationState ?? Status_CalibrationState.CALIBRATION_UNKNOWN;
-    final calibrationProgress = (status?.calibrationProgress ?? 0.0).clamp(0.0, 1.0);
-    final calibrationMessage = status?.calibrationMessage ?? 'Awaiting calibration.';
+    final calibrationState =
+        status?.calibrationState ?? Status_CalibrationState.CALIBRATION_UNKNOWN;
+    final calibrationProgress =
+        (status?.calibrationProgress ?? 0.0).clamp(0.0, 1.0);
+    final calibrationMessage =
+        status?.calibrationMessage ?? 'Awaiting calibration.';
     final attempts = status?.calibrationAttempts ?? calibrationHistory.length;
 
     return _HudCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Calibration Console', subtitle: 'Profile + sensor zeroing'),
+          _SectionHeader(
+              title: 'Calibration Console',
+              subtitle: 'Profile + sensor zeroing'),
           const SizedBox(height: 12),
           Wrap(
             spacing: 12,
@@ -1412,7 +1749,8 @@ class _DashboardHomeState extends State<DashboardHome> {
               ),
               if (profileReady)
                 Chip(
-                  label: Text('Active: ${status?.activeProfile ?? profileController.text.trim()}'),
+                  label: Text(
+                      'Active: ${status?.activeProfile ?? profileController.text.trim()}'),
                   backgroundColor: _kSurfaceGlow,
                 ),
             ],
@@ -1423,7 +1761,9 @@ class _DashboardHomeState extends State<DashboardHome> {
             minHeight: 6,
             backgroundColor: _kSurfaceGlow,
             valueColor: AlwaysStoppedAnimation(
-              calibrationState == Status_CalibrationState.CALIBRATION_FAILED ? _kDanger : _kAccent,
+              calibrationState == Status_CalibrationState.CALIBRATION_FAILED
+                  ? _kDanger
+                  : _kAccent,
             ),
           ),
           const SizedBox(height: 8),
@@ -1443,12 +1783,14 @@ class _DashboardHomeState extends State<DashboardHome> {
                 label: const Text('Cancel'),
               ),
               const Spacer(),
-              Text('Attempts: $attempts', style: const TextStyle(color: _kMuted)),
+              Text('Attempts: $attempts',
+                  style: const TextStyle(color: _kMuted)),
             ],
           ),
           if (calibrationHistory.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text('Recent Events', style: Theme.of(context).textTheme.titleMedium),
+            Text('Recent Events',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             Column(
               children: calibrationHistory.take(3).map((entry) {
@@ -1457,12 +1799,16 @@ class _DashboardHomeState extends State<DashboardHome> {
                   child: Row(
                     children: [
                       Icon(
-                        entry.success ? Icons.check_circle : Icons.error_outline,
+                        entry.success
+                            ? Icons.check_circle
+                            : Icons.error_outline,
                         color: entry.success ? _kOk : _kWarning,
                         size: 18,
                       ),
                       const SizedBox(width: 8),
-                      Expanded(child: Text('${_formatTimestamp(entry.timestamp)} — ${entry.message}')),
+                      Expanded(
+                          child: Text(
+                              '${_formatTimestamp(entry.timestamp)} — ${entry.message}')),
                     ],
                   ),
                 );
@@ -1544,7 +1890,11 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _HudMetric extends StatelessWidget {
-  const _HudMetric({required this.label, required this.value, required this.unit, required this.glow});
+  const _HudMetric(
+      {required this.label,
+      required this.value,
+      required this.unit,
+      required this.glow});
 
   final String label;
   final String value;
@@ -1563,14 +1913,19 @@ class _HudMetric extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(color: _kMuted, fontSize: 11, letterSpacing: 1.4)),
+          Text(label,
+              style: const TextStyle(
+                  color: _kMuted, fontSize: 11, letterSpacing: 1.4)),
           const SizedBox(height: 8),
           Text(
             value,
-            style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: glow),
+            style: TextStyle(
+                fontSize: 30, fontWeight: FontWeight.w700, color: glow),
           ),
           if (unit.isNotEmpty)
-            Text(unit, style: const TextStyle(color: _kMuted, fontSize: 11, letterSpacing: 1.2)),
+            Text(unit,
+                style: const TextStyle(
+                    color: _kMuted, fontSize: 11, letterSpacing: 1.2)),
         ],
       ),
     );
@@ -1597,7 +1952,8 @@ class _MiniStat extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.value, required this.color});
+  const _StatusPill(
+      {required this.label, required this.value, required this.color});
 
   final String label;
   final String value;
@@ -1623,7 +1979,8 @@ class _StatusPill extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             '$label: $value',
-            style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12),
+            style: TextStyle(
+                color: color, fontWeight: FontWeight.w600, fontSize: 12),
           ),
         ],
       ),
@@ -1632,7 +1989,8 @@ class _StatusPill extends StatelessWidget {
 }
 
 class _StatusTile extends StatelessWidget {
-  const _StatusTile({required this.label, required this.value, required this.color});
+  const _StatusTile(
+      {required this.label, required this.value, required this.color});
 
   final String label;
   final String value;
@@ -1653,7 +2011,8 @@ class _StatusTile extends StatelessWidget {
           children: [
             Text(label, style: const TextStyle(color: _kMuted, fontSize: 11)),
             const SizedBox(height: 6),
-            Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+            Text(value,
+                style: TextStyle(color: color, fontWeight: FontWeight.w700)),
           ],
         ),
       ),
@@ -1661,54 +2020,198 @@ class _StatusTile extends StatelessWidget {
   }
 }
 
+class _SessionBrowserState extends StatelessWidget {
+  const _SessionBrowserState({
+    super.key,
+    required this.icon,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
+      decoration: BoxDecoration(
+        color: _kSurfaceGlow.withOpacity(0.24),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: _kMuted),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _kMuted),
+          ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: onAction,
+              child: Text(actionLabel!),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CloudSyncBadge extends StatelessWidget {
+  const _CloudSyncBadge({
+    super.key,
+    required this.state,
+  });
+
+  final CloudSyncState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (state) {
+      CloudSyncState.synced => _kOk,
+      CloudSyncState.syncing => _kAccentAlt,
+      CloudSyncState.pending => _kWarning,
+      CloudSyncState.offline => _kMuted,
+    };
+    final icon = switch (state) {
+      CloudSyncState.synced => Icons.cloud_done_rounded,
+      CloudSyncState.syncing => Icons.cloud_sync_rounded,
+      CloudSyncState.pending => Icons.cloud_upload_rounded,
+      CloudSyncState.offline => Icons.cloud_off_rounded,
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: _kSurfaceGlow.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.55)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            cloudSyncLabel(state),
+            style: TextStyle(
+                color: color, fontWeight: FontWeight.w600, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SessionRow extends StatelessWidget {
-  const _SessionRow({required this.session, required this.active, required this.onReview});
+  const _SessionRow({
+    required this.session,
+    required this.active,
+    required this.selected,
+    required this.syncState,
+    required this.typeLabel,
+    required this.startedAtLabel,
+    required this.onSelect,
+    required this.onReview,
+  });
 
   final SessionMetadata session;
   final bool active;
+  final bool selected;
+  final CloudSyncState syncState;
+  final String typeLabel;
+  final String startedAtLabel;
+  final VoidCallback onSelect;
   final VoidCallback onReview;
 
   @override
   Widget build(BuildContext context) {
-    final duration = session.durationMs > 0 ? Duration(milliseconds: session.durationMs.toInt()) : null;
+    final duration = session.durationMs > 0
+        ? Duration(milliseconds: session.durationMs.toInt())
+        : null;
     final durationLabel = duration == null ? '--' : _formatDuration(duration);
+    final accent = selected ? _kAccent : (active ? _kAccentAlt : _kSurfaceGlow);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: active ? _kSurfaceGlow.withOpacity(0.6) : _kSurfaceGlow.withOpacity(0.3),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: active ? _kAccentAlt : _kSurfaceGlow),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(session.sessionId.isEmpty ? 'Session' : session.sessionId, style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Text(
-                  session.track.isEmpty ? 'Track: --' : 'Track: ${session.track}',
-                  style: const TextStyle(color: _kMuted, fontSize: 12),
-                ),
-              ],
-            ),
+        onTap: onSelect,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? _kSurfaceGlow.withOpacity(0.75)
+                : (active
+                    ? _kSurfaceGlow.withOpacity(0.55)
+                    : _kSurfaceGlow.withOpacity(0.28)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: accent),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(durationLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Text(active ? 'LIVE' : 'COMPLETE', style: TextStyle(color: active ? _kAccent : _kMuted, fontSize: 11)),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.sessionId.isEmpty ? 'Session' : session.sessionId,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Track: ${trackLabelForSession(session)} · $typeLabel',
+                      style: const TextStyle(color: _kMuted, fontSize: 12),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Started: $startedAtLabel',
+                      style: const TextStyle(color: _kMuted, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(durationLabel,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text(
+                    active ? 'LIVE' : (selected ? 'SELECTED' : 'COMPLETE'),
+                    style: TextStyle(
+                        color: active
+                            ? _kAccent
+                            : (selected ? _kAccentAlt : _kMuted),
+                        fontSize: 11),
+                  ),
+                  const SizedBox(height: 8),
+                  _CloudSyncBadge(
+                    key: Key('session-cloud-${session.sessionId}'),
+                    state: syncState,
+                  ),
+                ],
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton(
+                onPressed: onReview,
+                child: const Text('Open'),
+              ),
             ],
           ),
-          const SizedBox(width: 12),
-          OutlinedButton(
-            onPressed: onReview,
-            child: const Text('Review'),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1731,12 +2234,15 @@ class _FaultCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(fault.title, style: TextStyle(color: fault.color, fontWeight: FontWeight.w700)),
+          Text(fault.title,
+              style:
+                  TextStyle(color: fault.color, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Text(fault.detail, style: const TextStyle(color: _kMuted)),
           const SizedBox(height: 8),
           for (final step in fault.steps)
-            Text('• $step', style: const TextStyle(color: _kMuted, fontSize: 12)),
+            Text('• $step',
+                style: const TextStyle(color: _kMuted, fontSize: 12)),
         ],
       ),
     );
@@ -1768,7 +2274,9 @@ class _ConnectionPill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             connected ? 'Connected' : 'Disconnected',
-            style: TextStyle(color: connected ? _kOk : _kDanger, fontWeight: FontWeight.w600),
+            style: TextStyle(
+                color: connected ? _kOk : _kDanger,
+                fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -1777,7 +2285,10 @@ class _ConnectionPill extends StatelessWidget {
 }
 
 class _TrackMapPainter extends CustomPainter {
-  _TrackMapPainter({required this.progress, required this.trackColor, required this.dotColor});
+  _TrackMapPainter(
+      {required this.progress,
+      required this.trackColor,
+      required this.dotColor});
 
   final double progress;
   final Color trackColor;
@@ -1786,17 +2297,31 @@ class _TrackMapPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final inset = 16.0;
-    final rect = Rect.fromLTWH(inset, inset, size.width - inset * 2, size.height - inset * 2);
+    final rect = Rect.fromLTWH(
+        inset, inset, size.width - inset * 2, size.height - inset * 2);
 
     final path = Path()
       ..moveTo(rect.left + rect.width * 0.1, rect.top + rect.height * 0.2)
-      ..quadraticBezierTo(rect.left + rect.width * 0.5, rect.top, rect.right - rect.width * 0.1, rect.top + rect.height * 0.2)
+      ..quadraticBezierTo(rect.left + rect.width * 0.5, rect.top,
+          rect.right - rect.width * 0.1, rect.top + rect.height * 0.2)
       ..lineTo(rect.right, rect.center.dy - rect.height * 0.1)
-      ..quadraticBezierTo(rect.right + rect.width * 0.05, rect.center.dy + rect.height * 0.15, rect.right - rect.width * 0.05, rect.bottom - rect.height * 0.2)
+      ..quadraticBezierTo(
+          rect.right + rect.width * 0.05,
+          rect.center.dy + rect.height * 0.15,
+          rect.right - rect.width * 0.05,
+          rect.bottom - rect.height * 0.2)
       ..lineTo(rect.center.dx + rect.width * 0.1, rect.bottom)
-      ..quadraticBezierTo(rect.center.dx - rect.width * 0.25, rect.bottom - rect.height * 0.1, rect.left + rect.width * 0.1, rect.bottom - rect.height * 0.25)
+      ..quadraticBezierTo(
+          rect.center.dx - rect.width * 0.25,
+          rect.bottom - rect.height * 0.1,
+          rect.left + rect.width * 0.1,
+          rect.bottom - rect.height * 0.25)
       ..lineTo(rect.left, rect.center.dy + rect.height * 0.05)
-      ..quadraticBezierTo(rect.left - rect.width * 0.05, rect.center.dy - rect.height * 0.2, rect.left + rect.width * 0.05, rect.top + rect.height * 0.3)
+      ..quadraticBezierTo(
+          rect.left - rect.width * 0.05,
+          rect.center.dy - rect.height * 0.2,
+          rect.left + rect.width * 0.05,
+          rect.top + rect.height * 0.3)
       ..close();
 
     final trackPaint = Paint()
@@ -1814,13 +2339,15 @@ class _TrackMapPainter extends CustomPainter {
     canvas.drawPath(path, glowPaint);
     canvas.drawPath(path, trackPaint);
 
-    final metric = path.computeMetrics().isEmpty ? null : path.computeMetrics().first;
+    final metric =
+        path.computeMetrics().isEmpty ? null : path.computeMetrics().first;
     if (metric != null) {
       final distance = metric.length * progress.clamp(0.0, 1.0);
       final tangent = metric.getTangentForOffset(distance);
       if (tangent != null) {
         final dotPaint = Paint()..color = dotColor;
-        canvas.drawCircle(tangent.position, 6.5, Paint()..color = dotColor.withOpacity(0.3));
+        canvas.drawCircle(
+            tangent.position, 6.5, Paint()..color = dotColor.withOpacity(0.3));
         canvas.drawCircle(tangent.position, 3.5, dotPaint);
       }
     }
@@ -1828,12 +2355,18 @@ class _TrackMapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TrackMapPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.trackColor != trackColor || oldDelegate.dotColor != dotColor;
+    return oldDelegate.progress != progress ||
+        oldDelegate.trackColor != trackColor ||
+        oldDelegate.dotColor != dotColor;
   }
 }
 
 class _SpeedGraphPainter extends CustomPainter {
-  _SpeedGraphPainter({required this.samples, required this.lineColor, required this.accentColor, this.cursorPercent});
+  _SpeedGraphPainter(
+      {required this.samples,
+      required this.lineColor,
+      required this.accentColor,
+      this.cursorPercent});
 
   final List<_SpeedSample> samples;
   final Color lineColor;
@@ -1855,14 +2388,19 @@ class _SpeedGraphPainter extends CustomPainter {
 
     if (samples.isEmpty) {
       final textPainter = TextPainter(
-        text: const TextSpan(text: 'Awaiting telemetry', style: TextStyle(color: _kMuted)),
+        text: const TextSpan(
+            text: 'Awaiting telemetry', style: TextStyle(color: _kMuted)),
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: rect.width);
-      textPainter.paint(canvas, Offset(rect.center.dx - textPainter.width / 2, rect.center.dy - textPainter.height / 2));
+      textPainter.paint(
+          canvas,
+          Offset(rect.center.dx - textPainter.width / 2,
+              rect.center.dy - textPainter.height / 2));
       return;
     }
 
-    final maxSpeed = samples.map((e) => e.speedKmh).reduce(max).clamp(1, 260).toDouble();
+    final maxSpeed =
+        samples.map((e) => e.speedKmh).reduce(max).clamp(1, 260).toDouble();
     final path = Path();
     final denom = samples.length > 1 ? (samples.length - 1) : 1;
     for (var i = 0; i < samples.length; i++) {
@@ -1888,9 +2426,12 @@ class _SpeedGraphPainter extends CustomPainter {
 
     if (cursorPercent != null) {
       final cx = rect.left + rect.width * cursorPercent!.clamp(0.0, 1.0);
-      canvas.drawLine(Offset(cx, rect.top), Offset(cx, rect.bottom), Paint()
-        ..color = lineColor.withOpacity(0.6)
-        ..strokeWidth = 1.5);
+      canvas.drawLine(
+          Offset(cx, rect.top),
+          Offset(cx, rect.bottom),
+          Paint()
+            ..color = lineColor.withOpacity(0.6)
+            ..strokeWidth = 1.5);
     }
   }
 
@@ -1901,7 +2442,10 @@ class _SpeedGraphPainter extends CustomPainter {
 }
 
 class _SafetyZonePainter extends CustomPainter {
-  _SafetyZonePainter({required this.operatorClear, required this.trackClear, required this.estopReady});
+  _SafetyZonePainter(
+      {required this.operatorClear,
+      required this.trackClear,
+      required this.estopReady});
 
   final bool operatorClear;
   final bool trackClear;
@@ -1915,21 +2459,39 @@ class _SafetyZonePainter extends CustomPainter {
       ..strokeWidth = 2
       ..color = _kSurfaceGlow;
 
-    final operatorRect = Rect.fromLTWH(0, 0, size.width * 0.45, size.height * 0.45);
-    final trackRect = Rect.fromLTWH(size.width * 0.55, 0, size.width * 0.45, size.height * 0.65);
-    final estopRect = Rect.fromLTWH(0, size.height * 0.55, size.width * 0.6, size.height * 0.4);
+    final operatorRect =
+        Rect.fromLTWH(0, 0, size.width * 0.45, size.height * 0.45);
+    final trackRect = Rect.fromLTWH(
+        size.width * 0.55, 0, size.width * 0.45, size.height * 0.65);
+    final estopRect = Rect.fromLTWH(
+        0, size.height * 0.55, size.width * 0.6, size.height * 0.4);
 
-    zonePaint.color = operatorClear ? _kOk.withOpacity(0.4) : _kWarning.withOpacity(0.4);
-    canvas.drawRRect(RRect.fromRectAndRadius(operatorRect, const Radius.circular(12)), zonePaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(operatorRect, const Radius.circular(12)), borderPaint);
+    zonePaint.color =
+        operatorClear ? _kOk.withOpacity(0.4) : _kWarning.withOpacity(0.4);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(operatorRect, const Radius.circular(12)),
+        zonePaint);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(operatorRect, const Radius.circular(12)),
+        borderPaint);
 
-    zonePaint.color = trackClear ? _kOk.withOpacity(0.4) : _kDanger.withOpacity(0.4);
-    canvas.drawRRect(RRect.fromRectAndRadius(trackRect, const Radius.circular(12)), zonePaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(trackRect, const Radius.circular(12)), borderPaint);
+    zonePaint.color =
+        trackClear ? _kOk.withOpacity(0.4) : _kDanger.withOpacity(0.4);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(trackRect, const Radius.circular(12)),
+        zonePaint);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(trackRect, const Radius.circular(12)),
+        borderPaint);
 
-    zonePaint.color = estopReady ? _kOk.withOpacity(0.4) : _kWarning.withOpacity(0.4);
-    canvas.drawRRect(RRect.fromRectAndRadius(estopRect, const Radius.circular(12)), zonePaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(estopRect, const Radius.circular(12)), borderPaint);
+    zonePaint.color =
+        estopReady ? _kOk.withOpacity(0.4) : _kWarning.withOpacity(0.4);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(estopRect, const Radius.circular(12)),
+        zonePaint);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(estopRect, const Radius.circular(12)),
+        borderPaint);
 
     _drawZoneLabel(canvas, operatorRect, 'Operator');
     _drawZoneLabel(canvas, trackRect, 'Track');
@@ -1938,7 +2500,12 @@ class _SafetyZonePainter extends CustomPainter {
 
   void _drawZoneLabel(Canvas canvas, Rect rect, String text) {
     final textPainter = TextPainter(
-      text: TextSpan(text: text, style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
+      text: TextSpan(
+          text: text,
+          style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w600)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: rect.width);
     textPainter.paint(canvas, Offset(rect.left + 12, rect.top + 10));
@@ -1992,7 +2559,8 @@ class _SpeedSample {
 }
 
 class _CalibrationAttempt {
-  const _CalibrationAttempt({required this.timestamp, required this.success, required this.message});
+  const _CalibrationAttempt(
+      {required this.timestamp, required this.success, required this.message});
 
   final DateTime timestamp;
   final bool success;
@@ -2000,7 +2568,11 @@ class _CalibrationAttempt {
 }
 
 class _Fault {
-  const _Fault({required this.title, required this.detail, required this.steps, required this.color});
+  const _Fault(
+      {required this.title,
+      required this.detail,
+      required this.steps,
+      required this.color});
 
   final String title;
   final String detail;
