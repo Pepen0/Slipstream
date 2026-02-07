@@ -399,6 +399,29 @@ class _DashboardHomeState extends State<DashboardHome> {
     _updateBroadcastPhase(snapshot, liveDerived);
     unawaited(_voice.setSafetyWarningActive(_hasSafetyWarning(snapshot)));
     final status = snapshot.status;
+    _voice.updateRaceContext(
+      estopActive: status?.estopActive ?? estopEngaged,
+      faultActive: status?.state == Status_State.STATE_FAULT,
+    );
+    final telemetry = snapshot.telemetry;
+    if (telemetry != null) {
+      final inferredTrack = trackController.text.trim().isEmpty
+          ? (status?.sessionId.isNotEmpty == true
+              ? status!.sessionId
+              : 'track-unknown')
+          : trackController.text.trim();
+      final inferredDriver = profileController.text.trim().isEmpty
+          ? 'intermediate'
+          : profileController.text.trim();
+      _voice.updateRaceContext(
+        speedKmh: telemetry.speedKmh,
+        gear: telemetry.gear,
+        rpm: telemetry.engineRpm,
+        trackProgress: telemetry.trackProgress,
+        trackId: inferredTrack,
+        driverLevel: inferredDriver,
+      );
+    }
     if (status != null) {
       final lastAt = status.lastCalibrationAtNs.toInt();
       if (lastAt > 0 && lastAt != _lastCalibrationAtNs) {
