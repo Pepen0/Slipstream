@@ -28,6 +28,7 @@ void main() {
     expect(find.byKey(const Key('speed-graph')), findsNothing);
     expect(find.byKey(const Key('leaderboard-stack')), findsNothing);
     expect(find.byKey(const Key('summary-mode-card')), findsNothing);
+    expect(find.byKey(const Key('telemetry-analysis-panel')), findsNothing);
     expect(find.byKey(const Key('voice-console')), findsNothing);
     expect(find.byKey(const Key('estop-control')), findsOneWidget);
 

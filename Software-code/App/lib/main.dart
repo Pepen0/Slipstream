@@ -8,6 +8,7 @@ import 'gen/dashboard/v1/dashboard.pb.dart';
 import 'session_browser.dart';
 import 'services/dashboard_client.dart';
 import 'services/voice_pipeline.dart';
+import 'telemetry_analysis.dart';
 
 const Color _kBackground = Color(0xFF0A0F14);
 const Color _kSurface = Color(0xFF121923);
@@ -24,8 +25,19 @@ void main() {
   runApp(const DashboardApp());
 }
 
+DashboardClient _defaultDashboardClientFactory() => DashboardClient();
+VoicePipelineController _defaultVoicePipelineFactory() =>
+    VoicePipelineController();
+
 class DashboardApp extends StatelessWidget {
-  const DashboardApp({super.key});
+  const DashboardApp({
+    super.key,
+    this.clientFactory = _defaultDashboardClientFactory,
+    this.voicePipelineFactory = _defaultVoicePipelineFactory,
+  });
+
+  final DashboardClient Function() clientFactory;
+  final VoicePipelineController Function() voicePipelineFactory;
 
   ThemeData _buildTheme() {
     final scheme = const ColorScheme.dark(
@@ -105,21 +117,31 @@ class DashboardApp extends StatelessWidget {
       theme: _buildTheme(),
       darkTheme: _buildTheme(),
       themeMode: ThemeMode.dark,
-      home: const DashboardHome(),
+      home: DashboardHome(
+        clientFactory: clientFactory,
+        voicePipelineFactory: voicePipelineFactory,
+      ),
     );
   }
 }
 
 class DashboardHome extends StatefulWidget {
-  const DashboardHome({super.key});
+  const DashboardHome({
+    super.key,
+    this.clientFactory = _defaultDashboardClientFactory,
+    this.voicePipelineFactory = _defaultVoicePipelineFactory,
+  });
+
+  final DashboardClient Function() clientFactory;
+  final VoicePipelineController Function() voicePipelineFactory;
 
   @override
   State<DashboardHome> createState() => _DashboardHomeState();
 }
 
 class _DashboardHomeState extends State<DashboardHome> {
-  final DashboardClient client = DashboardClient();
-  final VoicePipelineController _voice = VoicePipelineController();
+  late final DashboardClient client;
+  late final VoicePipelineController _voice;
   final BroadcastCompositionEngine _composition = BroadcastCompositionEngine();
   final TextEditingController profileController =
       TextEditingController(text: 'default');
@@ -164,6 +186,9 @@ class _DashboardHomeState extends State<DashboardHome> {
   bool _dfuActive = false;
   double _dfuProgress = 0.0;
   bool _voicePointerDown = false;
+  bool _analysisCompareMode = true;
+  double _analysisZoom = 1.0;
+  double _analysisPan = 0.0;
   double _smoothedTrackProgress = 0.0;
   double _lastTrackProgressRaw = 0.0;
   bool _trackProgressInitialized = false;
@@ -171,6 +196,8 @@ class _DashboardHomeState extends State<DashboardHome> {
   @override
   void initState() {
     super.initState();
+    client = widget.clientFactory();
+    _voice = widget.voicePipelineFactory();
     client.snapshot.addListener(_onSnapshotUpdate);
     _voice.addListener(_onVoiceUpdate);
     client.connect().then((_) {
@@ -454,6 +481,9 @@ class _DashboardHomeState extends State<DashboardHome> {
       _reviewSamples = fallback.samples;
       _reviewProgress = 1.0;
       _reviewNotice = 'Fetching session telemetry…';
+      _analysisCompareMode = true;
+      _analysisZoom = 1.0;
+      _analysisPan = 0.0;
     });
     _fetchSessionTelemetry(session);
   }
@@ -467,6 +497,8 @@ class _DashboardHomeState extends State<DashboardHome> {
       _reviewProgress = 1.0;
       _reviewNotice = null;
       _reviewFetching = false;
+      _analysisZoom = 1.0;
+      _analysisPan = 0.0;
       if (_activeSessionId != null) {
         _liveHistory = _sessionHistory[_activeSessionId!] ?? _liveHistory;
       }
@@ -805,6 +837,7 @@ class _DashboardHomeState extends State<DashboardHome> {
     }
 
     final lowerPanels = <Widget>[];
+    final showAnalysis = _reviewMode && samples.length > 8;
     if (showVoice) {
       lowerPanels.add(_buildVoiceInterface(snapshot));
     }
@@ -827,6 +860,8 @@ class _DashboardHomeState extends State<DashboardHome> {
           _buildPanelStack(topPanels, isWide: isWide),
           if (middlePanels.isNotEmpty) const SizedBox(height: 16),
           _buildPanelStack(middlePanels, isWide: isWide),
+          if (showAnalysis) const SizedBox(height: 16),
+          if (showAnalysis) _buildTelemetryAnalysisPanel(samples),
           if (lowerPanels.isNotEmpty) const SizedBox(height: 16),
           _buildPanelStack(lowerPanels, isWide: isWide),
         ],
@@ -1440,6 +1475,374 @@ class _DashboardHomeState extends State<DashboardHome> {
         ],
       ),
     );
+  }
+
+  Widget _buildTelemetryAnalysisPanel(List<_SpeedSample> samples) {
+    final frames = _analysisFramesFromSamples(samples);
+    final primary = deriveTelemetryPoints(frames);
+    final reference = _analysisCompareMode
+        ? buildReferenceLapOverlay(primary)
+        : const <TelemetryPoint>[];
+    final deltas = _analysisCompareMode
+        ? buildTimeDeltaSeries(primary, reference)
+        : const <TimeDeltaPoint>[];
+    final sectors = buildSectorBreakdown(
+      primary,
+      reference: _analysisCompareMode ? reference : null,
+    );
+    final viewport = computeGraphViewport(
+      sampleCount: primary.length,
+      zoom: _analysisZoom,
+      pan: _analysisPan,
+    );
+    final speedMax = primary
+        .map((point) => point.speedKmh)
+        .fold<double>(1.0, (maxValue, value) => max(maxValue, value))
+        .clamp(1.0, 420.0)
+        .toDouble();
+    final speedSeries = primary
+        .map((point) => (point.speedKmh / speedMax).clamp(0.0, 1.0))
+        .toList();
+    final throttleSeries = primary.map((point) => point.throttle).toList();
+    final brakeSeries = primary.map((point) => point.brake).toList();
+    final steeringSeries = primary
+        .map((point) => ((point.steering + 1.0) / 2.0).clamp(0.0, 1.0))
+        .toList();
+    final referenceSpeedSeries = reference
+        .map((point) => (point.speedKmh / speedMax).clamp(0.0, 1.0))
+        .toList();
+    final maxDelta = deltas
+        .map((point) => point.deltaSeconds.abs())
+        .fold<double>(0.1, (maxValue, value) => max(maxValue, value))
+        .clamp(0.1, 20.0)
+        .toDouble();
+    final deltaSeries = deltas
+        .map((point) => ((point.deltaSeconds / maxDelta) + 1.0) / 2.0)
+        .toList();
+    final currentDelta = _analysisCompareMode && deltas.isNotEmpty
+        ? _deltaAtProgress(deltas, _reviewProgress)
+        : 0.0;
+
+    return _HudCard(
+      key: const Key('telemetry-analysis-panel'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionHeader(
+            title: 'Telemetry Analysis',
+            subtitle: 'FLT-045~051 · Multi-signal deep review tools',
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.analytics_outlined, color: _kAccentAlt),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Scrub sync: ${(100 * _reviewProgress).toStringAsFixed(1)}% track position',
+                  key: const Key('analysis-scrub-label'),
+                  style: const TextStyle(color: _kMuted),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text('Compare', style: TextStyle(color: _kMuted)),
+              Switch(
+                key: const Key('analysis-compare-switch'),
+                value: _analysisCompareMode,
+                onChanged: (value) {
+                  setState(() {
+                    _analysisCompareMode = value;
+                  });
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: 260,
+                child: Row(
+                  children: [
+                    const Text('Zoom', style: TextStyle(color: _kMuted)),
+                    Expanded(
+                      child: Slider(
+                        key: const Key('analysis-zoom-slider'),
+                        min: 1,
+                        max: 6,
+                        divisions: 20,
+                        value: _analysisZoom,
+                        label: '${_analysisZoom.toStringAsFixed(1)}x',
+                        onChanged: (value) {
+                          setState(() {
+                            _analysisZoom = value;
+                            if (_analysisZoom <= 1.02) {
+                              _analysisPan = 0;
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 300,
+                child: Row(
+                  children: [
+                    const Text('Pan', style: TextStyle(color: _kMuted)),
+                    Expanded(
+                      child: Slider(
+                        key: const Key('analysis-pan-slider'),
+                        min: 0,
+                        max: 1,
+                        value: _analysisPan,
+                        onChanged: _analysisZoom <= 1.02
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  _analysisPan = value;
+                                });
+                              },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _analysisZoom = 1;
+                    _analysisPan = 0;
+                  });
+                },
+                icon: const Icon(Icons.center_focus_strong, size: 16),
+                label: const Text('Reset View'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 250,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (details) => _onAnalysisScrub(
+                    details.localPosition.dx,
+                    width,
+                    viewport,
+                  ),
+                  onHorizontalDragStart: (details) => _onAnalysisScrub(
+                    details.localPosition.dx,
+                    width,
+                    viewport,
+                  ),
+                  onHorizontalDragUpdate: (details) => _onAnalysisScrub(
+                    details.localPosition.dx,
+                    width,
+                    viewport,
+                  ),
+                  child: CustomPaint(
+                    key: const Key('analysis-multi-signal-graph'),
+                    painter: _HiPerfLineChartPainter(
+                      series: [
+                        _ChartSeries(
+                          id: 'speed',
+                          values: speedSeries,
+                          color: _kAccentAlt,
+                          strokeWidth: 2.4,
+                        ),
+                        _ChartSeries(
+                          id: 'throttle',
+                          values: throttleSeries,
+                          color: _kOk,
+                          strokeWidth: 1.7,
+                        ),
+                        _ChartSeries(
+                          id: 'brake',
+                          values: brakeSeries,
+                          color: _kDanger,
+                          strokeWidth: 1.7,
+                        ),
+                        _ChartSeries(
+                          id: 'steering',
+                          values: steeringSeries,
+                          color: _kWarning,
+                          strokeWidth: 1.7,
+                        ),
+                        if (_analysisCompareMode &&
+                            referenceSpeedSeries.length == speedSeries.length)
+                          _ChartSeries(
+                            id: 'reference-speed',
+                            values: referenceSpeedSeries,
+                            color: Colors.white70,
+                            strokeWidth: 1.6,
+                          ),
+                      ],
+                      startIndex: viewport.startIndex,
+                      endIndex: viewport.endIndex,
+                      accentColor: _kSurfaceGlow,
+                      cursorProgress: _reviewProgress,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 6,
+            children: const [
+              _SignalLegendDot(label: 'Speed', color: _kAccentAlt),
+              _SignalLegendDot(label: 'Throttle', color: _kOk),
+              _SignalLegendDot(label: 'Brake', color: _kDanger),
+              _SignalLegendDot(label: 'Steering', color: _kWarning),
+              _SignalLegendDot(label: 'Ref Speed', color: Colors.white70),
+            ],
+          ),
+          if (_analysisCompareMode && deltaSeries.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              'Time Delta (${_signedSeconds(currentDelta)})',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 120,
+              child: CustomPaint(
+                key: const Key('analysis-delta-graph'),
+                painter: _HiPerfLineChartPainter(
+                  series: [
+                    _ChartSeries(
+                      id: 'delta',
+                      values: deltaSeries,
+                      color: currentDelta > 0 ? _kDanger : _kOk,
+                      strokeWidth: 2.0,
+                    ),
+                  ],
+                  startIndex: viewport.startIndex
+                      .clamp(0, deltaSeries.length - 1)
+                      .toInt(),
+                  endIndex: viewport.endIndex
+                      .clamp(0, deltaSeries.length - 1)
+                      .toInt(),
+                  accentColor: _kSurfaceGlow,
+                  cursorProgress: _reviewProgress,
+                  midline: true,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          _buildSectorBreakdownVisualization(sectors),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectorBreakdownVisualization(SectorBreakdown breakdown) {
+    final primaryTotal = breakdown.totalPrimarySeconds;
+    final refTotal = max(0.01, breakdown.totalReferenceSeconds);
+    return Container(
+      key: const Key('analysis-sector-breakdown'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kSurfaceGlow.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Sector Breakdown',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 10),
+          for (final sector in breakdown.sectors) ...[
+            _SectorBreakdownRow(
+              sector: sector,
+              baseline: refTotal / 3,
+            ),
+            if (sector.sector != breakdown.sectors.last.sector)
+              const SizedBox(height: 8),
+          ],
+          const SizedBox(height: 10),
+          Text(
+            'Total ${primaryTotal.toStringAsFixed(3)}s vs ${breakdown.totalReferenceSeconds.toStringAsFixed(3)}s '
+            '(${_signedSeconds(breakdown.totalDeltaSeconds)})',
+            style: TextStyle(
+              color: breakdown.totalDeltaSeconds > 0 ? _kDanger : _kOk,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onAnalysisScrub(
+    double localX,
+    double width,
+    GraphViewport viewport,
+  ) {
+    if (!_reviewMode || width <= 0) {
+      return;
+    }
+    final x = (localX / width).clamp(0.0, 1.0).toDouble();
+    final progress = viewport.startProgress +
+        (viewport.endProgress - viewport.startProgress) * x;
+    setState(() {
+      _reviewProgress = progress.clamp(0.0, 1.0).toDouble();
+    });
+  }
+
+  List<TelemetryFrame> _analysisFramesFromSamples(List<_SpeedSample> samples) {
+    return samples
+        .map((sample) => TelemetryFrame(
+              timestamp: sample.timestamp,
+              trackProgress: sample.trackProgress,
+              speedKmh: sample.speedKmh,
+              gear: sample.gear ?? 0,
+              rpm: sample.rpm ?? 0,
+            ))
+        .toList();
+  }
+
+  double _deltaAtProgress(List<TimeDeltaPoint> deltas, double progress) {
+    if (deltas.isEmpty) {
+      return 0.0;
+    }
+    if (deltas.length == 1) {
+      return deltas.first.deltaSeconds;
+    }
+    final clamped = progress.clamp(0.0, 1.0).toDouble();
+    if (clamped <= deltas.first.progress) {
+      return deltas.first.deltaSeconds;
+    }
+    if (clamped >= deltas.last.progress) {
+      return deltas.last.deltaSeconds;
+    }
+    for (var i = 1; i < deltas.length; i++) {
+      final prev = deltas[i - 1];
+      final next = deltas[i];
+      if (clamped <= next.progress) {
+        final span = max(1e-6, next.progress - prev.progress);
+        final ratio = (clamped - prev.progress) / span;
+        return prev.deltaSeconds +
+            (next.deltaSeconds - prev.deltaSeconds) * ratio;
+      }
+    }
+    return deltas.last.deltaSeconds;
+  }
+
+  String _signedSeconds(double seconds) {
+    final sign = seconds >= 0 ? '+' : '-';
+    return '$sign${seconds.abs().toStringAsFixed(3)}s';
   }
 
   Widget _buildVoiceInterface(DashboardSnapshot snapshot) {
@@ -2783,6 +3186,118 @@ class _SessionRow extends StatelessWidget {
   }
 }
 
+class _SignalLegendDot extends StatelessWidget {
+  const _SignalLegendDot({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(color: _kMuted, fontSize: 12)),
+      ],
+    );
+  }
+}
+
+class _SectorBreakdownRow extends StatelessWidget {
+  const _SectorBreakdownRow({
+    required this.sector,
+    required this.baseline,
+  });
+
+  final SectorSplit sector;
+  final double baseline;
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryRatio = (sector.primarySeconds / max(0.1, baseline))
+        .clamp(0.05, 1.0)
+        .toDouble();
+    final refRatio = (sector.referenceSeconds / max(0.1, baseline))
+        .clamp(0.05, 1.0)
+        .toDouble();
+    final deltaPositive = sector.deltaSeconds > 0;
+    final deltaColor = deltaPositive ? _kDanger : _kOk;
+    final deltaLabel =
+        '${deltaPositive ? '+' : '-'}${sector.deltaSeconds.abs().toStringAsFixed(3)}s';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('S${sector.sector}',
+                style: const TextStyle(
+                    color: _kAccentAlt, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Stack(
+                children: [
+                  Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _kSurface.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                  FractionallySizedBox(
+                    widthFactor: refRatio,
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                  FractionallySizedBox(
+                    widthFactor: primaryRatio,
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _kAccentAlt.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 72,
+              child: Text(
+                deltaLabel,
+                textAlign: TextAlign.right,
+                style:
+                    TextStyle(color: deltaColor, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Text(
+          'Run ${sector.primarySeconds.toStringAsFixed(3)}s · Ref ${sector.referenceSeconds.toStringAsFixed(3)}s',
+          style: const TextStyle(color: _kMuted, fontSize: 11),
+        ),
+      ],
+    );
+  }
+}
+
 class _FaultCard extends StatelessWidget {
   const _FaultCard({required this.fault});
 
@@ -2936,6 +3451,124 @@ class _TrackMapPainter extends CustomPainter {
     return oldDelegate.progress != progress ||
         oldDelegate.trackColor != trackColor ||
         oldDelegate.dotColor != dotColor;
+  }
+}
+
+class _ChartSeries {
+  const _ChartSeries({
+    required this.id,
+    required this.values,
+    required this.color,
+    required this.strokeWidth,
+  });
+
+  final String id;
+  final List<double> values;
+  final Color color;
+  final double strokeWidth;
+}
+
+class _HiPerfLineChartPainter extends CustomPainter {
+  _HiPerfLineChartPainter({
+    required this.series,
+    required this.startIndex,
+    required this.endIndex,
+    required this.accentColor,
+    required this.cursorProgress,
+    this.midline = false,
+  });
+
+  final List<_ChartSeries> series;
+  final int startIndex;
+  final int endIndex;
+  final Color accentColor;
+  final double cursorProgress;
+  final bool midline;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final safeStart = max(0, startIndex);
+    final safeEnd = max(safeStart, endIndex);
+    final span = max(1, safeEnd - safeStart);
+
+    final gridPaint = Paint()
+      ..color = accentColor.withValues(alpha: 0.42)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (var i = 1; i <= 4; i++) {
+      final dy = rect.top + rect.height * (i / 5);
+      canvas.drawLine(Offset(rect.left, dy), Offset(rect.right, dy), gridPaint);
+    }
+    if (midline) {
+      canvas.drawLine(
+        Offset(rect.left, rect.center.dy),
+        Offset(rect.right, rect.center.dy),
+        Paint()
+          ..color = Colors.white30
+          ..strokeWidth = 1.2,
+      );
+    }
+
+    for (final signal in series) {
+      if (signal.values.length < 2) {
+        continue;
+      }
+      final cappedEnd = min(safeEnd, signal.values.length - 1);
+      final cappedStart = min(safeStart, cappedEnd);
+      final visibleCount = max(2, cappedEnd - cappedStart + 1);
+      final targetPoints = max(24, rect.width.floor());
+      final stride = max(1, visibleCount ~/ targetPoints);
+      final path = Path();
+      var started = false;
+      for (var i = cappedStart; i <= cappedEnd; i += stride) {
+        final xNorm = (i - safeStart) / span;
+        final yNorm = signal.values[i].clamp(0.0, 1.0).toDouble();
+        final dx = rect.left + rect.width * xNorm.clamp(0.0, 1.0).toDouble();
+        final dy = rect.bottom - rect.height * yNorm;
+        if (!started) {
+          path.moveTo(dx, dy);
+          started = true;
+        } else {
+          path.lineTo(dx, dy);
+        }
+      }
+      final lastIndex = cappedEnd;
+      final lastXNorm = (lastIndex - safeStart) / span;
+      final lastDy = rect.bottom -
+          rect.height * signal.values[lastIndex].clamp(0.0, 1.0).toDouble();
+      path.lineTo(rect.left + rect.width * lastXNorm.clamp(0.0, 1.0).toDouble(),
+          lastDy);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = signal.color
+          ..strokeWidth = signal.strokeWidth
+          ..strokeJoin = StrokeJoin.round
+          ..strokeCap = StrokeCap.round
+          ..style = PaintingStyle.stroke,
+      );
+    }
+
+    final cursorX =
+        rect.left + rect.width * cursorProgress.clamp(0.0, 1.0).toDouble();
+    canvas.drawLine(
+      Offset(cursorX, rect.top),
+      Offset(cursorX, rect.bottom),
+      Paint()
+        ..color = _kWarning.withValues(alpha: 0.75)
+        ..strokeWidth = 1.4,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _HiPerfLineChartPainter oldDelegate) {
+    return oldDelegate.series != series ||
+        oldDelegate.startIndex != startIndex ||
+        oldDelegate.endIndex != endIndex ||
+        oldDelegate.cursorProgress != cursorProgress ||
+        oldDelegate.midline != midline ||
+        oldDelegate.accentColor != accentColor;
   }
 }
 
