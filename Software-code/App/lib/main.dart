@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import 'composition_engine.dart';
 import 'gen/dashboard/v1/dashboard.pb.dart';
 import 'session_browser.dart';
 import 'services/dashboard_client.dart';
@@ -119,6 +120,7 @@ class DashboardHome extends StatefulWidget {
 class _DashboardHomeState extends State<DashboardHome> {
   final DashboardClient client = DashboardClient();
   final VoicePipelineController _voice = VoicePipelineController();
+  final BroadcastCompositionEngine _composition = BroadcastCompositionEngine();
   final TextEditingController profileController =
       TextEditingController(text: 'default');
   final TextEditingController sessionController =
@@ -162,6 +164,9 @@ class _DashboardHomeState extends State<DashboardHome> {
   bool _dfuActive = false;
   double _dfuProgress = 0.0;
   bool _voicePointerDown = false;
+  double _smoothedTrackProgress = 0.0;
+  double _lastTrackProgressRaw = 0.0;
+  bool _trackProgressInitialized = false;
 
   @override
   void initState() {
@@ -201,6 +206,9 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   void _onSnapshotUpdate() {
     final snapshot = client.snapshot.value;
+    final liveDerived = _deriveTelemetry(snapshot, forceLive: true);
+    _updateTrackSmoothing(liveDerived.trackProgress);
+    _updateBroadcastPhase(snapshot, liveDerived);
     unawaited(_voice.setSafetyWarningActive(_hasSafetyWarning(snapshot)));
     final status = snapshot.status;
     if (status != null) {
@@ -229,7 +237,7 @@ class _DashboardHomeState extends State<DashboardHome> {
       _trackSessionTransition(status);
     }
 
-    _appendSpeedSample(snapshot);
+    _appendSpeedSample(snapshot, liveDerived);
   }
 
   bool _hasSafetyWarning(DashboardSnapshot snapshot) {
@@ -273,7 +281,58 @@ class _DashboardHomeState extends State<DashboardHome> {
     _lastSessionActive = active;
   }
 
-  void _appendSpeedSample(DashboardSnapshot snapshot) {
+  void _updateBroadcastPhase(
+      DashboardSnapshot snapshot, _DerivedTelemetry liveDerived) {
+    final status = snapshot.status;
+    final speedKmh = _phaseSpeedKmh(snapshot, liveDerived);
+    final update = _composition.update(
+      sessionActive: status?.sessionActive ?? false,
+      speedKmh: speedKmh,
+    );
+    if (update.phaseChanged && mounted) {
+      setState(() {});
+    }
+  }
+
+  double _phaseSpeedKmh(DashboardSnapshot snapshot, _DerivedTelemetry live) {
+    final telemetry = snapshot.telemetry;
+    if (telemetry != null) {
+      final hasLiveSignal = telemetry.speedKmh > 0 ||
+          telemetry.engineRpm > 0 ||
+          telemetry.gear != 0 ||
+          telemetry.trackProgress > 0;
+      if (hasLiveSignal) {
+        return telemetry.speedKmh;
+      }
+    }
+    if (snapshot.status?.sessionActive == true) {
+      return live.speedKmh;
+    }
+    return 0.0;
+  }
+
+  void _updateTrackSmoothing(double rawProgress) {
+    final progress = rawProgress.clamp(0.0, 1.0);
+    if (!_trackProgressInitialized) {
+      _trackProgressInitialized = true;
+      _lastTrackProgressRaw = progress;
+      _smoothedTrackProgress = progress;
+      return;
+    }
+    var delta = progress - _lastTrackProgressRaw;
+    if (delta > 0.5) {
+      delta -= 1.0;
+    } else if (delta < -0.5) {
+      delta += 1.0;
+    }
+    final target = _smoothedTrackProgress + delta;
+    _smoothedTrackProgress =
+        _smoothedTrackProgress + (target - _smoothedTrackProgress) * 0.38;
+    _lastTrackProgressRaw = progress;
+  }
+
+  void _appendSpeedSample(
+      DashboardSnapshot snapshot, _DerivedTelemetry liveDerived) {
     final status = snapshot.status;
     if (!(status?.sessionActive ?? false)) {
       return;
@@ -288,13 +347,12 @@ class _DashboardHomeState extends State<DashboardHome> {
       return;
     }
     _lastSampleAt = now;
-    final derived = _deriveTelemetry(snapshot, forceLive: true);
     final sample = _SpeedSample(
       timestamp: now,
-      speedKmh: derived.speedKmh,
-      trackProgress: derived.trackProgress,
-      gear: derived.gear,
-      rpm: derived.rpm,
+      speedKmh: liveDerived.speedKmh,
+      trackProgress: liveDerived.trackProgress,
+      gear: liveDerived.gear,
+      rpm: liveDerived.rpm,
     );
     final list = _sessionHistory.putIfAbsent(sessionId, () => []);
     list.add(sample);
@@ -705,57 +763,72 @@ class _DashboardHomeState extends State<DashboardHome> {
   Widget _buildLiveDashboard(DashboardSnapshot snapshot, bool isWide) {
     final derived = _deriveTelemetry(snapshot);
     final samples = _reviewMode ? _reviewSamples : _liveHistory;
-    final sessionActive = snapshot.status?.sessionActive ?? false;
-    final sessionId = snapshot.status?.sessionId ?? '';
+    final phase =
+        _reviewMode ? BroadcastRacePhase.postRace : _composition.phase;
+    final showTelemetry =
+        _composition.shouldShow(BroadcastWidgetSlot.telemetryHud, phase: phase);
+    final showTrackMap =
+        _composition.shouldShow(BroadcastWidgetSlot.trackMap, phase: phase);
+    final showSpeedGraph =
+        _composition.shouldShow(BroadcastWidgetSlot.speedGraph, phase: phase);
+    final showSessionBrowser = _composition
+        .shouldShow(BroadcastWidgetSlot.sessionBrowser, phase: phase);
+    final showVoice =
+        _composition.shouldShow(BroadcastWidgetSlot.voicePanel, phase: phase);
+    final showSessionControl = _composition
+        .shouldShow(BroadcastWidgetSlot.sessionControl, phase: phase);
+    final showLeaderboard =
+        _composition.shouldShow(BroadcastWidgetSlot.leaderboard, phase: phase);
+    final showSummary =
+        _composition.shouldShow(BroadcastWidgetSlot.summaryCard, phase: phase);
+
+    final topPanels = <Widget>[];
+    if (showTelemetry) {
+      topPanels.add(_buildTelemetryHud(derived));
+    }
+    if (showTrackMap) {
+      topPanels.add(_buildTrackMap(derived));
+    }
+    if (showSummary) {
+      topPanels.add(_buildSummaryModeCard(snapshot, derived, samples));
+    }
+
+    final middlePanels = <Widget>[];
+    if (showSpeedGraph) {
+      middlePanels.add(_buildSpeedGraph(samples, derived));
+    }
+    if (showSessionBrowser) {
+      middlePanels.add(_buildSessionList(snapshot));
+    }
+    if (showLeaderboard) {
+      middlePanels.add(_buildLeaderboardStack(snapshot, derived, samples));
+    }
+
+    final lowerPanels = <Widget>[];
+    if (showVoice) {
+      lowerPanels.add(_buildVoiceInterface(snapshot));
+    }
+    if (showSessionControl) {
+      lowerPanels.add(_buildSessionControl(snapshot));
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildReviewBanner(sessionActive, sessionId),
+          _buildReviewBanner(snapshot.status?.sessionActive ?? false,
+              snapshot.status?.sessionId ?? ''),
+          const SizedBox(height: 16),
+          _buildRacePhaseIndicator(phase),
           const SizedBox(height: 16),
           _buildOverviewStrip(snapshot, derived),
           const SizedBox(height: 16),
-          if (isWide)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _buildTelemetryHud(derived)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildTrackMap(derived)),
-              ],
-            )
-          else
-            Column(
-              children: [
-                _buildTelemetryHud(derived),
-                const SizedBox(height: 16),
-                _buildTrackMap(derived),
-              ],
-            ),
-          const SizedBox(height: 16),
-          if (isWide)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _buildSpeedGraph(samples, derived)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildSessionList(snapshot)),
-              ],
-            )
-          else
-            Column(
-              children: [
-                _buildSpeedGraph(samples, derived),
-                const SizedBox(height: 16),
-                _buildSessionList(snapshot),
-              ],
-            ),
-          const SizedBox(height: 16),
-          _buildVoiceInterface(snapshot),
-          const SizedBox(height: 16),
-          _buildSessionControl(snapshot),
+          _buildPanelStack(topPanels, isWide: isWide),
+          if (middlePanels.isNotEmpty) const SizedBox(height: 16),
+          _buildPanelStack(middlePanels, isWide: isWide),
+          if (lowerPanels.isNotEmpty) const SizedBox(height: 16),
+          _buildPanelStack(lowerPanels, isWide: isWide),
         ],
       ),
     );
@@ -862,6 +935,275 @@ class _DashboardHomeState extends State<DashboardHome> {
         ],
       ),
     );
+  }
+
+  Widget _buildPanelStack(List<Widget> panels, {required bool isWide}) {
+    if (panels.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (!isWide) {
+      return Column(
+        children: [
+          for (var i = 0; i < panels.length; i++) ...[
+            if (i > 0) const SizedBox(height: 16),
+            panels[i],
+          ],
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        for (var i = 0; i < panels.length; i += 2) ...[
+          if (i > 0) const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: panels[i]),
+              const SizedBox(width: 16),
+              Expanded(
+                child: i + 1 < panels.length
+                    ? panels[i + 1]
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildRacePhaseIndicator(BroadcastRacePhase phase) {
+    final phaseLabel = broadcastRacePhaseLabel(phase);
+    final changedAt = _formatTimestamp(_composition.phaseChangedAt);
+    final subtitle = switch (phase) {
+      BroadcastRacePhase.preRace => 'Waiting for the session start signal.',
+      BroadcastRacePhase.live =>
+        'Live overlays and voice controls are enabled.',
+      BroadcastRacePhase.postRace =>
+        'Race ended. Broadcast layout favors review tools.',
+      BroadcastRacePhase.summary =>
+        'Car stopped. Auto-switched to summary mode.',
+    };
+    final phaseColor = switch (phase) {
+      BroadcastRacePhase.preRace => _kAccentAlt,
+      BroadcastRacePhase.live => _kAccent,
+      BroadcastRacePhase.postRace => _kWarning,
+      BroadcastRacePhase.summary => _kOk,
+    };
+
+    return _HudCard(
+      key: const Key('race-phase-indicator'),
+      child: Row(
+        children: [
+          Icon(Icons.video_settings_rounded, color: phaseColor),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Broadcast Phase: $phaseLabel',
+                  key: const Key('race-phase-label'),
+                  style:
+                      TextStyle(color: phaseColor, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _reviewMode ? 'Review mode override active.' : subtitle,
+                  style: const TextStyle(color: _kMuted),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            'since $changedAt',
+            style: const TextStyle(color: _kMuted, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryModeCard(
+    DashboardSnapshot snapshot,
+    _DerivedTelemetry derived,
+    List<_SpeedSample> samples,
+  ) {
+    final peakSpeed = samples.isEmpty ? derived.speedKmh : _maxSpeed(samples);
+    final avgSpeed = samples.isEmpty
+        ? derived.speedKmh
+        : samples.map((e) => e.speedKmh).reduce((a, b) => a + b) /
+            samples.length;
+    final sessionId = snapshot.status?.sessionId ?? _activeSessionId ?? '--';
+
+    return _HudCard(
+      key: const Key('summary-mode-card'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionHeader(
+            title: 'Race Summary',
+            subtitle: 'FLT-044 · Auto summary after stop detection',
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              _StatusPill(
+                label: 'SESSION',
+                value: sessionId.isEmpty ? '--' : sessionId,
+                color: _kAccent,
+              ),
+              _StatusPill(
+                label: 'PEAK',
+                value: '${peakSpeed.toStringAsFixed(0)} km/h',
+                color: _kAccentAlt,
+              ),
+              _StatusPill(
+                label: 'AVERAGE',
+                value: '${avgSpeed.toStringAsFixed(0)} km/h',
+                color: _kWarning,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Summary mode triggers when speed stays below '
+            '${_composition.summaryStopSpeedKmh.toStringAsFixed(1)} km/h '
+            'for ${_composition.summaryStopDuration.inSeconds}s.',
+            style: const TextStyle(color: _kMuted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLeaderboardStack(
+    DashboardSnapshot snapshot,
+    _DerivedTelemetry derived,
+    List<_SpeedSample> samples,
+  ) {
+    final entries = _buildLeaderboardEntries(snapshot, derived, samples);
+    final leaderSpeed = entries.first.speedKmh;
+
+    return _HudCard(
+      key: const Key('leaderboard-stack'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionHeader(
+            title: 'Leaderboard Stack',
+            subtitle: 'FLT-043 · Broadcast-ready race order',
+          ),
+          const SizedBox(height: 12),
+          for (var i = 0; i < entries.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            Transform.translate(
+              offset: Offset(0, -i * 3.0),
+              child: _buildLeaderboardRow(
+                entry: entries[i],
+                rank: i + 1,
+                gapLabel: i == 0
+                    ? 'LEAD'
+                    : '+${((leaderSpeed - entries[i].speedKmh).abs() / 22.0).clamp(0.12, 9.9).toStringAsFixed(3)}s',
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  List<_LeaderboardEntry> _buildLeaderboardEntries(
+    DashboardSnapshot snapshot,
+    _DerivedTelemetry derived,
+    List<_SpeedSample> samples,
+  ) {
+    final seedTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
+    final driver = snapshot.status?.activeProfile.isNotEmpty == true
+        ? snapshot.status!.activeProfile
+        : profileController.text.trim();
+    final peakSpeed = samples.isEmpty ? derived.speedKmh : _maxSpeed(samples);
+    final userSpeed = derived.speedKmh.clamp(0.0, 320.0).toDouble();
+    final paceSpeed = (derived.speedKmh + 11 + 7 * sin(seedTime * 1.3))
+        .clamp(5.0, 320.0)
+        .toDouble();
+    final ghostSpeed =
+        max(10.0, (peakSpeed * 0.94) + 3 * cos(seedTime * 0.7)).toDouble();
+
+    final entries = <_LeaderboardEntry>[
+      _LeaderboardEntry(
+        label: driver.isEmpty ? 'DRIVER' : driver.toUpperCase(),
+        tag: 'YOU',
+        speedKmh: userSpeed,
+        progress: _wrapProgress(derived.trackProgress),
+        color: _kAccent,
+      ),
+      _LeaderboardEntry(
+        label: 'PACE BOT',
+        tag: 'SIM',
+        speedKmh: paceSpeed,
+        progress: _wrapProgress(derived.trackProgress + 0.02),
+        color: _kAccentAlt,
+      ),
+      _LeaderboardEntry(
+        label: 'BEST LAP GHOST',
+        tag: 'GHOST',
+        speedKmh: ghostSpeed,
+        progress: _wrapProgress(derived.trackProgress + 0.05),
+        color: _kWarning,
+      ),
+    ];
+    entries.sort((a, b) => b.speedKmh.compareTo(a.speedKmh));
+    return entries;
+  }
+
+  Widget _buildLeaderboardRow({
+    required _LeaderboardEntry entry,
+    required int rank,
+    required String gapLabel,
+  }) {
+    return Container(
+      key: Key('leaderboard-row-$rank'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _kSurfaceGlow.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: entry.color.withValues(alpha: 0.75)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 28,
+            child: Text(
+              '$rank',
+              style: TextStyle(color: entry.color, fontWeight: FontWeight.w700),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '${entry.label} · ${entry.tag}',
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(
+            '${entry.speedKmh.toStringAsFixed(0)} km/h',
+            style: TextStyle(color: entry.color, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(width: 8),
+          Text(gapLabel, style: const TextStyle(color: _kMuted, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  double _wrapProgress(double value) {
+    final wrapped = value % 1.0;
+    return wrapped < 0 ? wrapped + 1.0 : wrapped;
   }
 
   Widget _buildReviewBanner(bool sessionActive, String sessionId) {
@@ -1011,6 +1353,8 @@ class _DashboardHomeState extends State<DashboardHome> {
   }
 
   Widget _buildTrackMap(_DerivedTelemetry derived) {
+    final displayProgress =
+        _reviewMode ? derived.trackProgress : _smoothedTrackProgress;
     return _HudCard(
       key: const Key('track-map'),
       child: Column(
@@ -1023,9 +1367,9 @@ class _DashboardHomeState extends State<DashboardHome> {
           AspectRatio(
             aspectRatio: 1.4,
             child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(end: derived.trackProgress),
+              tween: Tween<double>(end: displayProgress),
               duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOutCubic,
+              curve: Curves.easeOutQuart,
               builder: (context, value, _) {
                 return CustomPaint(
                   painter: _TrackMapPainter(
@@ -1558,6 +1902,7 @@ class _DashboardHomeState extends State<DashboardHome> {
     final sessionActive = snapshot.status?.sessionActive ?? false;
 
     return _HudCard(
+      key: const Key('session-control'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2563,15 +2908,27 @@ class _TrackMapPainter extends CustomPainter {
     final metric =
         path.computeMetrics().isEmpty ? null : path.computeMetrics().first;
     if (metric != null) {
-      final distance = metric.length * progress.clamp(0.0, 1.0);
-      final tangent = metric.getTangentForOffset(distance);
-      if (tangent != null) {
-        final dotPaint = Paint()..color = dotColor;
-        canvas.drawCircle(tangent.position, 6.5,
-            Paint()..color = dotColor.withValues(alpha: 0.3));
-        canvas.drawCircle(tangent.position, 3.5, dotPaint);
+      for (var i = 2; i >= 0; i--) {
+        final tailProgress = _wrapProgress(progress - i * 0.012);
+        final distance = metric.length * tailProgress;
+        final tangent = metric.getTangentForOffset(distance);
+        if (tangent == null) {
+          continue;
+        }
+        final alpha = (0.18 + (2 - i) * 0.18).clamp(0.0, 0.95);
+        final radius = 3.5 + (2 - i) * 1.5;
+        canvas.drawCircle(
+          tangent.position,
+          radius,
+          Paint()..color = dotColor.withValues(alpha: alpha),
+        );
       }
     }
+  }
+
+  double _wrapProgress(double value) {
+    final wrapped = value % 1.0;
+    return wrapped < 0 ? wrapped + 1.0 : wrapped;
   }
 
   @override
@@ -2780,6 +3137,22 @@ class _SpeedSample {
   final double trackProgress;
   final int? gear;
   final double? rpm;
+}
+
+class _LeaderboardEntry {
+  const _LeaderboardEntry({
+    required this.label,
+    required this.tag,
+    required this.speedKmh,
+    required this.progress,
+    required this.color,
+  });
+
+  final String label;
+  final String tag;
+  final double speedKmh;
+  final double progress;
+  final Color color;
 }
 
 class _CalibrationAttempt {

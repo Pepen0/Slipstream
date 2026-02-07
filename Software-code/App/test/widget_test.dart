@@ -16,17 +16,19 @@ void main() {
     await tester.pumpWidget(const DashboardApp());
     expect(find.text('Slipstream Dashboard'), findsOneWidget);
     expect(find.text('Live Dashboard'), findsOneWidget);
+    expect(find.byKey(const Key('race-phase-indicator')), findsOneWidget);
+    expect(find.textContaining('Broadcast Phase: Pre-Race'), findsOneWidget);
     expect(find.byKey(const Key('telemetry-hud')), findsOneWidget);
     expect(find.byKey(const Key('track-map')), findsOneWidget);
-    expect(find.byKey(const Key('speed-graph')), findsOneWidget);
     expect(find.byKey(const Key('session-list')), findsOneWidget);
+    expect(find.byKey(const Key('session-control')), findsOneWidget);
     expect(find.byKey(const Key('session-filter-date')), findsOneWidget);
     expect(find.byKey(const Key('session-filter-track')), findsOneWidget);
     expect(find.byKey(const Key('session-filter-type')), findsOneWidget);
-    expect(find.byKey(const Key('voice-console')), findsOneWidget);
-    expect(find.byKey(const Key('voice-ptt-button')), findsOneWidget);
-    expect(find.byKey(const Key('voice-verbosity-slider')), findsOneWidget);
-    expect(find.byKey(const Key('voice-ducking-switch')), findsOneWidget);
+    expect(find.byKey(const Key('speed-graph')), findsNothing);
+    expect(find.byKey(const Key('leaderboard-stack')), findsNothing);
+    expect(find.byKey(const Key('summary-mode-card')), findsNothing);
+    expect(find.byKey(const Key('voice-console')), findsNothing);
     expect(find.byKey(const Key('estop-control')), findsOneWidget);
 
     await tester.tap(find.text('System Status'));
