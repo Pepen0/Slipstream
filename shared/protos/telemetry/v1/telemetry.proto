@@ -138,12 +138,114 @@ message QuerySessionTelemetryResponse {
   repeated QueryPoint points = 1;
   uint32 source_count = 2;
   uint32 returned_count = 3;
+  bool cached = 4;
+}
+
+message QueryLapSliceRequest {
+  string session_id = 1;
+  int32 lap = 2;
+  float start_distance_norm = 3;
+  bool has_start_distance_norm = 4;
+  float end_distance_norm = 5;
+  bool has_end_distance_norm = 6;
+  uint32 target_hz = 7;
+  bool normalize_distance_axis = 8;
+}
+
+message QueryLapSliceResponse {
+  repeated QueryPoint points = 1;
+  uint32 source_count = 2;
+  uint32 returned_count = 3;
+  bool cached = 4;
+}
+
+message OverlayPoint {
+  float distance_norm = 1;
+  float base_speed_kmh = 2;
+  float compare_speed_kmh = 3;
+  float speed_delta_kmh = 4;
+  float base_throttle = 5;
+  float compare_throttle = 6;
+  float throttle_delta = 7;
+  float base_brake = 8;
+  float compare_brake = 9;
+  float brake_delta = 10;
+  float base_steer = 11;
+  float compare_steer = 12;
+  float steer_delta = 13;
+}
+
+message GetLapOverlayRequest {
+  string base_session_id = 1;
+  int32 base_lap = 2;
+  string compare_session_id = 3;
+  int32 compare_lap = 4;
+  float start_distance_norm = 5;
+  bool has_start_distance_norm = 6;
+  float end_distance_norm = 7;
+  bool has_end_distance_norm = 8;
+  uint32 target_hz = 9;
+}
+
+message GetLapOverlayResponse {
+  repeated OverlayPoint points = 1;
+  uint32 base_source_count = 2;
+  uint32 compare_source_count = 3;
+  uint32 returned_count = 4;
+  uint32 query_time_ms = 5;
+  bool cached = 6;
+}
+
+message ListSessionsRequest {
+  string driver_id = 1;
+  string track_id = 2;
+  string car_id = 3;
+  bool active_only = 4;
+  uint64 started_after_ns = 5;
+  uint64 started_before_ns = 6;
+  uint32 limit = 7;
+}
+
+message ListSessionsResponse {
+  repeated SessionInfo sessions = 1;
+  uint32 total_count = 2;
+}
+
+message LapSummary {
+  int32 lap = 1;
+  uint32 point_count = 2;
+  float lap_time_s = 3;
+  float avg_speed_kmh = 4;
+  float peak_speed_kmh = 5;
+}
+
+message SessionSummary {
+  SessionInfo session = 1;
+  uint32 point_count = 2;
+  uint32 lap_count = 3;
+  LapSummary best_lap = 4;
+  repeated LapSummary laps = 5;
+}
+
+message GetSessionSummaryRequest {
+  string session_id = 1;
+  bool include_laps = 2;
+}
+
+message GetSessionSummaryResponse {
+  bool ok = 1;
+  string message = 2;
+  SessionSummary summary = 3;
 }
 
 service TelemetryIngest {
   rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
   rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse);
   rpc QuerySessionTelemetry(QuerySessionTelemetryRequest) returns (QuerySessionTelemetryResponse);
+  rpc QueryLapSlice(QueryLapSliceRequest) returns (QueryLapSliceResponse);
+  rpc GetLapOverlay(GetLapOverlayRequest) returns (GetLapOverlayResponse);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc GetSessionSummary(GetSessionSummaryRequest) returns (GetSessionSummaryResponse);
   // Bidirectional stream; server may send acks or control hints
   rpc StreamFrames(stream TelemetryFrame) returns (stream StreamAck);
 }

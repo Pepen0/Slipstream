@@ -3,9 +3,17 @@ from __future__ import annotations
 import asyncio
 import json
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Protocol
+from typing import Dict, List, Optional, Protocol, Tuple
 
-from .models import QueryRequest, SessionRecord, TelemetryRow
+from .models import (
+    LapSliceRequest,
+    LapSummary,
+    QueryRequest,
+    SessionListRequest,
+    SessionRecord,
+    SessionSummary,
+    TelemetryRow,
+)
 
 try:
     import asyncpg  # type: ignore
@@ -60,6 +68,41 @@ CREATE INDEX IF NOT EXISTS idx_frames_session_time
 
 CREATE INDEX IF NOT EXISTS idx_frames_track_driver_time
   ON telemetry_frames (track_id, driver_id, ts DESC);
+
+CREATE INDEX IF NOT EXISTS idx_frames_session_lap_time
+  ON telemetry_frames (session_id, lap, monotonic_ns);
+
+CREATE MATERIALIZED VIEW IF NOT EXISTS telemetry_lap_summary_cagg
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('1 day', ts) AS bucket,
+  session_id,
+  driver_id,
+  track_id,
+  lap,
+  COUNT(*)::BIGINT AS point_count,
+  MIN(ts) AS lap_start_ts,
+  MAX(ts) AS lap_end_ts,
+  EXTRACT(EPOCH FROM (MAX(ts) - MIN(ts)))::DOUBLE PRECISION AS lap_time_s,
+  AVG(speed_kmh)::DOUBLE PRECISION AS avg_speed_kmh,
+  MAX(speed_kmh)::DOUBLE PRECISION AS peak_speed_kmh
+FROM telemetry_frames
+GROUP BY bucket, session_id, driver_id, track_id, lap
+WITH NO DATA;
+
+CREATE INDEX IF NOT EXISTS idx_lap_cagg_session_lap
+  ON telemetry_lap_summary_cagg (session_id, lap);
+
+CREATE INDEX IF NOT EXISTS idx_lap_cagg_track_driver_best
+  ON telemetry_lap_summary_cagg (track_id, driver_id, lap_time_s);
+
+SELECT add_continuous_aggregate_policy(
+  'telemetry_lap_summary_cagg',
+  start_offset => INTERVAL '7 days',
+  end_offset => INTERVAL '10 seconds',
+  schedule_interval => INTERVAL '30 seconds',
+  if_not_exists => TRUE
+);
 """
 
 
@@ -77,6 +120,15 @@ class TelemetryStore(Protocol):
         ...
 
     async def query_rows(self, request: QueryRequest) -> List[TelemetryRow]:
+        ...
+
+    async def query_lap_rows(self, request: LapSliceRequest) -> List[TelemetryRow]:
+        ...
+
+    async def list_sessions(self, request: SessionListRequest) -> List[SessionRecord]:
+        ...
+
+    async def get_session_summary(self, session_id: str) -> SessionSummary:
         ...
 
 
@@ -211,32 +263,129 @@ class TimescaleAsyncpgStore:
         """
         async with self._pool.acquire() as conn:
             db_rows = await conn.fetch(query, *args)
-        out: List[TelemetryRow] = []
-        for row in db_rows:
-            tags = row["tags"] or {}
-            if isinstance(tags, str):
-                tags = json.loads(tags)
-            out.append(
-                TelemetryRow(
-                    ts=row["ts"],
-                    session_id=row["session_id"],
-                    driver_id=row["driver_id"],
-                    track_id=row["track_id"],
-                    monotonic_ns=row["monotonic_ns"],
-                    lap=row["lap"],
-                    distance_norm=row["distance_norm"],
-                    speed_kmh=row["speed_kmh"],
-                    throttle=row["throttle"],
-                    brake=row["brake"],
-                    steer=row["steer"],
-                    gear=row["gear"],
-                    engine_rpm=row["engine_rpm"],
-                    wheel_speed_delta_kmh=row["wheel_speed_delta_kmh"],
-                    lateral_g=row["lateral_g"],
-                    tags=tags,
-                ),
+        return [_telemetry_row_from_db_row(row) for row in db_rows]
+
+    async def query_lap_rows(self, request: LapSliceRequest) -> List[TelemetryRow]:
+        conditions = ["session_id = $1", "lap = $2"]
+        args: List[object] = [request.session_id, request.lap]
+        arg_index = 3
+        if request.start_distance_norm is not None:
+            conditions.append(f"distance_norm >= ${arg_index}")
+            args.append(request.start_distance_norm)
+            arg_index += 1
+        if request.end_distance_norm is not None:
+            conditions.append(f"distance_norm <= ${arg_index}")
+            args.append(request.end_distance_norm)
+            arg_index += 1
+
+        query = f"""
+        SELECT ts, session_id, driver_id, track_id, monotonic_ns, lap, distance_norm,
+               speed_kmh, throttle, brake, steer, gear, engine_rpm, wheel_speed_delta_kmh, lateral_g, tags
+        FROM telemetry_frames
+        WHERE {' AND '.join(conditions)}
+        ORDER BY monotonic_ns ASC
+        """
+        async with self._pool.acquire() as conn:
+            db_rows = await conn.fetch(query, *args)
+        return [_telemetry_row_from_db_row(row) for row in db_rows]
+
+    async def list_sessions(self, request: SessionListRequest) -> List[SessionRecord]:
+        conditions = []
+        args: List[object] = []
+        arg_index = 1
+
+        if request.driver_id:
+            conditions.append(f"driver_id = ${arg_index}")
+            args.append(request.driver_id)
+            arg_index += 1
+        if request.track_id:
+            conditions.append(f"track_id = ${arg_index}")
+            args.append(request.track_id)
+            arg_index += 1
+        if request.car_id:
+            conditions.append(f"car_id = ${arg_index}")
+            args.append(request.car_id)
+            arg_index += 1
+        if request.active_only:
+            conditions.append("active = TRUE")
+        if request.started_after_ns is not None:
+            conditions.append(f"started_at >= ${arg_index}")
+            args.append(_utc_from_ns(request.started_after_ns))
+            arg_index += 1
+        if request.started_before_ns is not None:
+            conditions.append(f"started_at <= ${arg_index}")
+            args.append(_utc_from_ns(request.started_before_ns))
+            arg_index += 1
+
+        where_clause = ""
+        if conditions:
+            where_clause = f"WHERE {' AND '.join(conditions)}"
+
+        limit = max(1, min(request.limit or 100, 1000))
+        query = f"""
+        SELECT session_id, driver_id, track_id, car_id, started_at, closed_at, active, tags
+        FROM telemetry_sessions
+        {where_clause}
+        ORDER BY started_at DESC
+        LIMIT {limit}
+        """
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(query, *args)
+        return [_session_from_db_row(row) for row in rows]
+
+    async def get_session_summary(self, session_id: str) -> SessionSummary:
+        session = await self.get_session(session_id)
+        if session is None:
+            raise KeyError(f"session not found: {session_id}")
+
+        async with self._pool.acquire() as conn:
+            counts = await conn.fetchrow(
+                """
+                SELECT COUNT(*)::BIGINT AS point_count, COUNT(DISTINCT lap)::BIGINT AS lap_count
+                FROM telemetry_frames
+                WHERE session_id = $1
+                """,
+                session_id,
             )
-        return out
+            lap_rows = await conn.fetch(
+                """
+                SELECT lap,
+                       SUM(point_count)::BIGINT AS point_count,
+                       MIN(lap_time_s)::DOUBLE PRECISION AS lap_time_s,
+                       AVG(avg_speed_kmh)::DOUBLE PRECISION AS avg_speed_kmh,
+                       MAX(peak_speed_kmh)::DOUBLE PRECISION AS peak_speed_kmh
+                FROM telemetry_lap_summary_cagg
+                WHERE session_id = $1
+                GROUP BY lap
+                ORDER BY lap ASC
+                """,
+                session_id,
+            )
+            # Continuous aggregates can lag slightly; fallback to raw query if empty.
+            if not lap_rows:
+                lap_rows = await conn.fetch(
+                    """
+                    SELECT lap,
+                           COUNT(*)::BIGINT AS point_count,
+                           EXTRACT(EPOCH FROM (MAX(ts) - MIN(ts)))::DOUBLE PRECISION AS lap_time_s,
+                           AVG(speed_kmh)::DOUBLE PRECISION AS avg_speed_kmh,
+                           MAX(speed_kmh)::DOUBLE PRECISION AS peak_speed_kmh
+                    FROM telemetry_frames
+                    WHERE session_id = $1
+                    GROUP BY lap
+                    ORDER BY lap ASC
+                    """,
+                    session_id,
+                )
+
+        laps = [_lap_summary_from_db_row(row) for row in lap_rows]
+        return SessionSummary(
+            session=session,
+            point_count=int(counts["point_count"] if counts else 0),
+            lap_count=int(counts["lap_count"] if counts else 0),
+            best_lap=_best_lap(laps),
+            laps=laps,
+        )
 
 
 class InMemoryTelemetryStore:
@@ -245,6 +394,8 @@ class InMemoryTelemetryStore:
     def __init__(self) -> None:
         self._sessions: Dict[str, SessionRecord] = {}
         self._rows: List[TelemetryRow] = []
+        self._rows_by_session: Dict[str, List[TelemetryRow]] = {}
+        self._row_keys: set[Tuple[str, int]] = set()
         self._lock = asyncio.Lock()
 
     async def create_session(self, session: SessionRecord) -> SessionRecord:
@@ -278,27 +429,83 @@ class InMemoryTelemetryStore:
         if not rows:
             return 0
         async with self._lock:
-            existing_keys = {(row.session_id, row.monotonic_ns) for row in self._rows}
             inserted = 0
             for row in rows:
                 key = (row.session_id, row.monotonic_ns)
-                if key in existing_keys:
+                if key in self._row_keys:
                     continue
-                existing_keys.add(key)
+                self._row_keys.add(key)
                 self._rows.append(row)
+                self._rows_by_session.setdefault(row.session_id, []).append(row)
                 inserted += 1
             self._rows.sort(key=lambda row: (row.session_id, row.monotonic_ns))
+            for session_id in {row.session_id for row in rows}:
+                session_rows = self._rows_by_session.get(session_id, [])
+                session_rows.sort(key=lambda row: row.monotonic_ns)
             return inserted
 
     async def query_rows(self, request: QueryRequest) -> List[TelemetryRow]:
         async with self._lock:
-            out = [row for row in self._rows if row.session_id == request.session_id]
+            out = list(self._rows_by_session.get(request.session_id, []))
             if request.start_monotonic_ns is not None:
                 out = [row for row in out if row.monotonic_ns >= request.start_monotonic_ns]
             if request.end_monotonic_ns is not None:
                 out = [row for row in out if row.monotonic_ns <= request.end_monotonic_ns]
             out.sort(key=lambda row: row.monotonic_ns)
             return out
+
+    async def query_lap_rows(self, request: LapSliceRequest) -> List[TelemetryRow]:
+        async with self._lock:
+            out = [
+                row
+                for row in self._rows_by_session.get(request.session_id, [])
+                if row.lap == request.lap
+            ]
+            if request.start_distance_norm is not None:
+                out = [row for row in out if row.distance_norm >= request.start_distance_norm]
+            if request.end_distance_norm is not None:
+                out = [row for row in out if row.distance_norm <= request.end_distance_norm]
+            out.sort(key=lambda row: row.monotonic_ns)
+            return out
+
+    async def list_sessions(self, request: SessionListRequest) -> List[SessionRecord]:
+        async with self._lock:
+            sessions = list(self._sessions.values())
+            if request.driver_id:
+                sessions = [session for session in sessions if session.driver_id == request.driver_id]
+            if request.track_id:
+                sessions = [session for session in sessions if session.track_id == request.track_id]
+            if request.car_id:
+                sessions = [session for session in sessions if session.car_id == request.car_id]
+            if request.active_only:
+                sessions = [session for session in sessions if session.active]
+            if request.started_after_ns is not None:
+                after = _utc_from_ns(request.started_after_ns)
+                sessions = [session for session in sessions if session.started_at >= after]
+            if request.started_before_ns is not None:
+                before = _utc_from_ns(request.started_before_ns)
+                sessions = [session for session in sessions if session.started_at <= before]
+            sessions.sort(key=lambda session: session.started_at, reverse=True)
+            limit = max(1, min(request.limit or 100, 1000))
+            return sessions[:limit]
+
+    async def get_session_summary(self, session_id: str) -> SessionSummary:
+        async with self._lock:
+            session = self._sessions.get(session_id)
+            if session is None:
+                raise KeyError(f"session not found: {session_id}")
+            rows = list(self._rows_by_session.get(session_id, []))
+            rows.sort(key=lambda row: row.monotonic_ns)
+
+        laps = _build_lap_summaries(rows)
+        unique_laps = {row.lap for row in rows}
+        return SessionSummary(
+            session=session,
+            point_count=len(rows),
+            lap_count=len(unique_laps),
+            best_lap=_best_lap(laps),
+            laps=laps,
+        )
 
 
 def monotonic_to_session_ts(session: SessionRecord, monotonic_ns: int) -> datetime:
@@ -327,3 +534,75 @@ def _session_from_db_row(row: object) -> SessionRecord:
         active=row["active"],
         tags=tags,
     )
+
+
+def _telemetry_row_from_db_row(row: object) -> TelemetryRow:
+    tags = row["tags"] or {}
+    if isinstance(tags, str):
+        tags = json.loads(tags)
+    return TelemetryRow(
+        ts=row["ts"],
+        session_id=row["session_id"],
+        driver_id=row["driver_id"],
+        track_id=row["track_id"],
+        monotonic_ns=row["monotonic_ns"],
+        lap=row["lap"],
+        distance_norm=row["distance_norm"],
+        speed_kmh=row["speed_kmh"],
+        throttle=row["throttle"],
+        brake=row["brake"],
+        steer=row["steer"],
+        gear=row["gear"],
+        engine_rpm=row["engine_rpm"],
+        wheel_speed_delta_kmh=row["wheel_speed_delta_kmh"],
+        lateral_g=row["lateral_g"],
+        tags=tags,
+    )
+
+
+def _lap_summary_from_db_row(row: object) -> LapSummary:
+    return LapSummary(
+        lap=int(row["lap"]),
+        point_count=int(row["point_count"] or 0),
+        lap_time_s=float(row["lap_time_s"] or 0.0),
+        avg_speed_kmh=float(row["avg_speed_kmh"] or 0.0),
+        peak_speed_kmh=float(row["peak_speed_kmh"] or 0.0),
+    )
+
+
+def _build_lap_summaries(rows: List[TelemetryRow]) -> List[LapSummary]:
+    by_lap: Dict[int, List[TelemetryRow]] = {}
+    for row in rows:
+        by_lap.setdefault(row.lap, []).append(row)
+
+    summaries: List[LapSummary] = []
+    for lap, lap_rows in by_lap.items():
+        lap_rows.sort(key=lambda row: row.monotonic_ns)
+        lap_time_s = 0.0
+        if len(lap_rows) >= 2:
+            lap_time_s = (lap_rows[-1].monotonic_ns - lap_rows[0].monotonic_ns) / 1_000_000_000.0
+        speeds = [row.speed_kmh for row in lap_rows]
+        avg_speed = (sum(speeds) / len(speeds)) if speeds else 0.0
+        peak_speed = max(speeds) if speeds else 0.0
+        summaries.append(
+            LapSummary(
+                lap=lap,
+                point_count=len(lap_rows),
+                lap_time_s=lap_time_s,
+                avg_speed_kmh=avg_speed,
+                peak_speed_kmh=peak_speed,
+            ),
+        )
+    summaries.sort(key=lambda summary: summary.lap)
+    return summaries
+
+
+def _best_lap(laps: List[LapSummary]) -> Optional[LapSummary]:
+    valid = [lap for lap in laps if lap.lap_time_s > 0.0]
+    if not valid:
+        return None
+    return min(valid, key=lambda lap: lap.lap_time_s)
+
+
+def _utc_from_ns(ns: int) -> datetime:
+    return datetime.fromtimestamp(max(0, ns) / 1_000_000_000, tz=timezone.utc)

@@ -5,11 +5,13 @@ on:
     paths:
       - 'server/**'
       - 'shared/protos/telemetry/**'
+      - 'scripts/gen_proto_py.sh'
       - '.github/workflows/server-cloud-ingest.yml'
   pull_request:
     paths:
       - 'server/**'
       - 'shared/protos/telemetry/**'
+      - 'scripts/gen_proto_py.sh'
       - '.github/workflows/server-cloud-ingest.yml'
   workflow_dispatch:
 
@@ -24,6 +26,43 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install grpcio grpcio-tools
+
+      - name: Generate telemetry protobuf stubs
+        run: |
+          bash scripts/gen_proto_py.sh
+
+      - name: Validate protobuf stub API surface
+        run: |
+          python3 - <<'PY'
+          import grpc
+          import telemetry.v1.telemetry_pb2 as pb
+          import telemetry.v1.telemetry_pb2_grpc as rpc
+
+          channel = grpc.insecure_channel("127.0.0.1:1")
+          stub = rpc.TelemetryIngestStub(channel)
+          required_methods = {
+              "CreateSession",
+              "CloseSession",
+              "QuerySessionTelemetry",
+              "QueryLapSlice",
+              "GetLapOverlay",
+              "ListSessions",
+              "GetSessionSummary",
+              "StreamFrames",
+          }
+          assert required_methods.issubset(set(dir(stub))), "missing RPC methods"
+          assert hasattr(pb, "QueryLapSliceRequest")
+          assert hasattr(pb, "GetLapOverlayRequest")
+          assert hasattr(pb, "ListSessionsRequest")
+          assert hasattr(pb, "GetSessionSummaryRequest")
+          channel.close()
+          print("Telemetry proto/gRPC stubs validated")
+          PY
 
       - name: Run server unit tests
         run: |

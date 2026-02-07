@@ -18,6 +18,9 @@ class SchemaAndGrpcTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("create_hypertable", SCHEMA_SQL.lower())
         for required in ("driver_id", "track_id", "session_id", "lap", "monotonic_ns", "ts"):
             self.assertIn(required, SCHEMA_SQL)
+        self.assertIn("telemetry_lap_summary_cagg", SCHEMA_SQL)
+        self.assertIn("timescaledb.continuous", SCHEMA_SQL)
+        self.assertIn("add_continuous_aggregate_policy", SCHEMA_SQL)
 
     async def test_timescaledb_compose_manifest_exists(self) -> None:
         compose_path = Path("server/timescaledb/docker-compose.yml")
@@ -60,17 +63,17 @@ class SchemaAndGrpcTests(unittest.IsolatedAsyncioTestCase):
                 session_id="sess-grpc",
                 monotonic_ns=5_000_000_000 + i * 16_666_666,
                 speed_kmh=120 + i,
-                lap=0,
-                norm_pos=i / 30.0,
+                lap=i // 30,
+                norm_pos=(i % 30) / 30.0,
                 wheel_slip=2.4,
                 lateral_g=1.3,
             )
-            for i in range(30)
+            for i in range(60)
         ]
         acks = []
         async for ack in service.StreamFrames(_fakes.ListAsyncIterator(frames), None):
             acks.append(ack)
-        self.assertEqual(len(acks), 30)
+        self.assertEqual(len(acks), 60)
         self.assertEqual(acks[-1].status, _fakes.FakePbNamespace.StreamAck.ACK_OK)
 
         await asyncio.sleep(0.05)
@@ -78,7 +81,7 @@ class SchemaAndGrpcTests(unittest.IsolatedAsyncioTestCase):
             _fakes.FakeRequest(
                 session_id="sess-grpc",
                 start_monotonic_ns=5_000_000_000,
-                end_monotonic_ns=5_000_000_000 + 30 * 16_666_666,
+                end_monotonic_ns=5_000_000_000 + 60 * 16_666_666,
                 target_hz=10,
                 normalize_distance_axis=True,
             ),
@@ -88,6 +91,56 @@ class SchemaAndGrpcTests(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(len(query_resp.points), 0)
         self.assertGreaterEqual(query_resp.points[0].distance_norm, 0.0)
         self.assertLessEqual(query_resp.points[-1].distance_norm, 1.0)
+        self.assertFalse(query_resp.cached)
+
+        lap_resp = await service.QueryLapSlice(
+            _fakes.FakeRequest(
+                session_id="sess-grpc",
+                lap=1,
+                start_distance_norm=1.2,
+                has_start_distance_norm=True,
+                end_distance_norm=1.8,
+                has_end_distance_norm=True,
+                target_hz=20,
+                normalize_distance_axis=True,
+            ),
+            None,
+        )
+        self.assertGreater(lap_resp.source_count, 0)
+        self.assertGreater(lap_resp.returned_count, 0)
+
+        overlay_resp = await service.GetLapOverlay(
+            _fakes.FakeRequest(
+                base_session_id="sess-grpc",
+                base_lap=0,
+                compare_session_id="sess-grpc",
+                compare_lap=1,
+                target_hz=20,
+                has_start_distance_norm=False,
+                has_end_distance_norm=False,
+            ),
+            None,
+        )
+        self.assertGreater(overlay_resp.returned_count, 0)
+        self.assertGreaterEqual(overlay_resp.query_time_ms, 0)
+        self.assertFalse(overlay_resp.cached)
+
+        list_resp = await service.ListSessions(
+            _fakes.FakeRequest(track_id="track-1", limit=10),
+            None,
+        )
+        self.assertEqual(list_resp.total_count, 1)
+        self.assertEqual(list_resp.sessions[0].session_id, "sess-grpc")
+
+        summary_resp = await service.GetSessionSummary(
+            _fakes.FakeRequest(session_id="sess-grpc", include_laps=True),
+            None,
+        )
+        self.assertTrue(summary_resp.ok)
+        self.assertEqual(summary_resp.summary.session.session_id, "sess-grpc")
+        self.assertGreater(summary_resp.summary.point_count, 0)
+        self.assertGreaterEqual(summary_resp.summary.lap_count, 2)
+        self.assertGreaterEqual(len(summary_resp.summary.laps), 2)
 
         close_resp = await service.CloseSession(
             _fakes.FakeRequest(session_id="sess-grpc", closed_at_ns=1_700_000_003_000_000_000),

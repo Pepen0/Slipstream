@@ -111,6 +111,34 @@ class FakePbNamespace:
         def __init__(self, **kwargs):
             self.__dict__.update(kwargs)
 
+    class QueryLapSliceResponse:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    class OverlayPoint:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    class GetLapOverlayResponse:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    class ListSessionsResponse:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    class LapSummary:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    class SessionSummary:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
+    class GetSessionSummaryResponse:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
+
 
 class FakeRpcNamespace:
     @staticmethod
@@ -139,4 +167,3 @@ class FakeRequest:
         self.__dict__.update(kwargs)
         if "tags" not in kwargs:
             self.tags = {}
-

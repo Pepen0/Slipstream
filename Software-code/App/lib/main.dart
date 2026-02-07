@@ -107,7 +107,7 @@ class DashboardApp extends StatelessWidget {
           height: 1.2,
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: _kSurface,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(

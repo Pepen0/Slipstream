@@ -51,3 +51,7 @@ store = await TimescaleAsyncpgStore.connect("postgres://slipstream:slipstream@lo
 - Time-range filters: `start_monotonic_ns`, `end_monotonic_ns`
 - `target_hz` clamped to `10..20`
 - Optional `normalize_distance_axis` maps returned `distance_norm` to `[0, 1]`
+- Lap slicing: `QueryLapSlice(session_id, lap, distance window, target_hz)`
+- Overlay retrieval: `GetLapOverlay(base_session/lap, compare_session/lap)`
+- Session discovery APIs: `ListSessions` and `GetSessionSummary`
+- Hot query caching is enabled in `TelemetryIngestionPipeline` for repeated reads

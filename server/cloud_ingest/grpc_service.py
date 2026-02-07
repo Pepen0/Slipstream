@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, Dict, Optional
+from typing import Any, AsyncIterator
 
-from .models import QueryRequest
+from .models import LapSliceRequest, OverlayRequest, QueryRequest, SessionListRequest, SessionSummary
 from .pipeline import TelemetryIngestionPipeline, utc_now_ns
 
 try:
@@ -81,7 +81,94 @@ class TelemetryIngestGrpcService:
         return pb.QuerySessionTelemetryResponse(
             source_count=result.source_count,
             returned_count=result.returned_count,
+            cached=result.cached,
             points=[_query_point(row) for row in result.rows],
+        )
+
+    async def QueryLapSlice(self, request: Any, context: Any) -> Any:
+        _ensure_stubs()
+        result = await self._pipeline.query_lap_slice(
+            LapSliceRequest(
+                session_id=request.session_id,
+                lap=int(request.lap),
+                start_distance_norm=_distance_or_none(
+                    getattr(request, "has_start_distance_norm", False),
+                    getattr(request, "start_distance_norm", 0.0),
+                ),
+                end_distance_norm=_distance_or_none(
+                    getattr(request, "has_end_distance_norm", False),
+                    getattr(request, "end_distance_norm", 0.0),
+                ),
+                target_hz=getattr(request, "target_hz", 15) or 15,
+                normalize_distance_axis=getattr(request, "normalize_distance_axis", True),
+            ),
+        )
+        return pb.QueryLapSliceResponse(
+            source_count=result.source_count,
+            returned_count=result.returned_count,
+            cached=result.cached,
+            points=[_query_point(row) for row in result.rows],
+        )
+
+    async def GetLapOverlay(self, request: Any, context: Any) -> Any:
+        _ensure_stubs()
+        result = await self._pipeline.get_lap_overlay(
+            OverlayRequest(
+                base_session_id=request.base_session_id,
+                base_lap=int(request.base_lap),
+                compare_session_id=request.compare_session_id,
+                compare_lap=int(request.compare_lap),
+                start_distance_norm=_distance_or_none(
+                    getattr(request, "has_start_distance_norm", False),
+                    getattr(request, "start_distance_norm", 0.0),
+                ),
+                end_distance_norm=_distance_or_none(
+                    getattr(request, "has_end_distance_norm", False),
+                    getattr(request, "end_distance_norm", 0.0),
+                ),
+                target_hz=getattr(request, "target_hz", 15) or 15,
+            ),
+        )
+        return pb.GetLapOverlayResponse(
+            base_source_count=result.base_source_count,
+            compare_source_count=result.compare_source_count,
+            returned_count=result.returned_count,
+            query_time_ms=result.query_time_ms,
+            cached=result.cached,
+            points=[_overlay_point(point) for point in result.points],
+        )
+
+    async def ListSessions(self, request: Any, context: Any) -> Any:
+        _ensure_stubs()
+        sessions = await self._pipeline.list_sessions(
+            SessionListRequest(
+                driver_id=getattr(request, "driver_id", ""),
+                track_id=getattr(request, "track_id", ""),
+                car_id=getattr(request, "car_id", ""),
+                active_only=bool(getattr(request, "active_only", False)),
+                started_after_ns=(getattr(request, "started_after_ns", 0) or None),
+                started_before_ns=(getattr(request, "started_before_ns", 0) or None),
+                limit=(getattr(request, "limit", 0) or 100),
+            ),
+        )
+        return pb.ListSessionsResponse(
+            sessions=[_session_info(session) for session in sessions],
+            total_count=len(sessions),
+        )
+
+    async def GetSessionSummary(self, request: Any, context: Any) -> Any:
+        _ensure_stubs()
+        try:
+            summary = await self._pipeline.get_session_summary(request.session_id)
+        except KeyError:
+            return pb.GetSessionSummaryResponse(
+                ok=False,
+                message="session not found",
+            )
+        return pb.GetSessionSummaryResponse(
+            ok=True,
+            message="ok",
+            summary=_session_summary(summary, include_laps=getattr(request, "include_laps", True)),
         )
 
 
@@ -123,3 +210,49 @@ def _query_point(row: Any) -> Any:
         wheel_speed_delta_kmh=row.wheel_speed_delta_kmh or 0.0,
         lateral_g=row.lateral_g or 0.0,
     )
+
+
+def _overlay_point(point: Any) -> Any:
+    return pb.OverlayPoint(
+        distance_norm=point.distance_norm,
+        base_speed_kmh=point.base_speed_kmh,
+        compare_speed_kmh=point.compare_speed_kmh,
+        speed_delta_kmh=point.speed_delta_kmh,
+        base_throttle=point.base_throttle,
+        compare_throttle=point.compare_throttle,
+        throttle_delta=point.throttle_delta,
+        base_brake=point.base_brake,
+        compare_brake=point.compare_brake,
+        brake_delta=point.brake_delta,
+        base_steer=point.base_steer,
+        compare_steer=point.compare_steer,
+        steer_delta=point.steer_delta,
+    )
+
+
+def _session_summary(summary: SessionSummary, *, include_laps: bool) -> Any:
+    payload = {
+        "session": _session_info(summary.session),
+        "point_count": summary.point_count,
+        "lap_count": summary.lap_count,
+        "laps": [_lap_summary(lap) for lap in summary.laps] if include_laps else [],
+    }
+    if summary.best_lap is not None:
+        payload["best_lap"] = _lap_summary(summary.best_lap)
+    return pb.SessionSummary(**payload)
+
+
+def _lap_summary(lap: Any) -> Any:
+    return pb.LapSummary(
+        lap=lap.lap,
+        point_count=lap.point_count,
+        lap_time_s=lap.lap_time_s,
+        avg_speed_kmh=lap.avg_speed_kmh,
+        peak_speed_kmh=lap.peak_speed_kmh,
+    )
+
+
+def _distance_or_none(has_value: bool, value: float) -> float | None:
+    if not has_value:
+        return None
+    return float(value)
