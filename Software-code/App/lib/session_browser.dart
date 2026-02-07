@@ -2,6 +2,8 @@ import 'gen/dashboard/v1/dashboard.pb.dart';
 
 const String kAllTracksFilter = '__all_tracks__';
 const String kUnknownTrackLabel = 'Unknown track';
+const String kAllCarsFilter = '__all_cars__';
+const String kUnknownCarLabel = 'Unknown car';
 
 enum SessionDateFilter {
   all,
@@ -30,11 +32,13 @@ class SessionBrowserFilters {
   const SessionBrowserFilters({
     this.date = SessionDateFilter.all,
     this.track = kAllTracksFilter,
+    this.car = kAllCarsFilter,
     this.type = SessionTypeFilter.all,
   });
 
   final SessionDateFilter date;
   final String track;
+  final String car;
   final SessionTypeFilter type;
 }
 
@@ -51,6 +55,11 @@ List<SessionMetadata> applySessionFilters(
 
     final track = trackLabelForSession(session);
     if (filters.track != kAllTracksFilter && track != filters.track) {
+      return false;
+    }
+
+    final car = carLabelForSession(session);
+    if (filters.car != kAllCarsFilter && car != filters.car) {
       return false;
     }
 
@@ -72,12 +81,29 @@ List<String> trackFilterOptions(List<SessionMetadata> sessions) {
   return <String>[kAllTracksFilter, ...sortedTracks];
 }
 
+List<String> carFilterOptions(List<SessionMetadata> sessions) {
+  final cars = <String>{};
+  for (final session in sessions) {
+    cars.add(carLabelForSession(session));
+  }
+  final sortedCars = cars.toList()..sort();
+  return <String>[kAllCarsFilter, ...sortedCars];
+}
+
 String trackLabelForSession(SessionMetadata session) {
   final track = session.track.trim();
   if (track.isEmpty) {
     return kUnknownTrackLabel;
   }
   return track;
+}
+
+String carLabelForSession(SessionMetadata session) {
+  final car = session.car.trim();
+  if (car.isEmpty) {
+    return kUnknownCarLabel;
+  }
+  return car;
 }
 
 SessionTypeFilter classifySessionType(SessionMetadata session) {

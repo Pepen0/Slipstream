@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import 'composition_engine.dart';
+import 'data_management.dart';
 import 'gen/dashboard/v1/dashboard.pb.dart';
 import 'session_browser.dart';
 import 'services/dashboard_client.dart';
@@ -172,6 +173,8 @@ class _DashboardHomeState extends State<DashboardHome> {
   SessionDateFilter _sessionDateFilter = SessionDateFilter.all;
   SessionTypeFilter _sessionTypeFilter = SessionTypeFilter.all;
   String _sessionTrackFilter = kAllTracksFilter;
+  String _sessionCarFilter = kAllCarsFilter;
+  final Set<String> _deletedSessionIds = <String>{};
   String? _activeSessionId;
   bool _lastSessionActive = false;
   bool _reviewMode = false;
@@ -189,6 +192,12 @@ class _DashboardHomeState extends State<DashboardHome> {
   bool _analysisCompareMode = true;
   double _analysisZoom = 1.0;
   double _analysisPan = 0.0;
+  DataManagementPreferences _dataPreferences =
+      const DataManagementPreferences();
+  SessionShareCard? _latestShareCard;
+  final List<TelemetryExportArtifact> _exportArtifacts = [];
+  bool _dataTaskRunning = false;
+  String? _dataNotice;
   double _smoothedTrackProgress = 0.0;
   double _lastTrackProgressRaw = 0.0;
   bool _trackProgressInitialized = false;
@@ -401,8 +410,30 @@ class _DashboardHomeState extends State<DashboardHome> {
     try {
       final sessions = await client.listSessions();
       if (!mounted) return;
+      var visible = sessions
+          .where((session) => !_deletedSessionIds.contains(session.sessionId))
+          .toList();
+      final autoDelete = _dataPreferences.autoDeleteEnabled
+          ? autoDeleteCandidates(
+              visible,
+              now: DateTime.now(),
+              retentionDays: _dataPreferences.autoDeleteRetentionDays,
+            )
+          : const <SessionMetadata>[];
+      final autoDeletedIds = autoDelete
+          .map((session) => session.sessionId)
+          .where((id) => id.trim().isNotEmpty)
+          .toSet();
+      if (autoDeletedIds.isNotEmpty) {
+        _deletedSessionIds.addAll(autoDeletedIds);
+        _pruneSessionCaches(autoDeletedIds);
+        visible = visible
+            .where((session) => !autoDeletedIds.contains(session.sessionId))
+            .toList();
+      }
+
       setState(() {
-        _sessions = sessions;
+        _sessions = visible;
         _sessionsLoading = false;
         _sessionsError = null;
         if (_selectedSessionId != null &&
@@ -412,6 +443,14 @@ class _DashboardHomeState extends State<DashboardHome> {
         if (_sessionTrackFilter != kAllTracksFilter &&
             !trackFilterOptions(_sessions).contains(_sessionTrackFilter)) {
           _sessionTrackFilter = kAllTracksFilter;
+        }
+        if (_sessionCarFilter != kAllCarsFilter &&
+            !carFilterOptions(_sessions).contains(_sessionCarFilter)) {
+          _sessionCarFilter = kAllCarsFilter;
+        }
+        if (autoDeletedIds.isNotEmpty) {
+          _dataNotice =
+              'Auto-delete removed ${autoDeletedIds.length} archived session${autoDeletedIds.length == 1 ? '' : 's'}.';
         }
       });
     } catch (_) {
@@ -423,6 +462,40 @@ class _DashboardHomeState extends State<DashboardHome> {
         _sessionsLoading = false;
         _sessionsError = 'Unable to fetch sessions.';
       });
+    }
+  }
+
+  void _pruneSessionCaches(Iterable<String> sessionIds) {
+    final ids = sessionIds.where((id) => id.trim().isNotEmpty).toSet();
+    if (ids.isEmpty) {
+      return;
+    }
+    for (final id in ids) {
+      _sessionHistory.remove(id);
+    }
+    _exportArtifacts
+        .removeWhere((artifact) => ids.contains(artifact.sessionId));
+    if (_latestShareCard != null && ids.contains(_latestShareCard!.sessionId)) {
+      _latestShareCard = null;
+    }
+    if (_selectedSessionId != null && ids.contains(_selectedSessionId)) {
+      _selectedSessionId = null;
+    }
+    if (_activeSessionId != null && ids.contains(_activeSessionId)) {
+      _activeSessionId = null;
+      _liveHistory = [];
+    }
+    if (_reviewSession != null && ids.contains(_reviewSession!.sessionId)) {
+      _reviewMode = false;
+      _reviewSession = null;
+      _reviewSimulated = false;
+      _reviewSamples = [];
+      _reviewProgress = 1.0;
+      _reviewNotice = null;
+      _reviewFetching = false;
+      _analysisCompareMode = true;
+      _analysisZoom = 1.0;
+      _analysisPan = 0.0;
     }
   }
 
@@ -568,6 +641,228 @@ class _DashboardHomeState extends State<DashboardHome> {
         });
       }
     }
+  }
+
+  Future<void> _deleteSessionCascade(
+    SessionMetadata session, {
+    bool autoTriggered = false,
+  }) async {
+    final sessionId = session.sessionId.trim();
+    if (sessionId.isEmpty) {
+      return;
+    }
+    if (!autoTriggered) {
+      setState(() {
+        _dataTaskRunning = true;
+      });
+    }
+    var remoteDeleted = false;
+    try {
+      remoteDeleted = await client.deleteSession(sessionId);
+    } catch (_) {
+      remoteDeleted = false;
+    }
+    if (!mounted) return;
+    setState(() {
+      _deletedSessionIds.add(sessionId);
+      _pruneSessionCaches(<String>[sessionId]);
+      _sessions.removeWhere((item) => item.sessionId == sessionId);
+      if (_sessionTrackFilter != kAllTracksFilter &&
+          !trackFilterOptions(_sessions).contains(_sessionTrackFilter)) {
+        _sessionTrackFilter = kAllTracksFilter;
+      }
+      if (_sessionCarFilter != kAllCarsFilter &&
+          !carFilterOptions(_sessions).contains(_sessionCarFilter)) {
+        _sessionCarFilter = kAllCarsFilter;
+      }
+      _dataNotice = autoTriggered
+          ? 'Auto-deleted $sessionId due to retention policy.'
+          : remoteDeleted
+              ? 'Deleted $sessionId and synced with server.'
+              : 'Deleted $sessionId locally (server delete unavailable).';
+      _dataTaskRunning = false;
+    });
+  }
+
+  void _applyAutoDeletePolicy() {
+    if (!_dataPreferences.autoDeleteEnabled) {
+      return;
+    }
+    final candidates = autoDeleteCandidates(
+      _sessions,
+      now: DateTime.now(),
+      retentionDays: _dataPreferences.autoDeleteRetentionDays,
+    );
+    if (candidates.isEmpty) {
+      return;
+    }
+    final ids = candidates
+        .map((session) => session.sessionId)
+        .where((id) => id.trim().isNotEmpty)
+        .toSet();
+    if (ids.isEmpty) {
+      return;
+    }
+    setState(() {
+      _deletedSessionIds.addAll(ids);
+      _pruneSessionCaches(ids);
+      _sessions.removeWhere((session) => ids.contains(session.sessionId));
+      if (_sessionTrackFilter != kAllTracksFilter &&
+          !trackFilterOptions(_sessions).contains(_sessionTrackFilter)) {
+        _sessionTrackFilter = kAllTracksFilter;
+      }
+      if (_sessionCarFilter != kAllCarsFilter &&
+          !carFilterOptions(_sessions).contains(_sessionCarFilter)) {
+        _sessionCarFilter = kAllCarsFilter;
+      }
+      _dataNotice =
+          'Auto-delete removed ${ids.length} session${ids.length == 1 ? '' : 's'}.';
+    });
+  }
+
+  Future<List<_SpeedSample>> _loadSessionSamples(
+      SessionMetadata session) async {
+    final sessionId = session.sessionId;
+    final cached = _sessionHistory[sessionId];
+    if (cached != null && cached.isNotEmpty) {
+      return List<_SpeedSample>.of(cached);
+    }
+    final samples = await client.getSessionTelemetry(
+      sessionId,
+      maxSamples: _reviewMaxSamples,
+    );
+    final mapped = _mapTelemetrySamples(samples);
+    final hasReal = mapped.any((sample) {
+      final rpm = sample.rpm ?? 0.0;
+      final gear = sample.gear ?? 0;
+      return sample.speedKmh > 0 ||
+          rpm > 0 ||
+          sample.trackProgress > 0 ||
+          gear != 0;
+    });
+    if (hasReal) {
+      _sessionHistory[sessionId] = mapped;
+      return mapped;
+    }
+    final fallback = _generateSyntheticSamples(session);
+    _sessionHistory[sessionId] = fallback;
+    return fallback;
+  }
+
+  Future<void> _generateShareCardFor(SessionMetadata session) async {
+    if (_dataTaskRunning) {
+      return;
+    }
+    setState(() {
+      _dataTaskRunning = true;
+    });
+    try {
+      final samples = await _loadSessionSamples(session);
+      final frames = _analysisFramesFromSamples(samples);
+      final card = generateHighlightShareCard(
+        session: session,
+        frames: frames,
+        units: _dataPreferences.units,
+      );
+      if (!mounted) return;
+      setState(() {
+        _latestShareCard = card;
+        _dataNotice = 'Generated highlight share card ${card.shareCode}.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _dataNotice = 'Unable to generate share card.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _dataTaskRunning = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _generateExportFor(
+    SessionMetadata session,
+    TelemetryExportKind kind,
+  ) async {
+    if (_dataTaskRunning) {
+      return;
+    }
+    setState(() {
+      _dataTaskRunning = true;
+    });
+    try {
+      final samples = await _loadSessionSamples(session);
+      final frames = _analysisFramesFromSamples(samples);
+      final artifact = switch (kind) {
+        TelemetryExportKind.imageSvg =>
+          generateImageExportArtifact(session: session, frames: frames),
+        TelemetryExportKind.videoManifest =>
+          generateVideoExportArtifact(session: session, frames: frames),
+      };
+      final usageMb = _estimatedStorageUsageMb();
+      final wouldOverflow = wouldExceedStorageLimit(
+        currentUsageMb: usageMb,
+        nextArtifactBytes: artifact.sizeBytes,
+        storageLimitGb: _dataPreferences.storageLimitGb,
+      );
+      if (!mounted) return;
+      if (wouldOverflow) {
+        setState(() {
+          _dataNotice =
+              'Storage limit reached. Increase limit or delete old exports.';
+        });
+        return;
+      }
+      setState(() {
+        _exportArtifacts.insert(0, artifact);
+        if (_exportArtifacts.length > 24) {
+          _exportArtifacts.removeRange(24, _exportArtifacts.length);
+        }
+        _dataNotice = 'Generated ${artifact.fileName}.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _dataNotice = 'Unable to generate export artifact.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _dataTaskRunning = false;
+        });
+      }
+    }
+  }
+
+  double _estimatedStorageUsageMb() {
+    final sampleCounts = <String, int>{};
+    for (final session in _sessions) {
+      final sessionId = session.sessionId;
+      if (sessionId.trim().isEmpty) {
+        continue;
+      }
+      final cached = _sessionHistory[sessionId];
+      if (cached != null && cached.isNotEmpty) {
+        sampleCounts[sessionId] = cached.length;
+      } else {
+        final durationMs = session.durationMs.toInt();
+        final estimated =
+            durationMs > 0 ? (durationMs / 220).round().clamp(90, 1500) : 180;
+        sampleCounts[sessionId] = estimated;
+      }
+    }
+    return estimatedArchiveStorageMb(
+      sessionSampleCounts: sampleCounts,
+      exports: _exportArtifacts,
+    );
+  }
+
+  SessionMetadata? _selectedArchiveSession() {
+    final filtered = _filteredSessions();
+    return _selectedSessionFrom(filtered) ?? _selectedSessionFrom(_sessions);
   }
 
   void _startDfu() {
@@ -739,7 +1034,7 @@ class _DashboardHomeState extends State<DashboardHome> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Slipstream Dashboard'),
@@ -765,6 +1060,7 @@ class _DashboardHomeState extends State<DashboardHome> {
             tabs: [
               Tab(text: 'Live Dashboard'),
               Tab(text: 'System Status'),
+              Tab(text: 'Data & Sharing'),
             ],
           ),
         ),
@@ -782,6 +1078,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                   children: [
                     _buildLiveDashboard(snapshot, isWide),
                     _buildSystemStatus(snapshot, isWide),
+                    _buildDataManagement(snapshot, isWide),
                   ],
                 );
               },
@@ -916,6 +1213,369 @@ class _DashboardHomeState extends State<DashboardHome> {
             ),
           const SizedBox(height: 16),
           _buildCalibrationConsole(snapshot),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataManagement(DashboardSnapshot snapshot, bool isWide) {
+    final selected = _selectedArchiveSession();
+    final usageMb = _estimatedStorageUsageMb();
+    final limitMb = _dataPreferences.storageLimitGb * 1024;
+    final overLimit = usageMb > limitMb;
+
+    return SingleChildScrollView(
+      key: const Key('data-management-screen'),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSessionList(snapshot),
+          const SizedBox(height: 16),
+          if (isWide)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildShareAndExportCard(
+                    selectedSession: selected,
+                    usageMb: usageMb,
+                    limitMb: limitMb,
+                    overLimit: overLimit,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildDataPreferencesCard(
+                    usageMb: usageMb,
+                    limitMb: limitMb,
+                    overLimit: overLimit,
+                  ),
+                ),
+              ],
+            )
+          else
+            Column(
+              children: [
+                _buildShareAndExportCard(
+                  selectedSession: selected,
+                  usageMb: usageMb,
+                  limitMb: limitMb,
+                  overLimit: overLimit,
+                ),
+                const SizedBox(height: 16),
+                _buildDataPreferencesCard(
+                  usageMb: usageMb,
+                  limitMb: limitMb,
+                  overLimit: overLimit,
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShareAndExportCard({
+    required SessionMetadata? selectedSession,
+    required double usageMb,
+    required double limitMb,
+    required bool overLimit,
+  }) {
+    final recentExports = _exportArtifacts.take(5).toList(growable: false);
+
+    return _HudCard(
+      key: const Key('share-export-card'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionHeader(
+            title: 'Sharing & Export',
+            subtitle: 'FLT-053~055 · Delete cascade + highlight + media export',
+          ),
+          const SizedBox(height: 12),
+          if (selectedSession == null)
+            const Text(
+              'Select an archived session to generate share cards and exports.',
+              style: TextStyle(color: _kMuted),
+            )
+          else ...[
+            Text(
+              'Selected: ${selectedSession.sessionId}',
+              key: const Key('sharing-selected-session'),
+              style: const TextStyle(
+                color: _kAccentAlt,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                FilledButton.icon(
+                  key: const Key('share-card-generate'),
+                  onPressed: _dataTaskRunning
+                      ? null
+                      : () => _generateShareCardFor(selectedSession),
+                  icon: const Icon(Icons.share_rounded, size: 18),
+                  label: const Text('Generate Share Card'),
+                ),
+                OutlinedButton.icon(
+                  key: const Key('export-image-button'),
+                  onPressed: _dataTaskRunning
+                      ? null
+                      : () => _generateExportFor(
+                          selectedSession, TelemetryExportKind.imageSvg),
+                  icon: const Icon(Icons.image_outlined, size: 18),
+                  label: const Text('Export Image'),
+                ),
+                OutlinedButton.icon(
+                  key: const Key('export-video-button'),
+                  onPressed: _dataTaskRunning
+                      ? null
+                      : () => _generateExportFor(
+                          selectedSession, TelemetryExportKind.videoManifest),
+                  icon: const Icon(Icons.movie_creation_outlined, size: 18),
+                  label: const Text('Export Video'),
+                ),
+                OutlinedButton.icon(
+                  key: Key('archive-delete-${selectedSession.sessionId}'),
+                  onPressed: _dataTaskRunning
+                      ? null
+                      : () => _deleteSessionCascade(selectedSession),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Delete Session'),
+                ),
+              ],
+            ),
+          ],
+          if (_dataNotice != null) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  overLimit ? Icons.warning_amber_rounded : Icons.info_outline,
+                  color: overLimit ? _kWarning : _kAccentAlt,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _dataNotice!,
+                    key: const Key('data-management-notice'),
+                    style: const TextStyle(color: _kMuted),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (_latestShareCard != null) ...[
+            const SizedBox(height: 14),
+            Container(
+              key: const Key('share-card-preview'),
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: _kSurfaceGlow.withValues(alpha: 0.34),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _kAccentAlt.withValues(alpha: 0.5)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _latestShareCard!.headline,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _latestShareCard!.summary,
+                    style: const TextStyle(color: _kMuted),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Share code: ${_latestShareCard!.shareCode}',
+                    style: const TextStyle(
+                      color: _kAccent,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Container(
+            key: const Key('export-history'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _kSurfaceGlow.withValues(alpha: 0.24),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _kSurfaceGlow),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Export History',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                if (_exportArtifacts.isEmpty)
+                  const Text(
+                    'No exports generated yet.',
+                    style: TextStyle(color: _kMuted),
+                  )
+                else
+                  for (var i = 0; i < recentExports.length; i++) ...[
+                    Text(
+                      '${recentExports[i].fileName} · ${(recentExports[i].sizeBytes / 1024).toStringAsFixed(1)} KB',
+                      style: const TextStyle(color: _kMuted, fontSize: 12),
+                    ),
+                    if (i < recentExports.length - 1) const SizedBox(height: 4),
+                  ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Usage ${(usageMb / 1024).toStringAsFixed(2)} GB / ${(limitMb / 1024).toStringAsFixed(2)} GB',
+            style: TextStyle(
+              color: overLimit ? _kWarning : _kMuted,
+              fontWeight: overLimit ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataPreferencesCard({
+    required double usageMb,
+    required double limitMb,
+    required bool overLimit,
+  }) {
+    return _HudCard(
+      key: const Key('user-preferences-card'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionHeader(
+            title: 'User Preferences',
+            subtitle: 'FLT-056~057 · Units, storage budget, auto-delete policy',
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<UnitSystem>(
+            key: const Key('preferences-units-dropdown'),
+            value: _dataPreferences.units,
+            items: const [
+              DropdownMenuItem(
+                value: UnitSystem.metric,
+                child: Text('Metric (km/h)'),
+              ),
+              DropdownMenuItem(
+                value: UnitSystem.imperial,
+                child: Text('Imperial (mph)'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _dataPreferences = _dataPreferences.copyWith(units: value);
+              });
+            },
+            decoration: const InputDecoration(
+              labelText: 'Display Units',
+              isDense: true,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Storage Limit (${_dataPreferences.storageLimitGb.toStringAsFixed(1)} GB)',
+            style: const TextStyle(color: _kMuted),
+          ),
+          Slider(
+            key: const Key('preferences-storage-slider'),
+            min: 1.0,
+            max: 24.0,
+            divisions: 46,
+            value: _dataPreferences.storageLimitGb.clamp(1.0, 24.0).toDouble(),
+            onChanged: (value) {
+              setState(() {
+                _dataPreferences =
+                    _dataPreferences.copyWith(storageLimitGb: value);
+              });
+            },
+          ),
+          const SizedBox(height: 4),
+          SwitchListTile(
+            key: const Key('preferences-autodelete-switch'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Auto-delete old sessions'),
+            subtitle: Text(
+              _dataPreferences.autoDeleteEnabled
+                  ? 'Enabled: keep ${_dataPreferences.autoDeleteRetentionDays} days'
+                  : 'Disabled',
+              style: const TextStyle(color: _kMuted, fontSize: 12),
+            ),
+            value: _dataPreferences.autoDeleteEnabled,
+            onChanged: (value) {
+              setState(() {
+                _dataPreferences =
+                    _dataPreferences.copyWith(autoDeleteEnabled: value);
+              });
+              if (value) {
+                _applyAutoDeletePolicy();
+              }
+            },
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Retention (${_dataPreferences.autoDeleteRetentionDays} days)',
+            style: const TextStyle(color: _kMuted),
+          ),
+          Slider(
+            key: const Key('preferences-retention-slider'),
+            min: 1,
+            max: 120,
+            divisions: 119,
+            value: _dataPreferences.autoDeleteRetentionDays
+                .clamp(1, 120)
+                .toDouble(),
+            onChanged: _dataPreferences.autoDeleteEnabled
+                ? (value) {
+                    setState(() {
+                      _dataPreferences = _dataPreferences.copyWith(
+                        autoDeleteRetentionDays: value.round().clamp(1, 120),
+                      );
+                    });
+                    _applyAutoDeletePolicy();
+                  }
+                : null,
+          ),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(
+            value: limitMb <= 0 ? 0.0 : (usageMb / limitMb).clamp(0.0, 1.0),
+            minHeight: 8,
+            backgroundColor: _kSurfaceGlow,
+            valueColor: AlwaysStoppedAnimation(
+              overLimit ? _kWarning : _kAccentAlt,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Estimated archive usage ${(usageMb / 1024).toStringAsFixed(2)} GB / ${(limitMb / 1024).toStringAsFixed(2)} GB',
+            key: const Key('storage-usage-label'),
+            style: TextStyle(
+              color: overLimit ? _kWarning : _kMuted,
+              fontWeight: overLimit ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );
@@ -1093,12 +1753,14 @@ class _DashboardHomeState extends State<DashboardHome> {
               ),
               _StatusPill(
                 label: 'PEAK',
-                value: '${peakSpeed.toStringAsFixed(0)} km/h',
+                value:
+                    '${_displaySpeed(peakSpeed).toStringAsFixed(0)} ${_speedUnitLabel()}',
                 color: _kAccentAlt,
               ),
               _StatusPill(
                 label: 'AVERAGE',
-                value: '${avgSpeed.toStringAsFixed(0)} km/h',
+                value:
+                    '${_displaySpeed(avgSpeed).toStringAsFixed(0)} ${_speedUnitLabel()}',
                 color: _kWarning,
               ),
             ],
@@ -1106,7 +1768,7 @@ class _DashboardHomeState extends State<DashboardHome> {
           const SizedBox(height: 12),
           Text(
             'Summary mode triggers when speed stays below '
-            '${_composition.summaryStopSpeedKmh.toStringAsFixed(1)} km/h '
+            '${_displaySpeed(_composition.summaryStopSpeedKmh).toStringAsFixed(1)} ${_speedUnitLabel()} '
             'for ${_composition.summaryStopDuration.inSeconds}s.',
             style: const TextStyle(color: _kMuted),
           ),
@@ -1226,7 +1888,7 @@ class _DashboardHomeState extends State<DashboardHome> {
             ),
           ),
           Text(
-            '${entry.speedKmh.toStringAsFixed(0)} km/h',
+            '${_displaySpeed(entry.speedKmh).toStringAsFixed(0)} ${_speedUnitLabel()}',
             style: TextStyle(color: entry.color, fontWeight: FontWeight.w700),
           ),
           const SizedBox(width: 8),
@@ -1341,8 +2003,8 @@ class _DashboardHomeState extends State<DashboardHome> {
               Expanded(
                 child: _HudMetric(
                   label: 'SPEED',
-                  value: derived.speedKmh.toStringAsFixed(0),
-                  unit: 'km/h',
+                  value: _displaySpeed(derived.speedKmh).toStringAsFixed(0),
+                  unit: _speedUnitLabel(),
                   glow: _kAccentAlt,
                 ),
               ),
@@ -1469,7 +2131,8 @@ class _DashboardHomeState extends State<DashboardHome> {
             )
           else
             Text(
-              'Peak ${_maxSpeed(samples).toStringAsFixed(0)} km/h · Current ${derived.speedKmh.toStringAsFixed(0)} km/h',
+              'Peak ${_displaySpeed(_maxSpeed(samples)).toStringAsFixed(0)} ${_speedUnitLabel()} · '
+              'Current ${_displaySpeed(derived.speedKmh).toStringAsFixed(0)} ${_speedUnitLabel()}',
               style: const TextStyle(color: _kMuted),
             ),
         ],
@@ -2004,6 +2667,14 @@ class _DashboardHomeState extends State<DashboardHome> {
     return samples.map((e) => e.speedKmh).reduce(max);
   }
 
+  double _displaySpeed(double speedKmh) {
+    return speedForUnits(speedKmh, _dataPreferences.units);
+  }
+
+  String _speedUnitLabel() {
+    return speedUnitLabel(_dataPreferences.units);
+  }
+
   double _verbosityToSlider(VoiceVerbosity verbosity) {
     switch (verbosity) {
       case VoiceVerbosity.low:
@@ -2028,14 +2699,21 @@ class _DashboardHomeState extends State<DashboardHome> {
   }
 
   List<SessionMetadata> _filteredSessions() {
-    return applySessionFilters(
+    final filtered = applySessionFilters(
       _sessions,
       SessionBrowserFilters(
         date: _sessionDateFilter,
         track: _sessionTrackFilter,
+        car: _sessionCarFilter,
         type: _sessionTypeFilter,
       ),
     );
+    filtered.sort((a, b) {
+      final aTs = sessionTimestamp(a)?.millisecondsSinceEpoch ?? 0;
+      final bTs = sessionTimestamp(b)?.millisecondsSinceEpoch ?? 0;
+      return bTs.compareTo(aTs);
+    });
+    return filtered;
   }
 
   SessionMetadata? _selectedSessionFrom(List<SessionMetadata> sessions) {
@@ -2072,6 +2750,7 @@ class _DashboardHomeState extends State<DashboardHome> {
     final visibleSelected = _selectedSessionFrom(filtered);
     final selectedSession = visibleSelected ?? _selectedSessionFrom(_sessions);
     final tracks = trackFilterOptions(_sessions);
+    final cars = carFilterOptions(_sessions);
     final syncedCount = filtered
         .where((session) =>
             inferCloudSyncState(session, connected: connected) ==
@@ -2133,6 +2812,7 @@ class _DashboardHomeState extends State<DashboardHome> {
               });
               _enterReview(session);
             },
+            onDelete: () => _deleteSessionCascade(session),
           ),
         );
       }).toList();
@@ -2156,8 +2836,8 @@ class _DashboardHomeState extends State<DashboardHome> {
             children: [
               Expanded(
                 child: _SectionHeader(
-                  title: 'Session Browser',
-                  subtitle: 'FLT-015 · Data access and replay selection',
+                  title: 'Session Archive Browser',
+                  subtitle: 'FLT-052 · Date/track/car filters and replay',
                 ),
               ),
               FilledButton.tonalIcon(
@@ -2250,6 +2930,33 @@ class _DashboardHomeState extends State<DashboardHome> {
                   },
                   decoration: const InputDecoration(
                     labelText: 'Track',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 180,
+                child: DropdownButtonFormField<String>(
+                  key: const Key('session-filter-car'),
+                  isExpanded: true,
+                  value: cars.contains(_sessionCarFilter)
+                      ? _sessionCarFilter
+                      : kAllCarsFilter,
+                  items: cars
+                      .map((car) => DropdownMenuItem(
+                            value: car,
+                            child:
+                                Text(car == kAllCarsFilter ? 'All cars' : car),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _sessionCarFilter = value;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Car',
                     isDense: true,
                   ),
                 ),
@@ -3091,6 +3798,7 @@ class _SessionRow extends StatelessWidget {
     required this.startedAtLabel,
     required this.onSelect,
     required this.onReview,
+    required this.onDelete,
   });
 
   final SessionMetadata session;
@@ -3101,6 +3809,7 @@ class _SessionRow extends StatelessWidget {
   final String startedAtLabel;
   final VoidCallback onSelect;
   final VoidCallback onReview;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -3140,7 +3849,7 @@ class _SessionRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Track: ${trackLabelForSession(session)} · $typeLabel',
+                      'Track: ${trackLabelForSession(session)} · Car: ${carLabelForSession(session)} · $typeLabel',
                       style: const TextStyle(color: _kMuted, fontSize: 12),
                     ),
                     const SizedBox(height: 2),
@@ -3174,9 +3883,20 @@ class _SessionRow extends StatelessWidget {
                 ],
               ),
               const SizedBox(width: 10),
-              OutlinedButton(
-                onPressed: onReview,
-                child: const Text('Open'),
+              Column(
+                children: [
+                  OutlinedButton(
+                    onPressed: onReview,
+                    child: const Text('Open'),
+                  ),
+                  const SizedBox(height: 6),
+                  OutlinedButton.icon(
+                    key: Key('session-delete-${session.sessionId}'),
+                    onPressed: active ? null : onDelete,
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Delete'),
+                  ),
+                ],
               ),
             ],
           ),

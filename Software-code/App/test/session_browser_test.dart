@@ -40,7 +40,22 @@ void main() {
     expect(options, contains(kUnknownTrackLabel));
   });
 
-  test('session filters apply date, track, and type together', () {
+  test('car options include all and unique values', () {
+    final sessions = <SessionMetadata>[
+      _session(id: 's1', start: DateTime(2026, 2, 1), car: ''),
+      _session(id: 's2', start: DateTime(2026, 2, 2), car: 'GT3'),
+      _session(id: 's3', start: DateTime(2026, 2, 3), car: 'F4'),
+      _session(id: 's4', start: DateTime(2026, 2, 4), car: 'GT3'),
+    ];
+
+    final options = carFilterOptions(sessions);
+    expect(options.first, kAllCarsFilter);
+    expect(options, contains('GT3'));
+    expect(options, contains('F4'));
+    expect(options, contains(kUnknownCarLabel));
+  });
+
+  test('session filters apply date, track, car, and type together', () {
     final now = DateTime(2026, 2, 7, 12, 0, 0);
     final sessions = <SessionMetadata>[
       _session(
@@ -75,6 +90,7 @@ void main() {
       const SessionBrowserFilters(
         date: SessionDateFilter.last7Days,
         track: 'Monza',
+        car: 'GT3',
         type: SessionTypeFilter.race,
       ),
       now: now,

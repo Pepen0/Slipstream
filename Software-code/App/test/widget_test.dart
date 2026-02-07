@@ -16,6 +16,7 @@ void main() {
     await tester.pumpWidget(const DashboardApp());
     expect(find.text('Slipstream Dashboard'), findsOneWidget);
     expect(find.text('Live Dashboard'), findsOneWidget);
+    expect(find.text('Data & Sharing'), findsOneWidget);
     expect(find.byKey(const Key('race-phase-indicator')), findsOneWidget);
     expect(find.textContaining('Broadcast Phase: Pre-Race'), findsOneWidget);
     expect(find.byKey(const Key('telemetry-hud')), findsOneWidget);
@@ -24,6 +25,7 @@ void main() {
     expect(find.byKey(const Key('session-control')), findsOneWidget);
     expect(find.byKey(const Key('session-filter-date')), findsOneWidget);
     expect(find.byKey(const Key('session-filter-track')), findsOneWidget);
+    expect(find.byKey(const Key('session-filter-car')), findsOneWidget);
     expect(find.byKey(const Key('session-filter-type')), findsOneWidget);
     expect(find.byKey(const Key('speed-graph')), findsNothing);
     expect(find.byKey(const Key('leaderboard-stack')), findsNothing);
@@ -38,5 +40,11 @@ void main() {
     expect(find.byKey(const Key('fault-panel')), findsOneWidget);
     expect(find.byKey(const Key('safety-zones')), findsOneWidget);
     expect(find.byKey(const Key('firmware-manager')), findsOneWidget);
+
+    await tester.tap(find.text('Data & Sharing'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('data-management-screen')), findsOneWidget);
+    expect(find.byKey(const Key('user-preferences-card')), findsOneWidget);
+    expect(find.byKey(const Key('share-export-card')), findsOneWidget);
   });
 }

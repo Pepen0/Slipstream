@@ -59,7 +59,8 @@ class DashboardClient {
     );
     _stub = DashboardServiceClient(_channel!);
 
-    _pollTimer = Timer.periodic(const Duration(seconds: 1), (_) => refreshStatus());
+    _pollTimer =
+        Timer.periodic(const Duration(seconds: 1), (_) => refreshStatus());
     await refreshStatus();
   }
 
@@ -104,7 +105,8 @@ class DashboardClient {
 
   Future<CalibrateResponse?> calibrate(String profileId) async {
     if (_stub == null) return null;
-    final resp = await _stub!.calibrate(CalibrateRequest()..profileId = profileId);
+    final resp =
+        await _stub!.calibrate(CalibrateRequest()..profileId = profileId);
     await refreshStatus();
     return resp;
   }
@@ -130,7 +132,8 @@ class DashboardClient {
     await refreshStatus();
   }
 
-  Future<void> startSession(String sessionId, {String track = '', String car = ''}) async {
+  Future<void> startSession(String sessionId,
+      {String track = '', String car = ''}) async {
     if (_stub == null) return;
     final req = StartSessionRequest()
       ..sessionId = sessionId
@@ -152,6 +155,15 @@ class DashboardClient {
     return resp.sessions;
   }
 
+  Future<bool> deleteSession(String sessionId) async {
+    // Delete RPC is not available yet in dashboard proto; caller may still
+    // perform local cascading delete and treat this as remote-unsynced.
+    if (sessionId.trim().isEmpty) {
+      return false;
+    }
+    return false;
+  }
+
   Future<List<TelemetrySample>> getSessionTelemetry(String sessionId,
       {int maxSamples = 240}) async {
     if (_stub == null) return [];
@@ -165,7 +177,8 @@ class DashboardClient {
   void startTelemetryStream({String sessionId = ''}) {
     if (_stub == null) return;
     _telemetrySub?.cancel();
-    final stream = _stub!.streamTelemetry(TelemetryStreamRequest()..sessionId = sessionId);
+    final stream =
+        _stub!.streamTelemetry(TelemetryStreamRequest()..sessionId = sessionId);
     _telemetrySub = stream.listen((sample) {
       snapshot.value = snapshot.value.copyWith(telemetry: sample, error: null);
     }, onError: (err) {
