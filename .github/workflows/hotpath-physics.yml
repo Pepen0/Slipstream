@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - 'hotpath/services/physics/**'
+      - 'shared/protos/telemetry/**'
       - '.github/workflows/hotpath-physics.yml'
   pull_request:
     paths:
       - 'hotpath/services/physics/**'
+      - 'shared/protos/telemetry/**'
       - '.github/workflows/hotpath-physics.yml'
   workflow_dispatch:
 
