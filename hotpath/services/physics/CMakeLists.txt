@@ -17,11 +17,17 @@ target_sources(physics_core PRIVATE
   src/motion_engine.cpp
   src/motion_loop.cpp
   src/cloud_streamer.cpp
+  src/coordinate_normalizer.cpp
+  src/game_adapter.cpp
+  src/game_adapter_registry.cpp
+  src/universal_game_adapter.cpp
+  src/f1_udp_adapter.cpp
 )
 
 if (WIN32)
   target_sources(physics_core PRIVATE src/assetto_corsa_adapter_win.cpp)
   target_compile_definitions(physics_core PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+  target_link_libraries(physics_core PRIVATE ws2_32)
 else()
   target_sources(physics_core PRIVATE src/assetto_corsa_adapter_stub.cpp)
 endif()
@@ -90,6 +96,9 @@ set(PHYSICS_TEST_SOURCES
   tests/test_jitter_filter.cpp
   tests/test_profiling.cpp
   tests/test_cloud_streamer.cpp
+  tests/test_coordinate_normalizer.cpp
+  tests/test_f1_udp_adapter.cpp
+  tests/test_universal_game_adapter.cpp
 )
 
 foreach(test_src IN LISTS PHYSICS_TEST_SOURCES)

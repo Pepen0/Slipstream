@@ -7,6 +7,10 @@ struct AssettoCorsaAdapter::Impl {};
 AssettoCorsaAdapter::AssettoCorsaAdapter() : impl_(new Impl()) {}
 AssettoCorsaAdapter::~AssettoCorsaAdapter() { delete impl_; }
 
+GameId AssettoCorsaAdapter::game_id() const { return GameId::AssettoCorsa; }
+
+bool AssettoCorsaAdapter::probe(std::chrono::milliseconds) { return false; }
+
 bool AssettoCorsaAdapter::start() { return false; }
 
 bool AssettoCorsaAdapter::read(TelemetrySample &) { return false; }
