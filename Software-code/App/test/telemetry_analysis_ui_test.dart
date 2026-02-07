@@ -124,6 +124,7 @@ void main() {
         find.byKey(const Key('analysis-multi-signal-graph')), findsOneWidget);
     expect(find.byKey(const Key('analysis-delta-graph')), findsOneWidget);
     expect(find.byKey(const Key('analysis-sector-breakdown')), findsOneWidget);
+    expect(find.byKey(const Key('causality-feedback-spine')), findsOneWidget);
     expect(find.byKey(const Key('analysis-compare-switch')), findsOneWidget);
     expect(find.byKey(const Key('analysis-zoom-slider')), findsOneWidget);
     expect(find.byKey(const Key('analysis-pan-slider')), findsOneWidget);

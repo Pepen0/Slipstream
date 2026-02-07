@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import 'causality_engine.dart';
 import 'composition_engine.dart';
 import 'data_management.dart';
 import 'gen/dashboard/v1/dashboard.pb.dart';
@@ -343,6 +344,12 @@ class _DashboardHomeState extends State<DashboardHome> {
   bool _analysisCompareMode = true;
   double _analysisZoom = 1.0;
   double _analysisPan = 0.0;
+  final CausalityFeedbackTriggerApi _causalityFeedbackApi =
+      CausalityFeedbackTriggerApi();
+  CausalityInferenceResult _causalityAnalysis =
+      const CausalityInferenceResult.empty();
+  List<CausalityFeedbackTrigger> _feedbackSpine = const [];
+  String? _causalityNotice;
   DataManagementPreferences _dataPreferences =
       const DataManagementPreferences();
   SessionShareCard? _latestShareCard;
@@ -671,6 +678,10 @@ class _DashboardHomeState extends State<DashboardHome> {
       _analysisCompareMode = true;
       _analysisZoom = 1.0;
       _analysisPan = 0.0;
+      _causalityFeedbackApi.reset();
+      _causalityAnalysis = const CausalityInferenceResult.empty();
+      _feedbackSpine = const [];
+      _causalityNotice = null;
     }
   }
 
@@ -722,6 +733,8 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   void _enterReview(SessionMetadata session) {
     final fallback = _fallbackReviewSamples(session);
+    _causalityFeedbackApi.reset();
+    final causality = _evaluateCausalityFeedback(fallback.samples);
     setState(() {
       _reviewMode = true;
       _reviewSession = session;
@@ -732,6 +745,9 @@ class _DashboardHomeState extends State<DashboardHome> {
       _analysisCompareMode = true;
       _analysisZoom = 1.0;
       _analysisPan = 0.0;
+      _causalityAnalysis = causality.analysis;
+      _feedbackSpine = causality.triggers;
+      _causalityNotice = causality.notice;
     });
     _fetchSessionTelemetry(session);
   }
@@ -747,6 +763,10 @@ class _DashboardHomeState extends State<DashboardHome> {
       _reviewFetching = false;
       _analysisZoom = 1.0;
       _analysisPan = 0.0;
+      _causalityFeedbackApi.reset();
+      _causalityAnalysis = const CausalityInferenceResult.empty();
+      _feedbackSpine = const [];
+      _causalityNotice = null;
       if (_activeSessionId != null) {
         _liveHistory = _sessionHistory[_activeSessionId!] ?? _liveHistory;
       }
@@ -797,6 +817,10 @@ class _DashboardHomeState extends State<DashboardHome> {
         _reviewSimulated = false;
         _reviewNotice = null;
         _reviewProgress = 1.0;
+        final causality = _evaluateCausalityFeedback(mapped);
+        _causalityAnalysis = causality.analysis;
+        _feedbackSpine = causality.triggers;
+        _causalityNotice = causality.notice;
       });
     } catch (_) {
       if (!mounted ||
@@ -1341,6 +1365,8 @@ class _DashboardHomeState extends State<DashboardHome> {
           _buildPanelStack(middlePanels, isWide: isWide),
           if (showAnalysis) const SizedBox(height: 16),
           if (showAnalysis) _buildTelemetryAnalysisPanel(samples),
+          if (showAnalysis) const SizedBox(height: 16),
+          if (showAnalysis) _buildCausalityFeedbackSpine(),
           if (lowerPanels.isNotEmpty) const SizedBox(height: 16),
           _buildPanelStack(lowerPanels, isWide: isWide),
         ],
@@ -2655,6 +2681,123 @@ class _DashboardHomeState extends State<DashboardHome> {
               rpm: sample.rpm ?? 0,
             ))
         .toList();
+  }
+
+  _CausalityFeedbackSnapshot _evaluateCausalityFeedback(
+      List<_SpeedSample> samples) {
+    if (samples.length < 16) {
+      return _CausalityFeedbackSnapshot(
+        analysis: const CausalityInferenceResult.empty(),
+        triggers: const [],
+        notice: 'Collecting telemetry for causal confidence.',
+      );
+    }
+
+    final response = _causalityFeedbackApi.evaluate(
+      CausalityFeedbackRequest(
+        frames: _analysisFramesFromSamples(samples),
+        now: DateTime.now(),
+        maxTriggers: 3,
+        minConfidence: 0.42,
+      ),
+    );
+
+    final notice = response.triggers.isNotEmpty
+        ? null
+        : response.analysis.insights.isEmpty
+            ? 'No actionable causal patterns detected in this review window.'
+            : 'Patterns found, but confidence is below trigger threshold.';
+    return _CausalityFeedbackSnapshot(
+      analysis: response.analysis,
+      triggers: response.triggers,
+      notice: notice,
+    );
+  }
+
+  void _dismissFeedbackSpine() {
+    setState(() {
+      _feedbackSpine = const [];
+      _causalityNotice = 'Feedback dismissed for this review pass.';
+    });
+  }
+
+  Color _confidenceColor(double confidence) {
+    if (confidence >= 0.78) {
+      return Colors.white;
+    }
+    if (confidence >= 0.6) {
+      return _kAccentAlt;
+    }
+    return _kMuted;
+  }
+
+  Widget _buildCausalityFeedbackSpine() {
+    final triggerCount = _feedbackSpine.length;
+    final insightCount = _causalityAnalysis.insights.length;
+    final highConfidenceCount = _causalityAnalysis.insights
+        .where((insight) => insight.confidenceScore >= 0.75)
+        .length;
+
+    return _HudCard(
+      key: const Key('causality-feedback-spine'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _SectionHeader(
+                  title: 'Feedback Spine',
+                  subtitle: 'BE-035~040 · Observation -> Effect -> Fix',
+                ),
+              ),
+              if (triggerCount > 0)
+                TextButton.icon(
+                  onPressed: _dismissFeedbackSpine,
+                  icon: const Icon(Icons.clear_all, size: 16),
+                  label: const Text('Dismiss All'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 6,
+            children: [
+              _MiniStat(label: 'Insights', value: insightCount.toString()),
+              _MiniStat(
+                label: 'Triggered',
+                value: triggerCount.toString(),
+              ),
+              _MiniStat(
+                label: 'High Conf',
+                value: highConfidenceCount.toString(),
+              ),
+            ],
+          ),
+          if (_causalityNotice != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _causalityNotice!,
+              style: const TextStyle(color: _kMuted, fontSize: 12),
+            ),
+          ],
+          if (_feedbackSpine.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (var i = 0; i < _feedbackSpine.length; i++) ...[
+              _CausalityInsightCard(
+                index: i + 1,
+                trigger: _feedbackSpine[i],
+                confidenceColor: _confidenceColor(
+                  _feedbackSpine[i].insight.confidenceScore,
+                ),
+              ),
+              if (i != _feedbackSpine.length - 1) const SizedBox(height: 10),
+            ],
+          ],
+        ],
+      ),
+    );
   }
 
   double _deltaAtProgress(List<TimeDeltaPoint> deltas, double progress) {
@@ -4129,6 +4272,100 @@ class _SignalLegendDot extends StatelessWidget {
   }
 }
 
+class _CausalityInsightCard extends StatelessWidget {
+  const _CausalityInsightCard({
+    required this.index,
+    required this.trigger,
+    required this.confidenceColor,
+  });
+
+  final int index;
+  final CausalityFeedbackTrigger trigger;
+  final Color confidenceColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final insight = trigger.insight;
+    final confidencePct = (insight.confidenceScore * 100).round();
+    final severityPct = (insight.severityScore * 100).round();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kPanelRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _kSurfaceGlow,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  '$index',
+                  style: const TextStyle(
+                    color: _kAccentAlt,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  causalitySignalLabel(insight.signal),
+                  style: const TextStyle(
+                    color: _kAccentAlt,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text(
+                'Confidence ${confidencePct.toString()}%',
+                style: TextStyle(
+                  color: confidenceColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'AI Suggestion: ${insight.fix}',
+            style: const TextStyle(
+              color: _kAccent,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Observation: ${insight.observation}',
+            style: const TextStyle(color: _kMuted, fontSize: 12),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Effect: ${insight.effect}',
+            style: const TextStyle(color: _kMuted, fontSize: 12),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Severity ${severityPct.toString()}%',
+            style: const TextStyle(color: _kWarning, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _SectorBreakdownRow extends StatelessWidget {
   const _SectorBreakdownRow({
     required this.sector,
@@ -4652,6 +4889,18 @@ class _DerivedTelemetry {
   final double rpm;
   final double latencyMs;
   final double trackProgress;
+}
+
+class _CausalityFeedbackSnapshot {
+  const _CausalityFeedbackSnapshot({
+    required this.analysis,
+    required this.triggers,
+    required this.notice,
+  });
+
+  final CausalityInferenceResult analysis;
+  final List<CausalityFeedbackTrigger> triggers;
+  final String? notice;
 }
 
 class _ReviewFallback {
