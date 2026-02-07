@@ -167,9 +167,15 @@ Software-code/App/.pub-cache/
 Software-code/App/.pub/
 Software-code/App/build/
 Software-code/App/ios/Flutter/.last_build_id
+Software-code/App/ios/Flutter/Generated.xcconfig
+Software-code/App/ios/Flutter/flutter_export_environment.sh
+Software-code/App/ios/Pods/
+Software-code/App/ios/.symlinks/
 Software-code/App/android/app/debug
 Software-code/App/android/app/profile
 Software-code/App/android/app/release
 Software-code/App/linux/flutter/ephemeral/
+Software-code/App/macos/Pods/
+Software-code/App/macos/.symlinks/
 Software-code/App/macos/Flutter/ephemeral/
 Software-code/App/windows/flutter/ephemeral/

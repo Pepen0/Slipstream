@@ -9,13 +9,14 @@
 namespace slipstream::physics {
 
 using MotionCallback = std::function<void(const MotionCommand &cmd)>;
+using TelemetryCallback = std::function<void(const TelemetrySample &sample)>;
 class MotionProfiler;
 
 class MotionLoop {
 public:
   explicit MotionLoop(int target_hz = 200);
   void run(IGameTelemetryProvider &provider, MotionEngine &engine, const MotionCallback &on_cmd,
-           MotionProfiler *profiler = nullptr);
+           const TelemetryCallback &on_sample = nullptr, MotionProfiler *profiler = nullptr);
 
 private:
   int target_hz_;

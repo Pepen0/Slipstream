@@ -20,12 +20,3 @@ flutter pub get
 ```bash
 flutter run
 ```
-
-## Features (Sprint 3)
-
-- Dark mode theme
-- Localhost gRPC client
-- Calibration wizard flow
-- Live connection indicator
-- Real‑time telemetry stream view
-- E‑Stop UI button

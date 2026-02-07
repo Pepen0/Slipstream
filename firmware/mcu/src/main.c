@@ -5,7 +5,9 @@
 #include "control_loop.h"
 #include "mcu_command.h"
 #include "mcu_core.h"
+#include "mcu_diagnostics.h"
 #include "mcu_faults.h"
+#include "mcu_jog.h"
 #include "mcu_maintenance.h"
 #include "mcu_status.h"
 #include "protocol.h"
@@ -21,6 +23,12 @@ IWDG_HandleTypeDef hiwdg;
 static void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_IWDG_Init(void);
+
+static float clampf(float v, float lo, float hi) {
+  if (v < lo) return lo;
+  if (v > hi) return hi;
+  return v;
+}
 
 void Error_Handler(void) {
   __disable_irq();
@@ -71,8 +79,12 @@ int main(void) {
   control_start_homing(&ctrl, HAL_GetTick());
 #endif
 
+  mcu_jog_state_t jog = {0};
+  mcu_jog_init(&jog);
+
   protocol_frame_t frame;
   uint32_t status_seq = 0;
+  uint32_t diag_seq = 0;
   uint32_t last_status_ms = 0;
   uint32_t last_control_ms = 0;
   uint32_t control_period_ms = (1000u / APP_CONTROL_LOOP_HZ);
@@ -82,6 +94,7 @@ int main(void) {
   uint32_t last_cmd_rx_ms = 0;
   uint64_t last_cmd_host_ns = 0;
   uint8_t status_buf[sizeof(protocol_header_t) + sizeof(mcu_status_t) + sizeof(uint16_t)] = {0};
+  uint8_t diag_buf[sizeof(protocol_header_t) + sizeof(mcu_diag_response_t) + sizeof(uint16_t)] = {0};
 
   while (1) {
     uint32_t now = HAL_GetTick();
@@ -109,6 +122,21 @@ int main(void) {
         } else {
           mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
         }
+      } else if (frame.header.type == PROTOCOL_TYPE_JOG) {
+        if (mcu_core_update_state(&core) != MCU_UPDATE_STATE_IDLE) {
+          continue;
+        }
+        if (frame.header.length >= sizeof(mcu_jog_command_t)) {
+          mcu_jog_command_t jog_cmd;
+          memcpy(&jog_cmd, frame.payload, sizeof(mcu_jog_command_t));
+          bool ok = mcu_jog_start(&jog, &jog_cmd, now,
+                                  APP_JOG_DEFAULT_DURATION_MS, APP_JOG_MAX_DURATION_MS);
+          if (!ok) {
+            mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
+          }
+        } else {
+          mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
+        }
       } else if (frame.header.type == PROTOCOL_TYPE_MAINTENANCE) {
         if (frame.header.length >= sizeof(mcu_maintenance_t)) {
           mcu_maintenance_t maint;
@@ -129,6 +157,52 @@ int main(void) {
             }
           } else {
             mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
+          }
+        } else {
+          mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
+        }
+      } else if (frame.header.type == PROTOCOL_TYPE_DIAGNOSTIC) {
+        if (frame.header.length >= sizeof(mcu_diag_request_t)) {
+          mcu_diag_request_t req;
+          memcpy(&req, frame.payload, sizeof(mcu_diag_request_t));
+          if (req.magic == MCU_DIAG_MAGIC && req.opcode == MCU_DIAG_OP_REQUEST) {
+            mcu_diag_response_t resp = {0};
+            resp.magic = MCU_DIAG_MAGIC;
+            resp.opcode = MCU_DIAG_OP_RESPONSE;
+            resp.token = req.token;
+            resp.uptime_ms = now;
+
+            float left_pos = 0.0f;
+            float right_pos = 0.0f;
+            sensors_read_position(&left_pos, &right_pos);
+            resp.left_pos_m = left_pos;
+            resp.right_pos_m = right_pos;
+
+            uint16_t left_adc = 0;
+            uint16_t right_adc = 0;
+            sensors_read_adc(&left_adc, &right_adc);
+            resp.left_adc_raw = left_adc;
+            resp.right_adc_raw = right_adc;
+
+            bool left_limit = false;
+            bool right_limit = false;
+            sensors_read_limits(&left_limit, &right_limit);
+            resp.left_limit = left_limit ? 1u : 0u;
+            resp.right_limit = right_limit ? 1u : 0u;
+
+            float applied_left = 0.0f;
+            float applied_right = 0.0f;
+            actuators_get_torque(&applied_left, &applied_right);
+            resp.left_cmd = applied_left;
+            resp.right_cmd = applied_right;
+            resp.torque_scale = mcu_core_torque_scale(&core, now);
+
+            size_t out_len = protocol_build_frame(PROTOCOL_TYPE_DIAGNOSTIC, diag_seq++,
+                                                  (const uint8_t *)&resp, sizeof(resp),
+                                                  diag_buf, sizeof(diag_buf));
+            if (out_len > 0) {
+              usb_cdc_write(diag_buf, out_len);
+            }
           }
         } else {
           mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
@@ -165,11 +239,23 @@ int main(void) {
         }
       }
 
-      if (!allow_control || mcu_core_state(&core) == MCU_STATE_FAULT) {
-        actuators_set_torque(0.0f, 0.0f);
-      } else {
-        actuators_set_torque(control_left_command(&ctrl), control_right_command(&ctrl));
+      float applied_left = control_left_command(&ctrl);
+      float applied_right = control_right_command(&ctrl);
+      bool jog_active = mcu_jog_update(&jog, now);
+      if (jog_active && allow_control && mcu_core_state(&core) != MCU_STATE_FAULT) {
+        float jog_left = clampf(mcu_jog_left(&jog), -ctrl_cfg.torque_limit, ctrl_cfg.torque_limit);
+        float jog_right = clampf(mcu_jog_right(&jog), -ctrl_cfg.torque_limit, ctrl_cfg.torque_limit);
+        applied_left = jog_left * torque_scale;
+        applied_right = jog_right * torque_scale;
       }
+
+      if (!allow_control || mcu_core_state(&core) == MCU_STATE_FAULT) {
+        mcu_jog_stop(&jog);
+        applied_left = 0.0f;
+        applied_right = 0.0f;
+      }
+
+      actuators_set_torque(applied_left, applied_right);
     }
 
     allow_control = mcu_core_should_energize(&core, now);

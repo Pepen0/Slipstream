@@ -14,7 +14,7 @@ static uint64_t now_ns() {
 MotionLoop::MotionLoop(int target_hz) : target_hz_(target_hz) {}
 
 void MotionLoop::run(IGameTelemetryProvider &provider, MotionEngine &engine, const MotionCallback &on_cmd,
-                     MotionProfiler *profiler) {
+                     const TelemetryCallback &on_sample, MotionProfiler *profiler) {
   if (!provider.start()) {
     return;
   }
@@ -35,6 +35,9 @@ void MotionLoop::run(IGameTelemetryProvider &provider, MotionEngine &engine, con
       profile.read_ms = static_cast<float>(profile.read_end_ns - profile.read_start_ns) / 1e6f;
     }
     if (got_sample) {
+      if (on_sample) {
+        on_sample(sample);
+      }
       uint64_t process_start_ns = now_ns();
       auto cmd = engine.process(sample, process_start_ns);
       uint64_t process_end_ns = now_ns();

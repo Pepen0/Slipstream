@@ -13,3 +13,9 @@ bool sensors_read_limits(bool *left_limit, bool *right_limit) {
   if (right_limit) *right_limit = true;
   return true;
 }
+
+bool sensors_read_adc(uint16_t *left_raw, uint16_t *right_raw) {
+  if (left_raw) *left_raw = 2048u;
+  if (right_raw) *right_raw = 2048u;
+  return true;
+}

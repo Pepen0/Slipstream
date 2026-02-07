@@ -3,33 +3,88 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 
+import 'causality_engine.dart';
+import 'composition_engine.dart';
+import 'data_management.dart';
 import 'gen/dashboard/v1/dashboard.pb.dart';
+import 'session_browser.dart';
 import 'services/dashboard_client.dart';
+import 'services/voice_pipeline.dart';
+import 'telemetry_analysis.dart';
 
-const Color _kBackground = Color(0xFF0A0F14);
-const Color _kSurface = Color(0xFF121923);
-const Color _kSurfaceRaised = Color(0xFF1A2431);
-const Color _kSurfaceGlow = Color(0xFF243344);
-const Color _kAccent = Color(0xFF35F4C7);
-const Color _kAccentAlt = Color(0xFF44D9FF);
-const Color _kWarning = Color(0xFFFFC857);
-const Color _kDanger = Color(0xFFFF4D5A);
-const Color _kOk = Color(0xFF4CE4A3);
-const Color _kMuted = Color(0xFF9FB3C8);
+const Color _kBackground = Color(0xFF0B0B0B);
+const Color _kSurface = Color(0xFF141414);
+const Color _kSurfaceRaised = Color(0xFF1B1B1B);
+const Color _kSurfaceGlow = Color(0xFF2A2A2A);
+const Color _kAccent = Color(0xFFFFFFFF);
+const Color _kAccentAlt = Color(0xFFCDCDCD);
+const Color _kWarning = Color(0xFFE1B866);
+const Color _kDanger = Color(0xFFE6392F);
+const Color _kOk = Color(0xFF74C77A);
+const Color _kMuted = Color(0xFFB3B3B3);
+const Color _kSystemOk = Color(0xFF4ADE80);
+const Color _kMutedSoft = Color(0xFF6B6B6B);
+const double _kPanelRadius = 8;
+const double _kControlRadius = 4;
+const EdgeInsets _kDataPagePadding = EdgeInsets.all(24);
+const EdgeInsets _kDataPanelPadding = EdgeInsets.all(20);
+
+const TextStyle _kDataHeaderStyle = TextStyle(
+  color: Color(0xFFFFFFFF),
+  fontSize: 24,
+  fontWeight: FontWeight.w800,
+  letterSpacing: 2.4,
+  height: 1.2,
+);
+
+const TextStyle _kDataSubheaderStyle = TextStyle(
+  color: Color(0xFFB3B3B3),
+  fontSize: 12,
+  fontWeight: FontWeight.w600,
+  letterSpacing: 1.0,
+  height: 1.35,
+);
+
+const TextStyle _kDataBodyStyle = TextStyle(
+  color: Color(0xFFB3B3B3),
+  fontSize: 14,
+  fontWeight: FontWeight.w400,
+  letterSpacing: 0.05,
+  height: 1.6,
+);
+
+const TextStyle _kDataMonoValueStyle = TextStyle(
+  color: Color(0xFFFFFFFF),
+  fontSize: 16,
+  fontWeight: FontWeight.w500,
+  letterSpacing: 0.2,
+  height: 1.35,
+  fontFamily: 'RobotoMono',
+);
 
 void main() {
   runApp(const DashboardApp());
 }
 
+DashboardClient _defaultDashboardClientFactory() => DashboardClient();
+VoicePipelineController _defaultVoicePipelineFactory() =>
+    VoicePipelineController();
+
 class DashboardApp extends StatelessWidget {
-  const DashboardApp({super.key});
+  const DashboardApp({
+    super.key,
+    this.clientFactory = _defaultDashboardClientFactory,
+    this.voicePipelineFactory = _defaultVoicePipelineFactory,
+  });
+
+  final DashboardClient Function() clientFactory;
+  final VoicePipelineController Function() voicePipelineFactory;
 
   ThemeData _buildTheme() {
     final scheme = const ColorScheme.dark(
-      primary: _kAccent,
+      primary: _kDanger,
       secondary: _kAccentAlt,
       surface: _kSurface,
-      background: _kBackground,
       error: _kDanger,
     );
 
@@ -38,53 +93,207 @@ class DashboardApp extends StatelessWidget {
       colorScheme: scheme,
       scaffoldBackgroundColor: _kBackground,
       useMaterial3: true,
-      fontFamily: 'SpaceGrotesk',
+      fontFamily: 'Inter',
+      fontFamilyFallback: const [
+        'SF Pro Text',
+        'SF Pro Display',
+        'Roboto',
+        'Arial',
+        'sans-serif',
+      ],
       textTheme: const TextTheme(
-        displayLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: 1.2),
-        displayMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: 0.8),
-        titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 0.4),
-        titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.2),
-        bodyLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
-        bodyMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        displayLarge: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 2.4,
+          height: 1.2,
+        ),
+        displayMedium: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+          height: 1.25,
+        ),
+        titleLarge: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
+          height: 1.4,
+        ),
+        titleMedium: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.1,
+          height: 1.4,
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.05,
+          height: 1.35,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.05,
+          height: 1.35,
+        ),
+        labelLarge: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.0,
+          height: 1.2,
+        ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: _kSurface,
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_kPanelRadius),
+        ),
       ),
       appBarTheme: const AppBarTheme(
         elevation: 0,
         centerTitle: false,
         backgroundColor: _kBackground,
+        surfaceTintColor: Colors.transparent,
         titleTextStyle: TextStyle(
           color: Colors.white,
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.4,
+          letterSpacing: 0.8,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: _kSurfaceRaised,
-        hintStyle: TextStyle(color: _kMuted.withOpacity(0.7)),
+        labelStyle: const TextStyle(
+          color: _kMuted,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.4,
+        ),
+        hintStyle: TextStyle(color: _kMuted.withValues(alpha: 0.7)),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(_kControlRadius),
           borderSide: const BorderSide(color: _kSurfaceGlow),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(_kControlRadius),
           borderSide: const BorderSide(color: _kSurfaceGlow),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _kAccent, width: 1.2),
+          borderRadius: BorderRadius.circular(_kControlRadius),
+          borderSide: const BorderSide(color: _kDanger, width: 1.2),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: _kDanger,
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_kControlRadius),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: _kSurfaceGlow),
+          textStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_kControlRadius),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_kControlRadius),
+          ),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: _kSurfaceRaised,
+        selectedColor: _kSurfaceRaised,
+        disabledColor: _kSurface,
+        side: const BorderSide(color: _kSurfaceGlow),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_kControlRadius),
+        ),
+        labelStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
         ),
       ),
       dividerTheme: const DividerThemeData(color: _kSurfaceGlow, thickness: 1),
       sliderTheme: const SliderThemeData(
-        thumbColor: _kAccent,
-        activeTrackColor: _kAccentAlt,
+        thumbColor: _kDanger,
+        activeTrackColor: _kDanger,
         inactiveTrackColor: _kSurfaceGlow,
+      ),
+      tabBarTheme: const TabBarThemeData(
+        dividerColor: _kSurfaceGlow,
+        indicatorColor: _kDanger,
+        labelColor: Colors.white,
+        unselectedLabelColor: _kMuted,
+        labelStyle: TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.4),
+        unselectedLabelStyle:
+            TextStyle(fontWeight: FontWeight.w500, letterSpacing: 0.2),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: _kDanger,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_kControlRadius),
+        ),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: _kDanger,
+        linearTrackColor: _kSurfaceGlow,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return _kDanger;
+          }
+          return _kMuted;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return _kDanger.withValues(alpha: 0.35);
+          }
+          return _kSurfaceGlow;
+        }),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_kControlRadius),
+        ),
+        side: const BorderSide(color: _kSurfaceGlow),
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return _kDanger;
+          }
+          return Colors.transparent;
+        }),
       ),
     );
 
@@ -98,24 +307,40 @@ class DashboardApp extends StatelessWidget {
       theme: _buildTheme(),
       darkTheme: _buildTheme(),
       themeMode: ThemeMode.dark,
-      home: const DashboardHome(),
+      home: DashboardHome(
+        clientFactory: clientFactory,
+        voicePipelineFactory: voicePipelineFactory,
+      ),
     );
   }
 }
 
 class DashboardHome extends StatefulWidget {
-  const DashboardHome({super.key});
+  const DashboardHome({
+    super.key,
+    this.clientFactory = _defaultDashboardClientFactory,
+    this.voicePipelineFactory = _defaultVoicePipelineFactory,
+  });
+
+  final DashboardClient Function() clientFactory;
+  final VoicePipelineController Function() voicePipelineFactory;
 
   @override
   State<DashboardHome> createState() => _DashboardHomeState();
 }
 
 class _DashboardHomeState extends State<DashboardHome> {
-  final DashboardClient client = DashboardClient();
-  final TextEditingController profileController = TextEditingController(text: 'default');
-  final TextEditingController sessionController = TextEditingController(text: 'session-001');
-  final TextEditingController trackController = TextEditingController(text: 'Laguna Seca');
-  final TextEditingController carController = TextEditingController(text: 'GT3');
+  late final DashboardClient client;
+  late final VoicePipelineController _voice;
+  final BroadcastCompositionEngine _composition = BroadcastCompositionEngine();
+  final TextEditingController profileController =
+      TextEditingController(text: 'default');
+  final TextEditingController sessionController =
+      TextEditingController(text: 'session-001');
+  final TextEditingController trackController =
+      TextEditingController(text: 'Laguna Seca');
+  final TextEditingController carController =
+      TextEditingController(text: 'GT3');
 
   bool estopEngaged = false;
   bool profileReady = false;
@@ -131,6 +356,14 @@ class _DashboardHomeState extends State<DashboardHome> {
   List<_SpeedSample> _liveHistory = [];
   List<_SpeedSample> _reviewSamples = [];
   List<SessionMetadata> _sessions = [];
+  bool _sessionsLoading = false;
+  String? _sessionsError;
+  String? _selectedSessionId;
+  SessionDateFilter _sessionDateFilter = SessionDateFilter.all;
+  SessionTypeFilter _sessionTypeFilter = SessionTypeFilter.all;
+  String _sessionTrackFilter = kAllTracksFilter;
+  String _sessionCarFilter = kAllCarsFilter;
+  final Set<String> _deletedSessionIds = <String>{};
   String? _activeSessionId;
   bool _lastSessionActive = false;
   bool _reviewMode = false;
@@ -144,21 +377,50 @@ class _DashboardHomeState extends State<DashboardHome> {
   Timer? _dfuTimer;
   bool _dfuActive = false;
   double _dfuProgress = 0.0;
+  bool _voicePointerDown = false;
+  bool _analysisCompareMode = true;
+  double _analysisZoom = 1.0;
+  double _analysisPan = 0.0;
+  final CausalityFeedbackTriggerApi _causalityFeedbackApi =
+      CausalityFeedbackTriggerApi();
+  CausalityInferenceResult _causalityAnalysis =
+      const CausalityInferenceResult.empty();
+  List<CausalityFeedbackTrigger> _feedbackSpine = const [];
+  String? _causalityNotice;
+  DataManagementPreferences _dataPreferences =
+      const DataManagementPreferences();
+  SessionShareCard? _latestShareCard;
+  final List<TelemetryExportArtifact> _exportArtifacts = [];
+  bool _dataTaskRunning = false;
+  String? _dataNotice;
+  int _trackMapInterpolationMs = 120;
+  int? _lastTrackMapSampleTimestampNs;
+  int _selectedTabIndex = 0;
+  bool _sessionControlExpanded = false;
+  bool _showPostSessionReviewBanner = false;
+  String? _postSessionReviewSessionId;
 
   @override
   void initState() {
     super.initState();
+    client = widget.clientFactory();
+    _voice = widget.voicePipelineFactory();
     client.snapshot.addListener(_onSnapshotUpdate);
+    _voice.addListener(_onVoiceUpdate);
     client.connect().then((_) {
       client.startTelemetryStream();
       _refreshSessions();
     });
-    _sessionsTimer = Timer.periodic(const Duration(seconds: 8), (_) => _refreshSessions());
+    _sessionsTimer = Timer.periodic(
+        const Duration(seconds: 8), (_) => _refreshSessions(silent: true));
   }
 
   @override
   void dispose() {
     client.snapshot.removeListener(_onSnapshotUpdate);
+    _voice.removeListener(_onVoiceUpdate);
+    unawaited(_voice.cancelCapture());
+    _voice.dispose();
     client.disconnect();
     profileController.dispose();
     sessionController.dispose();
@@ -171,18 +433,52 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   bool get safetyReady => safetyCentered && safetyClear && safetyEstop;
 
+  void _onVoiceUpdate() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
   void _onSnapshotUpdate() {
     final snapshot = client.snapshot.value;
+    final liveDerived = _deriveTelemetry(snapshot, forceLive: true);
+    _updateTrackMapInterpolation(liveDerived.sampleTimestampNs);
+    _updateBroadcastPhase(snapshot, liveDerived);
+    unawaited(_voice.setSafetyWarningActive(_hasSafetyWarning(snapshot)));
     final status = snapshot.status;
+    _voice.updateRaceContext(
+      estopActive: status?.estopActive ?? estopEngaged,
+      faultActive: status?.state == Status_State.STATE_FAULT,
+    );
+    final telemetry = snapshot.telemetry;
+    if (telemetry != null) {
+      final inferredTrack = trackController.text.trim().isEmpty
+          ? (status?.sessionId.isNotEmpty == true
+              ? status!.sessionId
+              : 'track-unknown')
+          : trackController.text.trim();
+      final inferredDriver = profileController.text.trim().isEmpty
+          ? 'intermediate'
+          : profileController.text.trim();
+      _voice.updateRaceContext(
+        speedKmh: telemetry.speedKmh,
+        gear: telemetry.gear,
+        rpm: telemetry.engineRpm,
+        trackProgress: telemetry.trackProgress,
+        trackId: inferredTrack,
+        driverLevel: inferredDriver,
+      );
+    }
     if (status != null) {
       final lastAt = status.lastCalibrationAtNs.toInt();
       if (lastAt > 0 && lastAt != _lastCalibrationAtNs) {
         _lastCalibrationAtNs = lastAt;
-        final success = status.calibrationState == Status_CalibrationState.CALIBRATION_PASSED;
+        final success = status.calibrationState ==
+            Status_CalibrationState.CALIBRATION_PASSED;
         final message = status.calibrationMessage.isNotEmpty
             ? status.calibrationMessage
             : (success ? 'Calibration complete.' : 'Calibration failed.');
-        final timestamp = DateTime.fromMillisecondsSinceEpoch(lastAt ~/ 1000000);
+        final timestamp =
+            DateTime.fromMillisecondsSinceEpoch(lastAt ~/ 1000000);
         setState(() {
           calibrationHistory.insert(
             0,
@@ -198,7 +494,33 @@ class _DashboardHomeState extends State<DashboardHome> {
       _trackSessionTransition(status);
     }
 
-    _appendSpeedSample(snapshot);
+    _appendSpeedSample(snapshot, liveDerived);
+  }
+
+  bool _hasSafetyWarning(DashboardSnapshot snapshot) {
+    final status = snapshot.status;
+    return snapshot.error != null ||
+        status?.state == Status_State.STATE_FAULT ||
+        status?.estopActive == true ||
+        ((snapshot.telemetry?.latencyMs ?? 0) > 25);
+  }
+
+  Future<void> _startPushToTalk(DashboardSnapshot snapshot) async {
+    if (_voicePointerDown) {
+      return;
+    }
+    _voicePointerDown = true;
+    await _voice.setSafetyWarningActive(_hasSafetyWarning(snapshot));
+    await _voice.pushToTalkStart();
+  }
+
+  Future<void> _stopPushToTalk(DashboardSnapshot snapshot) async {
+    if (!_voicePointerDown) {
+      return;
+    }
+    _voicePointerDown = false;
+    await _voice.setSafetyWarningActive(_hasSafetyWarning(snapshot));
+    await _voice.pushToTalkStop();
   }
 
   void _trackSessionTransition(Status status) {
@@ -209,14 +531,78 @@ class _DashboardHomeState extends State<DashboardHome> {
         _activeSessionId = sessionId;
         _liveHistory = _sessionHistory.putIfAbsent(sessionId, () => []);
       }
+      if (_showPostSessionReviewBanner && mounted) {
+        setState(() {
+          _showPostSessionReviewBanner = false;
+          _postSessionReviewSessionId = sessionId;
+        });
+      } else {
+        _postSessionReviewSessionId = sessionId;
+      }
     }
     if (_lastSessionActive && !active) {
       _refreshSessions();
+      final endedSessionId = _activeSessionId;
+      if (mounted) {
+        setState(() {
+          if (endedSessionId != null && endedSessionId.isNotEmpty) {
+            _postSessionReviewSessionId = endedSessionId;
+          }
+          _showPostSessionReviewBanner = true;
+        });
+      } else {
+        _showPostSessionReviewBanner = true;
+      }
     }
     _lastSessionActive = active;
   }
 
-  void _appendSpeedSample(DashboardSnapshot snapshot) {
+  void _updateBroadcastPhase(
+      DashboardSnapshot snapshot, _DerivedTelemetry liveDerived) {
+    final status = snapshot.status;
+    final speedKmh = _phaseSpeedKmh(snapshot, liveDerived);
+    final update = _composition.update(
+      sessionActive: status?.sessionActive ?? false,
+      speedKmh: speedKmh,
+    );
+    if (update.phaseChanged && mounted) {
+      setState(() {});
+    }
+  }
+
+  double _phaseSpeedKmh(DashboardSnapshot snapshot, _DerivedTelemetry live) {
+    final telemetry = snapshot.telemetry;
+    if (telemetry != null) {
+      final hasLiveSignal = telemetry.speedKmh > 0 ||
+          telemetry.engineRpm > 0 ||
+          telemetry.gear != 0 ||
+          telemetry.trackProgress > 0;
+      if (hasLiveSignal) {
+        return telemetry.speedKmh;
+      }
+    }
+    if (snapshot.status?.sessionActive == true) {
+      return live.speedKmh;
+    }
+    return 0.0;
+  }
+
+  void _updateTrackMapInterpolation(int sampleTimestampNs) {
+    if (sampleTimestampNs <= 0) {
+      return;
+    }
+    final previous = _lastTrackMapSampleTimestampNs;
+    _lastTrackMapSampleTimestampNs = sampleTimestampNs;
+    if (previous == null || sampleTimestampNs <= previous) {
+      return;
+    }
+    final deltaMs =
+        ((sampleTimestampNs - previous) / 1000000).round().clamp(16, 250);
+    _trackMapInterpolationMs = deltaMs;
+  }
+
+  void _appendSpeedSample(
+      DashboardSnapshot snapshot, _DerivedTelemetry liveDerived) {
     final status = snapshot.status;
     if (!(status?.sessionActive ?? false)) {
       return;
@@ -226,17 +612,17 @@ class _DashboardHomeState extends State<DashboardHome> {
       return;
     }
     final now = DateTime.now();
-    if (_lastSampleAt != null && now.difference(_lastSampleAt!) < const Duration(milliseconds: 180)) {
+    if (_lastSampleAt != null &&
+        now.difference(_lastSampleAt!) < const Duration(milliseconds: 180)) {
       return;
     }
     _lastSampleAt = now;
-    final derived = _deriveTelemetry(snapshot, forceLive: true);
     final sample = _SpeedSample(
       timestamp: now,
-      speedKmh: derived.speedKmh,
-      trackProgress: derived.trackProgress,
-      gear: derived.gear,
-      rpm: derived.rpm,
+      speedKmh: liveDerived.speedKmh,
+      trackProgress: liveDerived.trackProgress,
+      gear: liveDerived.gear,
+      rpm: liveDerived.rpm,
     );
     final list = _sessionHistory.putIfAbsent(sessionId, () => []);
     list.add(sample);
@@ -248,15 +634,106 @@ class _DashboardHomeState extends State<DashboardHome> {
     }
   }
 
-  Future<void> _refreshSessions() async {
+  Future<void> _refreshSessions({bool silent = false}) async {
+    if (!silent && mounted) {
+      setState(() {
+        _sessionsLoading = true;
+        _sessionsError = null;
+      });
+    }
     try {
       final sessions = await client.listSessions();
       if (!mounted) return;
+      var visible = sessions
+          .where((session) => !_deletedSessionIds.contains(session.sessionId))
+          .toList();
+      final autoDelete = _dataPreferences.autoDeleteEnabled
+          ? autoDeleteCandidates(
+              visible,
+              now: DateTime.now(),
+              retentionDays: _dataPreferences.autoDeleteRetentionDays,
+            )
+          : const <SessionMetadata>[];
+      final autoDeletedIds = autoDelete
+          .map((session) => session.sessionId)
+          .where((id) => id.trim().isNotEmpty)
+          .toSet();
+      if (autoDeletedIds.isNotEmpty) {
+        _deletedSessionIds.addAll(autoDeletedIds);
+        _pruneSessionCaches(autoDeletedIds);
+        visible = visible
+            .where((session) => !autoDeletedIds.contains(session.sessionId))
+            .toList();
+      }
+
       setState(() {
-        _sessions = sessions;
+        _sessions = visible;
+        _sessionsLoading = false;
+        _sessionsError = null;
+        if (_selectedSessionId != null &&
+            !_sessions.any((s) => s.sessionId == _selectedSessionId)) {
+          _selectedSessionId = null;
+        }
+        if (_sessionTrackFilter != kAllTracksFilter &&
+            !trackFilterOptions(_sessions).contains(_sessionTrackFilter)) {
+          _sessionTrackFilter = kAllTracksFilter;
+        }
+        if (_sessionCarFilter != kAllCarsFilter &&
+            !carFilterOptions(_sessions).contains(_sessionCarFilter)) {
+          _sessionCarFilter = kAllCarsFilter;
+        }
+        if (autoDeletedIds.isNotEmpty) {
+          _dataNotice =
+              'Auto-delete removed ${autoDeletedIds.length} archived session${autoDeletedIds.length == 1 ? '' : 's'}.';
+        }
       });
     } catch (_) {
-      // Ignore session refresh errors while offline.
+      if (!mounted) return;
+      if (silent && _sessions.isNotEmpty) {
+        return;
+      }
+      setState(() {
+        _sessionsLoading = false;
+        _sessionsError = 'Unable to fetch sessions.';
+      });
+    }
+  }
+
+  void _pruneSessionCaches(Iterable<String> sessionIds) {
+    final ids = sessionIds.where((id) => id.trim().isNotEmpty).toSet();
+    if (ids.isEmpty) {
+      return;
+    }
+    for (final id in ids) {
+      _sessionHistory.remove(id);
+    }
+    _exportArtifacts
+        .removeWhere((artifact) => ids.contains(artifact.sessionId));
+    if (_latestShareCard != null && ids.contains(_latestShareCard!.sessionId)) {
+      _latestShareCard = null;
+    }
+    if (_selectedSessionId != null && ids.contains(_selectedSessionId)) {
+      _selectedSessionId = null;
+    }
+    if (_activeSessionId != null && ids.contains(_activeSessionId)) {
+      _activeSessionId = null;
+      _liveHistory = [];
+    }
+    if (_reviewSession != null && ids.contains(_reviewSession!.sessionId)) {
+      _reviewMode = false;
+      _reviewSession = null;
+      _reviewSimulated = false;
+      _reviewSamples = [];
+      _reviewProgress = 1.0;
+      _reviewNotice = null;
+      _reviewFetching = false;
+      _analysisCompareMode = true;
+      _analysisZoom = 1.0;
+      _analysisPan = 0.0;
+      _causalityFeedbackApi.reset();
+      _causalityAnalysis = const CausalityInferenceResult.empty();
+      _feedbackSpine = const [];
+      _causalityNotice = null;
     }
   }
 
@@ -308,6 +785,8 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   void _enterReview(SessionMetadata session) {
     final fallback = _fallbackReviewSamples(session);
+    _causalityFeedbackApi.reset();
+    final causality = _evaluateCausalityFeedback(fallback.samples);
     setState(() {
       _reviewMode = true;
       _reviewSession = session;
@@ -315,6 +794,12 @@ class _DashboardHomeState extends State<DashboardHome> {
       _reviewSamples = fallback.samples;
       _reviewProgress = 1.0;
       _reviewNotice = 'Fetching session telemetry…';
+      _analysisCompareMode = true;
+      _analysisZoom = 1.0;
+      _analysisPan = 0.0;
+      _causalityAnalysis = causality.analysis;
+      _feedbackSpine = causality.triggers;
+      _causalityNotice = causality.notice;
     });
     _fetchSessionTelemetry(session);
   }
@@ -328,6 +813,12 @@ class _DashboardHomeState extends State<DashboardHome> {
       _reviewProgress = 1.0;
       _reviewNotice = null;
       _reviewFetching = false;
+      _analysisZoom = 1.0;
+      _analysisPan = 0.0;
+      _causalityFeedbackApi.reset();
+      _causalityAnalysis = const CausalityInferenceResult.empty();
+      _feedbackSpine = const [];
+      _causalityNotice = null;
       if (_activeSessionId != null) {
         _liveHistory = _sessionHistory[_activeSessionId!] ?? _liveHistory;
       }
@@ -339,7 +830,8 @@ class _DashboardHomeState extends State<DashboardHome> {
     if (stored != null && stored.isNotEmpty) {
       return _ReviewFallback(samples: List.of(stored), simulated: false);
     }
-    return _ReviewFallback(samples: _generateSyntheticSamples(session), simulated: true);
+    return _ReviewFallback(
+        samples: _generateSyntheticSamples(session), simulated: true);
   }
 
   Future<void> _fetchSessionTelemetry(SessionMetadata session) async {
@@ -367,7 +859,8 @@ class _DashboardHomeState extends State<DashboardHome> {
       });
       if (!hasReal) {
         setState(() {
-          _reviewNotice = 'Session telemetry missing speed/track fields. Using fallback data.';
+          _reviewNotice =
+              'Session telemetry missing speed/track fields. Using fallback data.';
         });
         return;
       }
@@ -376,18 +869,251 @@ class _DashboardHomeState extends State<DashboardHome> {
         _reviewSimulated = false;
         _reviewNotice = null;
         _reviewProgress = 1.0;
+        final causality = _evaluateCausalityFeedback(mapped);
+        _causalityAnalysis = causality.analysis;
+        _feedbackSpine = causality.triggers;
+        _causalityNotice = causality.notice;
       });
     } catch (_) {
-      if (!mounted || !_reviewMode || _reviewSession?.sessionId != session.sessionId) return;
+      if (!mounted ||
+          !_reviewMode ||
+          _reviewSession?.sessionId != session.sessionId) {
+        return;
+      }
       setState(() {
         _reviewNotice = 'Telemetry fetch failed. Using fallback data.';
       });
     } finally {
-      if (!mounted || !_reviewMode || _reviewSession?.sessionId != session.sessionId) return;
+      if (mounted &&
+          _reviewMode &&
+          _reviewSession?.sessionId == session.sessionId) {
+        setState(() {
+          _reviewFetching = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _deleteSessionCascade(
+    SessionMetadata session, {
+    bool autoTriggered = false,
+  }) async {
+    final sessionId = session.sessionId.trim();
+    if (sessionId.isEmpty) {
+      return;
+    }
+    if (!autoTriggered) {
       setState(() {
-        _reviewFetching = false;
+        _dataTaskRunning = true;
       });
     }
+    var remoteDeleted = false;
+    try {
+      remoteDeleted = await client.deleteSession(sessionId);
+    } catch (_) {
+      remoteDeleted = false;
+    }
+    if (!mounted) return;
+    setState(() {
+      _deletedSessionIds.add(sessionId);
+      _pruneSessionCaches(<String>[sessionId]);
+      _sessions.removeWhere((item) => item.sessionId == sessionId);
+      if (_sessionTrackFilter != kAllTracksFilter &&
+          !trackFilterOptions(_sessions).contains(_sessionTrackFilter)) {
+        _sessionTrackFilter = kAllTracksFilter;
+      }
+      if (_sessionCarFilter != kAllCarsFilter &&
+          !carFilterOptions(_sessions).contains(_sessionCarFilter)) {
+        _sessionCarFilter = kAllCarsFilter;
+      }
+      _dataNotice = autoTriggered
+          ? 'Auto-deleted $sessionId due to retention policy.'
+          : remoteDeleted
+              ? 'Deleted $sessionId and synced with server.'
+              : 'Deleted $sessionId locally (server delete unavailable).';
+      _dataTaskRunning = false;
+    });
+  }
+
+  void _applyAutoDeletePolicy() {
+    if (!_dataPreferences.autoDeleteEnabled) {
+      return;
+    }
+    final candidates = autoDeleteCandidates(
+      _sessions,
+      now: DateTime.now(),
+      retentionDays: _dataPreferences.autoDeleteRetentionDays,
+    );
+    if (candidates.isEmpty) {
+      return;
+    }
+    final ids = candidates
+        .map((session) => session.sessionId)
+        .where((id) => id.trim().isNotEmpty)
+        .toSet();
+    if (ids.isEmpty) {
+      return;
+    }
+    setState(() {
+      _deletedSessionIds.addAll(ids);
+      _pruneSessionCaches(ids);
+      _sessions.removeWhere((session) => ids.contains(session.sessionId));
+      if (_sessionTrackFilter != kAllTracksFilter &&
+          !trackFilterOptions(_sessions).contains(_sessionTrackFilter)) {
+        _sessionTrackFilter = kAllTracksFilter;
+      }
+      if (_sessionCarFilter != kAllCarsFilter &&
+          !carFilterOptions(_sessions).contains(_sessionCarFilter)) {
+        _sessionCarFilter = kAllCarsFilter;
+      }
+      _dataNotice =
+          'Auto-delete removed ${ids.length} session${ids.length == 1 ? '' : 's'}.';
+    });
+  }
+
+  Future<List<_SpeedSample>> _loadSessionSamples(
+      SessionMetadata session) async {
+    final sessionId = session.sessionId;
+    final cached = _sessionHistory[sessionId];
+    if (cached != null && cached.isNotEmpty) {
+      return List<_SpeedSample>.of(cached);
+    }
+    final samples = await client.getSessionTelemetry(
+      sessionId,
+      maxSamples: _reviewMaxSamples,
+    );
+    final mapped = _mapTelemetrySamples(samples);
+    final hasReal = mapped.any((sample) {
+      final rpm = sample.rpm ?? 0.0;
+      final gear = sample.gear ?? 0;
+      return sample.speedKmh > 0 ||
+          rpm > 0 ||
+          sample.trackProgress > 0 ||
+          gear != 0;
+    });
+    if (hasReal) {
+      _sessionHistory[sessionId] = mapped;
+      return mapped;
+    }
+    final fallback = _generateSyntheticSamples(session);
+    _sessionHistory[sessionId] = fallback;
+    return fallback;
+  }
+
+  Future<void> _generateShareCardFor(SessionMetadata session) async {
+    if (_dataTaskRunning) {
+      return;
+    }
+    setState(() {
+      _dataTaskRunning = true;
+    });
+    try {
+      final samples = await _loadSessionSamples(session);
+      final frames = _analysisFramesFromSamples(samples);
+      final card = generateHighlightShareCard(
+        session: session,
+        frames: frames,
+        units: _dataPreferences.units,
+      );
+      if (!mounted) return;
+      setState(() {
+        _latestShareCard = card;
+        _dataNotice = 'Generated highlight share card ${card.shareCode}.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _dataNotice = 'Unable to generate share card.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _dataTaskRunning = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _generateExportFor(
+    SessionMetadata session,
+    TelemetryExportKind kind,
+  ) async {
+    if (_dataTaskRunning) {
+      return;
+    }
+    setState(() {
+      _dataTaskRunning = true;
+    });
+    try {
+      final samples = await _loadSessionSamples(session);
+      final frames = _analysisFramesFromSamples(samples);
+      final artifact = switch (kind) {
+        TelemetryExportKind.imageSvg =>
+          generateImageExportArtifact(session: session, frames: frames),
+        TelemetryExportKind.videoManifest =>
+          generateVideoExportArtifact(session: session, frames: frames),
+      };
+      final usageMb = _estimatedStorageUsageMb();
+      final wouldOverflow = wouldExceedStorageLimit(
+        currentUsageMb: usageMb,
+        nextArtifactBytes: artifact.sizeBytes,
+        storageLimitGb: _dataPreferences.storageLimitGb,
+      );
+      if (!mounted) return;
+      if (wouldOverflow) {
+        setState(() {
+          _dataNotice =
+              'Storage limit reached. Increase limit or delete old exports.';
+        });
+        return;
+      }
+      setState(() {
+        _exportArtifacts.insert(0, artifact);
+        if (_exportArtifacts.length > 24) {
+          _exportArtifacts.removeRange(24, _exportArtifacts.length);
+        }
+        _dataNotice = 'Generated ${artifact.fileName}.';
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _dataNotice = 'Unable to generate export artifact.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _dataTaskRunning = false;
+        });
+      }
+    }
+  }
+
+  double _estimatedStorageUsageMb() {
+    final sampleCounts = <String, int>{};
+    for (final session in _sessions) {
+      final sessionId = session.sessionId;
+      if (sessionId.trim().isEmpty) {
+        continue;
+      }
+      final cached = _sessionHistory[sessionId];
+      if (cached != null && cached.isNotEmpty) {
+        sampleCounts[sessionId] = cached.length;
+      } else {
+        final durationMs = session.durationMs.toInt();
+        final estimated =
+            durationMs > 0 ? (durationMs / 220).round().clamp(90, 1500) : 180;
+        sampleCounts[sessionId] = estimated;
+      }
+    }
+    return estimatedArchiveStorageMb(
+      sessionSampleCounts: sampleCounts,
+      exports: _exportArtifacts,
+    );
+  }
+
+  SessionMetadata? _selectedArchiveSession() {
+    final filtered = _filteredSessions();
+    return _selectedSessionFrom(filtered) ?? _selectedSessionFrom(_sessions);
   }
 
   void _startDfu() {
@@ -421,9 +1147,12 @@ class _DashboardHomeState extends State<DashboardHome> {
     });
   }
 
-  _DerivedTelemetry _deriveTelemetry(DashboardSnapshot snapshot, {bool forceLive = false}) {
+  _DerivedTelemetry _deriveTelemetry(DashboardSnapshot snapshot,
+      {bool forceLive = false}) {
     if (!forceLive && _reviewMode && _reviewSamples.isNotEmpty) {
-      final idx = (_reviewProgress * (_reviewSamples.length - 1)).round().clamp(0, _reviewSamples.length - 1);
+      final idx = (_reviewProgress * (_reviewSamples.length - 1))
+          .round()
+          .clamp(0, _reviewSamples.length - 1);
       final sample = _reviewSamples[idx];
       final gear = sample.gear ?? _gearForSpeed(sample.speedKmh, active: true);
       final rpm = sample.rpm ?? _rpmForSpeed(sample.speedKmh, gear);
@@ -433,6 +1162,7 @@ class _DashboardHomeState extends State<DashboardHome> {
         rpm: rpm,
         latencyMs: snapshot.telemetry?.latencyMs ?? 0,
         trackProgress: sample.trackProgress,
+        sampleTimestampNs: sample.timestamp.microsecondsSinceEpoch * 1000,
       );
     }
 
@@ -458,7 +1188,9 @@ class _DashboardHomeState extends State<DashboardHome> {
       return null;
     }
     final active = snapshot.status?.sessionActive ?? false;
-    final gear = gearRaw != 0 ? gearRaw : (speed > 1 ? _gearForSpeed(speed, active: active) : 0);
+    final gear = gearRaw != 0
+        ? gearRaw
+        : (speed > 1 ? _gearForSpeed(speed, active: active) : 0);
     final derivedRpm = rpm > 0 ? rpm : _rpmForSpeed(speed, gear);
     return _DerivedTelemetry(
       speedKmh: speed,
@@ -466,13 +1198,17 @@ class _DashboardHomeState extends State<DashboardHome> {
       rpm: derivedRpm,
       latencyMs: telemetry.latencyMs,
       trackProgress: trackProgress,
+      sampleTimestampNs: telemetry.timestampNs.toInt() > 0
+          ? telemetry.timestampNs.toInt()
+          : DateTime.now().microsecondsSinceEpoch * 1000,
     );
   }
 
   _DerivedTelemetry _deriveSyntheticTelemetry(DashboardSnapshot snapshot) {
     final status = snapshot.status;
     final telemetry = snapshot.telemetry;
-    final nowNs = telemetry?.timestampNs.toInt() ?? DateTime.now().microsecondsSinceEpoch * 1000;
+    final nowNs = telemetry?.timestampNs.toInt() ??
+        DateTime.now().microsecondsSinceEpoch * 1000;
     final seconds = nowNs / 1e9;
     final base = telemetry == null
         ? 0.0
@@ -491,6 +1227,7 @@ class _DashboardHomeState extends State<DashboardHome> {
       rpm: rpm,
       latencyMs: telemetry?.latencyMs ?? 0,
       trackProgress: progress,
+      sampleTimestampNs: nowNs,
     );
   }
 
@@ -511,10 +1248,12 @@ class _DashboardHomeState extends State<DashboardHome> {
   }
 
   List<_SpeedSample> _generateSyntheticSamples(SessionMetadata session) {
-    final durationMs = session.durationMs.toInt() > 0 ? session.durationMs.toInt() : 90000;
+    final durationMs =
+        session.durationMs.toInt() > 0 ? session.durationMs.toInt() : 90000;
     final totalSamples = 160;
     final step = durationMs / totalSamples;
-    final start = DateTime.now().subtract(Duration(milliseconds: durationMs.toInt()));
+    final start =
+        DateTime.now().subtract(Duration(milliseconds: durationMs.toInt()));
     return List.generate(totalSamples, (index) {
       final t = index / totalSamples;
       final speed = 80 + 60 * sin(t * pi * 2) + 30 * sin(t * pi * 6);
@@ -551,7 +1290,7 @@ class _DashboardHomeState extends State<DashboardHome> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Slipstream Dashboard'),
@@ -573,17 +1312,26 @@ class _DashboardHomeState extends State<DashboardHome> {
               icon: const Icon(Icons.refresh),
             ),
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
+            onTap: (index) {
+              setState(() {
+                _selectedTabIndex = index;
+              });
+            },
             tabs: [
               Tab(text: 'Live Dashboard'),
               Tab(text: 'System Status'),
+              Tab(text: 'Data & Sharing'),
             ],
           ),
         ),
-        floatingActionButton: ValueListenableBuilder<DashboardSnapshot>(
-          valueListenable: client.snapshot,
-          builder: (context, snapshot, _) => _buildEStopFab(snapshot),
-        ),
+        floatingActionButton: _selectedTabIndex == 2
+            ? null
+            : ValueListenableBuilder<DashboardSnapshot>(
+                valueListenable: client.snapshot,
+                builder: (context, snapshot, _) => _buildEStopFab(snapshot),
+              ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         body: ValueListenableBuilder<DashboardSnapshot>(
           valueListenable: client.snapshot,
           builder: (context, snapshot, _) {
@@ -594,6 +1342,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                   children: [
                     _buildLiveDashboard(snapshot, isWide),
                     _buildSystemStatus(snapshot, isWide),
+                    _buildDataManagement(snapshot, isWide),
                   ],
                 );
               },
@@ -605,57 +1354,355 @@ class _DashboardHomeState extends State<DashboardHome> {
   }
 
   Widget _buildLiveDashboard(DashboardSnapshot snapshot, bool isWide) {
+    const railWidth = 48.0;
+    const railGap = 16.0;
+    const contentLeftPadding = 24.0 + railWidth + railGap;
     final derived = _deriveTelemetry(snapshot);
     final samples = _reviewMode ? _reviewSamples : _liveHistory;
-    final sessionActive = snapshot.status?.sessionActive ?? false;
-    final sessionId = snapshot.status?.sessionId ?? '';
+    final phase =
+        _reviewMode ? BroadcastRacePhase.postRace : _composition.phase;
+    final showTelemetry =
+        _composition.shouldShow(BroadcastWidgetSlot.telemetryHud, phase: phase);
+    final showTrackMap =
+        _composition.shouldShow(BroadcastWidgetSlot.trackMap, phase: phase);
+    final showSpeedGraph =
+        _composition.shouldShow(BroadcastWidgetSlot.speedGraph, phase: phase);
+    final showSessionBrowser = _composition
+        .shouldShow(BroadcastWidgetSlot.sessionBrowser, phase: phase);
+    final showVoice =
+        _composition.shouldShow(BroadcastWidgetSlot.voicePanel, phase: phase);
+    final showSessionControl = _composition
+        .shouldShow(BroadcastWidgetSlot.sessionControl, phase: phase);
+    final showLeaderboard =
+        _composition.shouldShow(BroadcastWidgetSlot.leaderboard, phase: phase);
+    final showSummary =
+        _composition.shouldShow(BroadcastWidgetSlot.summaryCard, phase: phase);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildReviewBanner(sessionActive, sessionId),
-          const SizedBox(height: 16),
-          _buildOverviewStrip(snapshot, derived),
-          const SizedBox(height: 16),
-          if (isWide)
-            Row(
+    final middlePanels = <Widget>[];
+    if (showSpeedGraph) {
+      middlePanels.add(_buildSpeedGraph(samples, derived));
+    }
+    if (showSessionBrowser) {
+      middlePanels.add(_buildSessionList(snapshot));
+    }
+    if (showLeaderboard) {
+      middlePanels.add(_buildLeaderboardStack(snapshot, derived, samples));
+    }
+
+    final lowerPanels = <Widget>[];
+    final showAnalysis = _reviewMode && samples.length > 8;
+    if (showVoice) {
+      lowerPanels.add(_buildVoiceInterface(snapshot));
+    }
+    final overlaySessionControl = showSessionControl;
+
+    final controlExpandedPadding = _sessionControlExpanded ? 376.0 : 104.0;
+    final bottomPadding = overlaySessionControl ? controlExpandedPadding : 24.0;
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              contentLeftPadding,
+              24,
+              24,
+              bottomPadding,
+            ),
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 150),
+                  switchInCurve: Curves.linear,
+                  switchOutCurve: Curves.linear,
+                  transitionBuilder: (child, animation) {
+                    final slide = Tween<Offset>(
+                      begin: const Offset(0, -0.18),
+                      end: Offset.zero,
+                    ).animate(animation);
+                    return ClipRect(
+                      child: SlideTransition(
+                        position: slide,
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: _showPostSessionReviewBanner && !_reviewMode
+                      ? _buildPostSessionReviewBanner()
+                      : const SizedBox.shrink(
+                          key: ValueKey('post-session-review-banner-hidden'),
+                        ),
+                ),
+                if (_showPostSessionReviewBanner && !_reviewMode)
+                  const SizedBox(height: 16),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 150),
+                  switchInCurve: Curves.linear,
+                  switchOutCurve: Curves.linear,
+                  child: KeyedSubtree(
+                    key: ValueKey<String>('live-phase-${phase.name}'),
+                    child: _buildRacePhaseIndicator(phase),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildOverviewStrip(snapshot, derived),
+                const SizedBox(height: 16),
+                _buildLiveOperationsCanvas(
+                  derived: derived,
+                  isWide: isWide,
+                  showTelemetry: showTelemetry,
+                  showTrackMap: showTrackMap,
+                ),
+                if (showSummary) const SizedBox(height: 16),
+                if (showSummary)
+                  _buildSummaryModeCard(snapshot, derived, samples),
+                if (middlePanels.isNotEmpty) const SizedBox(height: 16),
+                _buildPanelStack(middlePanels, isWide: isWide),
+                if (showAnalysis) const SizedBox(height: 16),
+                if (showAnalysis) _buildTelemetryAnalysisPanel(samples),
+                if (showAnalysis) const SizedBox(height: 16),
+                if (showAnalysis) _buildCausalityFeedbackSpine(),
+                if (lowerPanels.isNotEmpty) const SizedBox(height: 16),
+                _buildPanelStack(lowerPanels, isWide: isWide),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          left: 24,
+          top: 24,
+          bottom: 24,
+          child: _buildFeedbackRail(),
+        ),
+        if (overlaySessionControl)
+          Positioned(
+            left: contentLeftPadding,
+            right: 24,
+            bottom: 24,
+            child: _buildSessionControl(snapshot),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildLiveOperationsCanvas({
+    required _DerivedTelemetry derived,
+    required bool isWide,
+    required bool showTelemetry,
+    required bool showTrackMap,
+  }) {
+    if (!showTelemetry && !showTrackMap) {
+      return const SizedBox.shrink();
+    }
+
+    if (isWide) {
+      return SizedBox(
+        height: 360,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (showTelemetry)
+              Expanded(
+                flex: 4,
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: _buildTelemetryHud(derived),
+                ),
+              ),
+            if (showTelemetry && showTrackMap) const SizedBox(width: 16),
+            if (showTrackMap)
+              Expanded(
+                flex: 6,
+                child: _buildTrackMap(derived),
+              ),
+          ],
+        ),
+      );
+    }
+
+    if (showTelemetry && showTrackMap) {
+      return Column(
+        children: [
+          SizedBox(
+            height: 220,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(child: _buildTelemetryHud(derived)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildTrackMap(derived)),
-              ],
-            )
-          else
-            Column(
-              children: [
-                _buildTelemetryHud(derived),
-                const SizedBox(height: 16),
-                _buildTrackMap(derived),
               ],
             ),
-          const SizedBox(height: 16),
-          if (isWide)
-            Row(
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 260,
+            child: _buildTrackMap(derived),
+          ),
+        ],
+      );
+    }
+
+    return SizedBox(
+      height: showTrackMap ? 260 : 220,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: showTrackMap
+                ? _buildTrackMap(derived)
+                : _buildTelemetryHud(derived),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeedbackRail({double? height}) {
+    final trigger = _feedbackSpine.isEmpty ? null : _feedbackSpine.first;
+    final confidence = trigger?.insight.confidenceScore ?? 0.0;
+    final confidenceColor = confidence >= 0.75 ? Colors.white : _kMutedSoft;
+    final critical = trigger != null && _isSafetyCriticalFeedback(trigger);
+
+    final rail = Container(
+      key: const Key('feedback-rail'),
+      width: 48,
+      height: height,
+      decoration: BoxDecoration(
+        color: critical ? _kDanger : Colors.transparent,
+        border: Border(
+          left: BorderSide(
+            color: trigger == null ? Colors.transparent : confidenceColor,
+            width: 2,
+          ),
+          right: const BorderSide(color: _kSurfaceGlow),
+        ),
+      ),
+      child: trigger == null
+          ? const SizedBox.expand()
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(6, 10, 6, 10),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _feedbackSignalIcon(trigger.insight.signal),
+                    size: 24,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    causalitySignalLabel(trigger.insight.signal).toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: critical ? Colors.white : _kMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    trigger.insight.effect,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: critical
+                          ? Colors.white.withValues(alpha: 0.9)
+                          : _kMuted,
+                      fontSize: 10,
+                      height: 1.3,
+                    ),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+    );
+    return rail;
+  }
+
+  bool _isSafetyCriticalFeedback(CausalityFeedbackTrigger trigger) {
+    final metrics = trigger.insight.metrics;
+    final explicitCritical = (metrics['safetyCritical'] ?? 0) >= 0.5 ||
+        (metrics['critical'] ?? 0) >= 0.5 ||
+        (metrics['fault'] ?? 0) >= 0.5;
+    if (explicitCritical) {
+      return true;
+    }
+    return trigger.insight.severityScore >= 0.92 &&
+        trigger.insight.confidenceScore >= 0.75;
+  }
+
+  IconData _feedbackSignalIcon(CausalitySignal signal) {
+    switch (signal) {
+      case CausalitySignal.understeer:
+        return Icons.turn_right_rounded;
+      case CausalitySignal.oversteer:
+        return Icons.sync_problem_rounded;
+    }
+  }
+
+  Widget _buildPostSessionReviewBanner() {
+    final endedSessionId = _postSessionReviewSessionId;
+    return Container(
+      key: const ValueKey('post-session-review-banner'),
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        border: Border.all(color: _kSurfaceGlow),
+        borderRadius: BorderRadius.circular(_kControlRadius),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_outline, color: _kSystemOk, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Expanded(child: _buildSpeedGraph(samples, derived)),
-                const SizedBox(width: 16),
-                Expanded(child: _buildSessionList(snapshot)),
-              ],
-            )
-          else
-            Column(
-              children: [
-                _buildSpeedGraph(samples, derived),
-                const SizedBox(height: 16),
-                _buildSessionList(snapshot),
+                const Text(
+                  'POST-SESSION REVIEW READY',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.0,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _sessionControlExpanded = true;
+                      if (endedSessionId != null && endedSessionId.isNotEmpty) {
+                        _selectedSessionId = endedSessionId;
+                      }
+                    });
+                  },
+                  child: Text(
+                    'Select a run to review',
+                    style: _kDataBodyStyle.copyWith(
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
               ],
             ),
-          const SizedBox(height: 16),
-          _buildSessionControl(snapshot),
+          ),
+          Tooltip(
+            message: 'Dismiss',
+            child: IconButton(
+              onPressed: () {
+                setState(() {
+                  _showPostSessionReviewBanner = false;
+                });
+              },
+              icon: const Icon(Icons.close, size: 24, color: _kMutedSoft),
+            ),
+          ),
         ],
       ),
     );
@@ -713,7 +1760,442 @@ class _DashboardHomeState extends State<DashboardHome> {
     );
   }
 
-  Widget _buildOverviewStrip(DashboardSnapshot snapshot, _DerivedTelemetry derived) {
+  Widget _buildDataManagement(DashboardSnapshot snapshot, bool isWide) {
+    final selected = _selectedArchiveSession();
+    final usageMb = _estimatedStorageUsageMb();
+    final limitMb = _dataPreferences.storageLimitGb * 1024;
+    final overLimit = usageMb > limitMb;
+
+    return SingleChildScrollView(
+      key: const Key('data-management-screen'),
+      padding: _kDataPagePadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSessionList(snapshot, engineeredCalm: true),
+          const SizedBox(height: 16),
+          if (isWide)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildShareAndExportCard(
+                    selectedSession: selected,
+                    usageMb: usageMb,
+                    limitMb: limitMb,
+                    overLimit: overLimit,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildDataPreferencesCard(
+                    usageMb: usageMb,
+                    limitMb: limitMb,
+                    overLimit: overLimit,
+                  ),
+                ),
+              ],
+            )
+          else
+            Column(
+              children: [
+                _buildShareAndExportCard(
+                  selectedSession: selected,
+                  usageMb: usageMb,
+                  limitMb: limitMb,
+                  overLimit: overLimit,
+                ),
+                const SizedBox(height: 16),
+                _buildDataPreferencesCard(
+                  usageMb: usageMb,
+                  limitMb: limitMb,
+                  overLimit: overLimit,
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShareAndExportCard({
+    required SessionMetadata? selectedSession,
+    required double usageMb,
+    required double limitMb,
+    required bool overLimit,
+  }) {
+    final recentExports = _exportArtifacts.take(5).toList(growable: false);
+
+    return _InteractiveDataCard(
+      key: const Key('share-export-card'),
+      padding: _kDataPanelPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _DataSectionHeader(
+            title: 'SHARING & EXPORT',
+            subtitle: 'FLT-053~055 · Delete cascade + highlight + media export',
+          ),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
+          if (selectedSession == null)
+            Text(
+              'Select an archived session to generate share cards and exports.',
+              style: _kDataBodyStyle,
+            )
+          else ...[
+            Text(
+              'Selected: ${selectedSession.sessionId}',
+              key: const Key('sharing-selected-session'),
+              style: _kDataBodyStyle.copyWith(color: Colors.white),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  key: const Key('share-card-generate'),
+                  onPressed: _dataTaskRunning
+                      ? null
+                      : () => _generateShareCardFor(selectedSession),
+                  icon: const Icon(Icons.share_rounded, size: 18),
+                  label: const Text('Generate Share Card'),
+                  style: _dataPrimaryButtonStyle(),
+                ),
+                OutlinedButton.icon(
+                  key: const Key('export-image-button'),
+                  onPressed: _dataTaskRunning
+                      ? null
+                      : () => _generateExportFor(
+                          selectedSession, TelemetryExportKind.imageSvg),
+                  icon: const Icon(Icons.image_outlined, size: 18),
+                  label: const Text('Export Image'),
+                  style: _dataSecondaryButtonStyle(),
+                ),
+                OutlinedButton.icon(
+                  key: const Key('export-video-button'),
+                  onPressed: _dataTaskRunning
+                      ? null
+                      : () => _generateExportFor(
+                          selectedSession, TelemetryExportKind.videoManifest),
+                  icon: const Icon(Icons.movie_creation_outlined, size: 18),
+                  label: const Text('Export Video'),
+                  style: _dataSecondaryButtonStyle(),
+                ),
+                OutlinedButton.icon(
+                  key: Key('archive-delete-${selectedSession.sessionId}'),
+                  onPressed: _dataTaskRunning
+                      ? null
+                      : () => _deleteSessionCascade(selectedSession),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('Delete Session'),
+                  style: _dataSecondaryButtonStyle(),
+                ),
+              ],
+            ),
+          ],
+          if (_dataNotice != null) ...[
+            const SizedBox(height: 16),
+            _dataDivider(),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(
+                  overLimit ? Icons.warning_amber_rounded : Icons.info_outline,
+                  color: overLimit ? _kWarning : _kAccentAlt,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _dataNotice!,
+                    key: const Key('data-management-notice'),
+                    style: _kDataBodyStyle,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (_latestShareCard != null) ...[
+            const SizedBox(height: 16),
+            _dataDivider(),
+            const SizedBox(height: 12),
+            Container(
+              key: const Key('share-card-preview'),
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _kSurfaceRaised,
+                borderRadius: BorderRadius.circular(_kPanelRadius),
+                border: Border.all(color: _kSurfaceGlow),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _latestShareCard!.headline,
+                    style: _kDataBodyStyle.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _latestShareCard!.summary,
+                    style: _kDataBodyStyle,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Share code: ${_latestShareCard!.shareCode}',
+                    style: _kDataMonoValueStyle,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 12),
+          Container(
+            key: const Key('export-history'),
+            width: double.infinity,
+            margin: const EdgeInsets.only(left: 16),
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            decoration: BoxDecoration(
+              color: _kSurface,
+              borderRadius: BorderRadius.circular(_kPanelRadius),
+              border: Border(
+                left: BorderSide(color: _kSurfaceGlow, width: 2),
+                top: BorderSide(color: _kSurfaceGlow),
+                right: BorderSide(color: _kSurfaceGlow),
+                bottom: BorderSide(color: _kSurfaceGlow),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'EXPORT HISTORY',
+                  style: _kDataSubheaderStyle.copyWith(color: Colors.white),
+                ),
+                const SizedBox(height: 10),
+                if (_exportArtifacts.isEmpty)
+                  Text(
+                    'No exports generated yet.',
+                    style: _kDataBodyStyle,
+                  )
+                else
+                  for (var i = 0; i < recentExports.length; i++) ...[
+                    Text(
+                      '${recentExports[i].fileName} · ${(recentExports[i].sizeBytes / 1024).toStringAsFixed(1)} KB',
+                      style: _kDataBodyStyle,
+                    ),
+                    if (i < recentExports.length - 1) const SizedBox(height: 4),
+                  ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          RichText(
+            text: TextSpan(
+              text: 'Usage ',
+              style: _kDataBodyStyle,
+              children: [
+                TextSpan(
+                  text:
+                      '${(usageMb / 1024).toStringAsFixed(2)} GB / ${(limitMb / 1024).toStringAsFixed(2)} GB',
+                  style: _kDataMonoValueStyle.copyWith(
+                    color: overLimit ? _kWarning : Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDataPreferencesCard({
+    required double usageMb,
+    required double limitMb,
+    required bool overLimit,
+  }) {
+    final storageValue =
+        _dataPreferences.storageLimitGb.clamp(1.0, 24.0).toDouble();
+    return _InteractiveDataCard(
+      key: const Key('user-preferences-card'),
+      padding: _kDataPanelPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _DataSectionHeader(
+            title: 'USER PREFERENCES',
+            subtitle: 'FLT-056~057 · Units, storage budget, auto-delete policy',
+          ),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<UnitSystem>(
+            key: const Key('preferences-units-dropdown'),
+            value: _dataPreferences.units,
+            style: _kDataBodyStyle,
+            dropdownColor: _kSurface,
+            items: const [
+              DropdownMenuItem(
+                value: UnitSystem.metric,
+                child: Text('Metric (km/h)'),
+              ),
+              DropdownMenuItem(
+                value: UnitSystem.imperial,
+                child: Text('Imperial (mph)'),
+              ),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _dataPreferences = _dataPreferences.copyWith(units: value);
+              });
+            },
+            decoration: _dataSelectDecoration(
+              'DISPLAY UNITS',
+              selected: true,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'STORAGE LIMIT',
+            style: _kDataSubheaderStyle,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text(
+                '${storageValue.toStringAsFixed(1)} GB',
+                style: _kDataMonoValueStyle,
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: _storageSliderTheme(context),
+            child: Slider(
+              key: const Key('preferences-storage-slider'),
+              min: 1.0,
+              max: 24.0,
+              divisions: 46,
+              value: storageValue,
+              onChanged: (value) {
+                setState(() {
+                  _dataPreferences =
+                      _dataPreferences.copyWith(storageLimitGb: value);
+                });
+              },
+            ),
+          ),
+          _StorageTickMarks(
+            min: 2,
+            max: 24,
+            step: 2,
+          ),
+          const SizedBox(height: 12),
+          _dataDivider(),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AUTO-DELETE OLD SESSIONS',
+                      style: _kDataSubheaderStyle,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _dataPreferences.autoDeleteEnabled
+                          ? 'Enabled: keep ${_dataPreferences.autoDeleteRetentionDays} days'
+                          : 'Disabled',
+                      style: _kDataBodyStyle,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _PrecisionToggle(
+                key: const Key('preferences-autodelete-switch'),
+                value: _dataPreferences.autoDeleteEnabled,
+                onChanged: (value) {
+                  setState(() {
+                    _dataPreferences =
+                        _dataPreferences.copyWith(autoDeleteEnabled: value);
+                  });
+                  if (value) {
+                    _applyAutoDeletePolicy();
+                  }
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'RETENTION (${_dataPreferences.autoDeleteRetentionDays} DAYS)',
+            style: _kDataSubheaderStyle,
+          ),
+          SliderTheme(
+            data: _storageSliderTheme(context),
+            child: Slider(
+              key: const Key('preferences-retention-slider'),
+              min: 1,
+              max: 120,
+              divisions: 119,
+              value: _dataPreferences.autoDeleteRetentionDays
+                  .clamp(1, 120)
+                  .toDouble(),
+              onChanged: _dataPreferences.autoDeleteEnabled
+                  ? (value) {
+                      setState(() {
+                        _dataPreferences = _dataPreferences.copyWith(
+                          autoDeleteRetentionDays: value.round().clamp(1, 120),
+                        );
+                      });
+                      _applyAutoDeletePolicy();
+                    }
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(
+            value: limitMb <= 0 ? 0.0 : (usageMb / limitMb).clamp(0.0, 1.0),
+            minHeight: 8,
+            backgroundColor: _kMuted,
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+          ),
+          const SizedBox(height: 8),
+          RichText(
+            key: const Key('storage-usage-label'),
+            text: TextSpan(
+              text: 'Estimated archive usage ',
+              style: _kDataBodyStyle,
+              children: [
+                TextSpan(
+                  text:
+                      '${(usageMb / 1024).toStringAsFixed(2)} GB / ${(limitMb / 1024).toStringAsFixed(2)} GB',
+                  style: _kDataMonoValueStyle.copyWith(
+                    color: overLimit ? _kWarning : Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverviewStrip(
+      DashboardSnapshot snapshot, _DerivedTelemetry derived) {
     final status = snapshot.status;
     final activeProfile = status?.activeProfile.isNotEmpty == true
         ? status!.activeProfile
@@ -721,172 +2203,393 @@ class _DashboardHomeState extends State<DashboardHome> {
     final latency = derived.latencyMs.toStringAsFixed(1);
     final connected = client.isConnected && snapshot.connected;
 
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _LiveStatusPill(
+              label: 'USB LINK',
+              value: connected ? 'ONLINE' : 'OFFLINE',
+              dotColor: connected ? _kSystemOk : _kDanger,
+            ),
+            const SizedBox(width: 8),
+            _LiveStatusPill(
+              label: 'PROFILE',
+              value: activeProfile.isEmpty ? 'UNSET' : activeProfile,
+              dotColor: _kSystemOk,
+            ),
+            const SizedBox(width: 8),
+            _LiveStatusPill(
+              label: 'LATENCY',
+              value: '${latency}ms',
+              dotColor: derived.latencyMs > 20 ? _kWarning : _kSystemOk,
+              monoValue: true,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPanelStack(List<Widget> panels, {required bool isWide}) {
+    if (panels.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    if (!isWide) {
+      return Column(
+        children: [
+          for (var i = 0; i < panels.length; i++) ...[
+            if (i > 0) const SizedBox(height: 16),
+            panels[i],
+          ],
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        for (var i = 0; i < panels.length; i += 2) ...[
+          if (i > 0) const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: panels[i]),
+              const SizedBox(width: 16),
+              Expanded(
+                child: i + 1 < panels.length
+                    ? panels[i + 1]
+                    : const SizedBox.shrink(),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildRacePhaseIndicator(BroadcastRacePhase phase) {
+    final phaseLabel = broadcastRacePhaseLabel(phase);
+    final changedAt = _formatTimestamp(_composition.phaseChangedAt);
+    final subtitle = switch (phase) {
+      BroadcastRacePhase.preRace => 'Waiting for the session start signal.',
+      BroadcastRacePhase.live =>
+        'Live overlays and voice controls are enabled.',
+      BroadcastRacePhase.postRace =>
+        'Race ended. Broadcast layout favors review tools.',
+      BroadcastRacePhase.summary =>
+        'Car stopped. Auto-switched to summary mode.',
+    };
+    return Container(
+      key: const Key('race-phase-indicator'),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 14, 24, 14),
+      decoration: const BoxDecoration(
+        color: _kSurface,
+        border: Border(
+          bottom: BorderSide(color: _kSurfaceGlow),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(Icons.wifi_tethering_rounded, color: _kMuted, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'BROADCAST PHASE: ${phaseLabel.toUpperCase()}',
+                  key: const Key('race-phase-label'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _reviewMode ? 'Review mode override active.' : subtitle,
+                  style: const TextStyle(
+                    color: _kMuted,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Text(
+            'since $changedAt',
+            style: const TextStyle(
+              color: _kMutedSoft,
+              fontSize: 12,
+              fontFamily: 'RobotoMono',
+              letterSpacing: 0.2,
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryModeCard(
+    DashboardSnapshot snapshot,
+    _DerivedTelemetry derived,
+    List<_SpeedSample> samples,
+  ) {
+    final peakSpeed = samples.isEmpty ? derived.speedKmh : _maxSpeed(samples);
+    final avgSpeed = samples.isEmpty
+        ? derived.speedKmh
+        : samples.map((e) => e.speedKmh).reduce((a, b) => a + b) /
+            samples.length;
+    final sessionId = snapshot.status?.sessionId ?? _activeSessionId ?? '--';
+
     return _HudCard(
+      key: const Key('summary-mode-card'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const _SectionHeader(
+            title: 'Race Summary',
+            subtitle: 'FLT-044 · Auto summary after stop detection',
+          ),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 12,
             runSpacing: 8,
             children: [
               _StatusPill(
-                label: 'USB LINK',
-                value: connected ? 'ONLINE' : 'OFFLINE',
-                color: connected ? _kOk : _kDanger,
+                label: 'SESSION',
+                value: sessionId.isEmpty ? '--' : sessionId,
+                color: _kAccent,
               ),
               _StatusPill(
-                label: 'PROFILE',
-                value: activeProfile.isEmpty ? 'UNSET' : activeProfile,
-                color: activeProfile.isEmpty ? _kWarning : _kAccent,
+                label: 'PEAK',
+                value:
+                    '${_displaySpeed(peakSpeed).toStringAsFixed(0)} ${_speedUnitLabel()}',
+                color: _kAccentAlt,
               ),
               _StatusPill(
-                label: 'LATENCY',
-                value: '${latency}ms',
-                color: derived.latencyMs > 20 ? _kWarning : _kAccentAlt,
+                label: 'AVERAGE',
+                value:
+                    '${_displaySpeed(avgSpeed).toStringAsFixed(0)} ${_speedUnitLabel()}',
+                color: _kWarning,
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              _reviewMode ? 'REVIEW MODE' : 'LIVE FEED',
-              style: TextStyle(
-                color: _reviewMode ? _kWarning : _kAccent,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
-              ),
-            ),
+          Text(
+            'Summary mode triggers when speed stays below '
+            '${_displaySpeed(_composition.summaryStopSpeedKmh).toStringAsFixed(1)} ${_speedUnitLabel()} '
+            'for ${_composition.summaryStopDuration.inSeconds}s.',
+            style: const TextStyle(color: _kMuted),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildReviewBanner(bool sessionActive, String sessionId) {
-    if (!_reviewMode) {
-      return _HudCard(
-        child: Wrap(
-          spacing: 12,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            const Icon(Icons.hub, color: _kAccentAlt),
-            Text(
-              sessionActive ? 'Session $sessionId live telemetry streaming.' : 'Session idle. Select a run to review.',
-              style: const TextStyle(color: _kMuted),
-            ),
-            if (!sessionActive)
-              Text(
-                'POST-SESSION REVIEW READY',
-                style: TextStyle(color: _kAccent.withOpacity(0.8), fontWeight: FontWeight.w600),
-              ),
-          ],
-        ),
-      );
-    }
+  Widget _buildLeaderboardStack(
+    DashboardSnapshot snapshot,
+    _DerivedTelemetry derived,
+    List<_SpeedSample> samples,
+  ) {
+    final entries = _buildLeaderboardEntries(snapshot, derived, samples);
+    final leaderSpeed = entries.first.speedKmh;
 
     return _HudCard(
+      key: const Key('leaderboard-stack'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              const Icon(Icons.play_circle_fill, color: _kWarning),
-              Text(
-                _reviewSession == null ? 'Reviewing latest session capture.' : 'Reviewing ${_reviewSession!.sessionId}',
-                style: const TextStyle(color: Colors.white),
-              ),
-              if (_reviewSimulated)
-                Text(
-                  'SIMULATED REPLAY',
-                  style: TextStyle(color: _kWarning.withOpacity(0.9), fontWeight: FontWeight.w700),
-                ),
-              FilledButton(
-                onPressed: _exitReview,
-                child: const Text('Exit Review'),
-              ),
-            ],
+          const _SectionHeader(
+            title: 'Leaderboard Stack',
+            subtitle: 'FLT-043 · Broadcast-ready race order',
           ),
-          if (_reviewNotice != null) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  _reviewFetching ? Icons.hourglass_top : Icons.info_outline,
-                  color: _reviewFetching ? _kAccentAlt : _kWarning,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _reviewNotice!,
-                    style: const TextStyle(color: _kMuted),
-                  ),
-                ),
-                TextButton(
-                  onPressed: _reviewFetching || _reviewSession == null
-                      ? null
-                      : () => _fetchSessionTelemetry(_reviewSession!),
-                  child: const Text('Retry'),
-                ),
-              ],
+          const SizedBox(height: 12),
+          for (var i = 0; i < entries.length; i++) ...[
+            if (i > 0) const SizedBox(height: 8),
+            Transform.translate(
+              offset: Offset(0, -i * 3.0),
+              child: _buildLeaderboardRow(
+                entry: entries[i],
+                rank: i + 1,
+                gapLabel: i == 0
+                    ? 'LEAD'
+                    : '+${((leaderSpeed - entries[i].speedKmh).abs() / 22.0).clamp(0.12, 9.9).toStringAsFixed(3)}s',
+              ),
             ),
           ],
         ],
       ),
     );
+  }
+
+  List<_LeaderboardEntry> _buildLeaderboardEntries(
+    DashboardSnapshot snapshot,
+    _DerivedTelemetry derived,
+    List<_SpeedSample> samples,
+  ) {
+    final seedTime = DateTime.now().millisecondsSinceEpoch / 1000.0;
+    final driver = snapshot.status?.activeProfile.isNotEmpty == true
+        ? snapshot.status!.activeProfile
+        : profileController.text.trim();
+    final peakSpeed = samples.isEmpty ? derived.speedKmh : _maxSpeed(samples);
+    final userSpeed = derived.speedKmh.clamp(0.0, 320.0).toDouble();
+    final paceSpeed = (derived.speedKmh + 11 + 7 * sin(seedTime * 1.3))
+        .clamp(5.0, 320.0)
+        .toDouble();
+    final ghostSpeed =
+        max(10.0, (peakSpeed * 0.94) + 3 * cos(seedTime * 0.7)).toDouble();
+
+    final entries = <_LeaderboardEntry>[
+      _LeaderboardEntry(
+        label: driver.isEmpty ? 'DRIVER' : driver.toUpperCase(),
+        tag: 'YOU',
+        speedKmh: userSpeed,
+        progress: _wrapProgress(derived.trackProgress),
+        color: _kAccent,
+      ),
+      _LeaderboardEntry(
+        label: 'PACE BOT',
+        tag: 'SIM',
+        speedKmh: paceSpeed,
+        progress: _wrapProgress(derived.trackProgress + 0.02),
+        color: _kAccentAlt,
+      ),
+      _LeaderboardEntry(
+        label: 'BEST LAP GHOST',
+        tag: 'GHOST',
+        speedKmh: ghostSpeed,
+        progress: _wrapProgress(derived.trackProgress + 0.05),
+        color: _kWarning,
+      ),
+    ];
+    entries.sort((a, b) => b.speedKmh.compareTo(a.speedKmh));
+    return entries;
+  }
+
+  Widget _buildLeaderboardRow({
+    required _LeaderboardEntry entry,
+    required int rank,
+    required String gapLabel,
+  }) {
+    return Container(
+      key: Key('leaderboard-row-$rank'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: _kSurfaceGlow.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(_kPanelRadius),
+        border: Border.all(color: entry.color.withValues(alpha: 0.75)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 28,
+            child: Text(
+              '$rank',
+              style: TextStyle(color: entry.color, fontWeight: FontWeight.w700),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              '${entry.label} · ${entry.tag}',
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w600),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(
+            '${_displaySpeed(entry.speedKmh).toStringAsFixed(0)} ${_speedUnitLabel()}',
+            style: TextStyle(color: entry.color, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(width: 8),
+          Text(gapLabel, style: const TextStyle(color: _kMuted, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  double _wrapProgress(double value) {
+    final wrapped = value % 1.0;
+    return wrapped < 0 ? wrapped + 1.0 : wrapped;
   }
 
   Widget _buildTelemetryHud(_DerivedTelemetry derived) {
-    return _HudCard(
+    final rpmRatio = (derived.rpm / 8000).clamp(0.0, 1.0).toDouble();
+
+    return Container(
       key: const Key('telemetry-hud'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Telemetry HUD', subtitle: 'FLT-012 · Speed, Gear, RPM'),
-          const SizedBox(height: 16),
+          const Text(
+            'TELEMETRY HUD',
+            style: TextStyle(
+              color: _kMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
-                child: _HudMetric(
+                child: _LiveHudMetricBlock(
                   label: 'SPEED',
-                  value: derived.speedKmh.toStringAsFixed(0),
-                  unit: 'km/h',
-                  glow: _kAccentAlt,
+                  value: _displaySpeed(derived.speedKmh).toStringAsFixed(0),
+                  unit: _speedUnitLabel().toLowerCase(),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _HudMetric(
-                  label: 'GEAR',
-                  value: derived.gear == 0 ? 'N' : derived.gear.toString(),
-                  unit: '',
-                  glow: _kAccent,
-                ),
+              const SizedBox(width: 16),
+              _GearHudBlock(
+                value: derived.gear == 0 ? 'N' : derived.gear.toString(),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
-                child: _HudMetric(
+                child: _LiveHudMetricBlock(
                   label: 'RPM',
                   value: derived.rpm.toStringAsFixed(0),
                   unit: 'rpm',
-                  glow: _kWarning,
+                  barFill: rpmRatio,
+                  showBar: true,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Row(
+          Wrap(
+            spacing: 24,
+            runSpacing: 8,
             children: [
-              _MiniStat(label: 'Track Progress', value: '${(derived.trackProgress * 100).toStringAsFixed(1)}%'),
-              const SizedBox(width: 16),
-              _MiniStat(label: 'Stream', value: _reviewMode ? 'Playback' : 'Live'),
-              const SizedBox(width: 16),
-              _MiniStat(label: 'Latency', value: '${derived.latencyMs.toStringAsFixed(1)}ms'),
+              _HudMetaReadout(
+                label: 'TRACK PROGRESS',
+                value: '${(derived.trackProgress * 100).toStringAsFixed(1)}%',
+              ),
+              _HudMetaReadout(
+                label: 'STREAM',
+                value: _reviewMode ? 'PLAYBACK' : 'LIVE',
+              ),
+              _HudMetaReadout(
+                label: 'LATENCY',
+                value: '${derived.latencyMs.toStringAsFixed(1)}ms',
+              ),
             ],
           ),
         ],
@@ -895,47 +2598,88 @@ class _DashboardHomeState extends State<DashboardHome> {
   }
 
   Widget _buildTrackMap(_DerivedTelemetry derived) {
-    return _HudCard(
+    final displayProgress = derived.trackProgress;
+    final interpolationMs = _reviewMode ? 16 : _trackMapInterpolationMs;
+    return Container(
       key: const Key('track-map'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _kBackground,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Stack(
         children: [
-          _SectionHeader(title: 'Track Map', subtitle: 'FLT-013 · Driver position overlay'),
-          const SizedBox(height: 12),
-          AspectRatio(
-            aspectRatio: 1.4,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(end: derived.trackProgress),
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, _) {
-                return CustomPaint(
-                  painter: _TrackMapPainter(
-                    progress: value,
-                    trackColor: _kSurfaceGlow,
-                    dotColor: _reviewMode ? _kWarning : _kAccentAlt,
-                  ),
-                );
-              },
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 42, 24, 24),
+              child: _TrackMapInterpolator(
+                progress: displayProgress,
+                durationMs: interpolationMs,
+                builder: (value) {
+                  return CustomPaint(
+                    painter: _TrackMapPainter(
+                      progress: value,
+                      trackColor: _kSurfaceGlow,
+                      dotColor: Colors.white,
+                      showSectorMarkers: true,
+                    ),
+                  );
+                },
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _reviewMode ? 'Review scrub active' : 'Live position smoothing enabled',
-            style: const TextStyle(color: _kMuted),
+          const Positioned(
+            left: 24,
+            top: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'TRACK MAP',
+                  style: TextStyle(
+                    color: _kMutedSoft,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'FLT-013 — Driver position overlay',
+                  style: TextStyle(
+                    color: _kMutedSoft,
+                    fontSize: 10,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
           ),
+          if (_reviewMode)
+            const Positioned(
+              left: 24,
+              bottom: 8,
+              child: Text(
+                'Review scrub active',
+                style: TextStyle(color: _kMuted, fontSize: 12),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildSpeedGraph(List<_SpeedSample> samples, _DerivedTelemetry derived) {
+  Widget _buildSpeedGraph(
+      List<_SpeedSample> samples, _DerivedTelemetry derived) {
     return _HudCard(
       key: const Key('speed-graph'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Speed vs Time', subtitle: 'FLT-016 · Session velocity trend'),
+          _SectionHeader(
+              title: 'Speed vs Time',
+              subtitle: 'FLT-016 · Session velocity trend'),
           const SizedBox(height: 12),
           SizedBox(
             height: 200,
@@ -953,7 +2697,8 @@ class _DashboardHomeState extends State<DashboardHome> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Scrub Timeline', style: Theme.of(context).textTheme.titleMedium),
+                Text('Scrub Timeline',
+                    style: Theme.of(context).textTheme.titleMedium),
                 Slider(
                   value: _reviewProgress,
                   onChanged: (value) {
@@ -966,9 +2711,649 @@ class _DashboardHomeState extends State<DashboardHome> {
             )
           else
             Text(
-              'Peak ${_maxSpeed(samples).toStringAsFixed(0)} km/h · Current ${derived.speedKmh.toStringAsFixed(0)} km/h',
+              'Peak ${_displaySpeed(_maxSpeed(samples)).toStringAsFixed(0)} ${_speedUnitLabel()} · '
+              'Current ${_displaySpeed(derived.speedKmh).toStringAsFixed(0)} ${_speedUnitLabel()}',
               style: const TextStyle(color: _kMuted),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTelemetryAnalysisPanel(List<_SpeedSample> samples) {
+    final frames = _analysisFramesFromSamples(samples);
+    final primary = deriveTelemetryPoints(frames);
+    final reference = _analysisCompareMode
+        ? buildReferenceLapOverlay(primary)
+        : const <TelemetryPoint>[];
+    final deltas = _analysisCompareMode
+        ? buildTimeDeltaSeries(primary, reference)
+        : const <TimeDeltaPoint>[];
+    final sectors = buildSectorBreakdown(
+      primary,
+      reference: _analysisCompareMode ? reference : null,
+    );
+    final viewport = computeGraphViewport(
+      sampleCount: primary.length,
+      zoom: _analysisZoom,
+      pan: _analysisPan,
+    );
+    final speedMax = primary
+        .map((point) => point.speedKmh)
+        .fold<double>(1.0, (maxValue, value) => max(maxValue, value))
+        .clamp(1.0, 420.0)
+        .toDouble();
+    final speedSeries = primary
+        .map((point) => (point.speedKmh / speedMax).clamp(0.0, 1.0))
+        .toList();
+    final throttleSeries = primary.map((point) => point.throttle).toList();
+    final brakeSeries = primary.map((point) => point.brake).toList();
+    final steeringSeries = primary
+        .map((point) => ((point.steering + 1.0) / 2.0).clamp(0.0, 1.0))
+        .toList();
+    final referenceSpeedSeries = reference
+        .map((point) => (point.speedKmh / speedMax).clamp(0.0, 1.0))
+        .toList();
+    final maxDelta = deltas
+        .map((point) => point.deltaSeconds.abs())
+        .fold<double>(0.1, (maxValue, value) => max(maxValue, value))
+        .clamp(0.1, 20.0)
+        .toDouble();
+    final deltaSeries = deltas
+        .map((point) => ((point.deltaSeconds / maxDelta) + 1.0) / 2.0)
+        .toList();
+    final currentDelta = _analysisCompareMode && deltas.isNotEmpty
+        ? _deltaAtProgress(deltas, _reviewProgress)
+        : 0.0;
+
+    return _HudCard(
+      key: const Key('telemetry-analysis-panel'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _SectionHeader(
+            title: 'Telemetry Analysis',
+            subtitle: 'FLT-045~051 · Multi-signal deep review tools',
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.analytics_outlined, color: _kAccentAlt),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Scrub sync: ${(100 * _reviewProgress).toStringAsFixed(1)}% track position',
+                  key: const Key('analysis-scrub-label'),
+                  style: const TextStyle(color: _kMuted),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Text('Compare', style: TextStyle(color: _kMuted)),
+              Switch(
+                key: const Key('analysis-compare-switch'),
+                value: _analysisCompareMode,
+                onChanged: (value) {
+                  setState(() {
+                    _analysisCompareMode = value;
+                  });
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: 260,
+                child: Row(
+                  children: [
+                    const Text('Zoom', style: TextStyle(color: _kMuted)),
+                    Expanded(
+                      child: Slider(
+                        key: const Key('analysis-zoom-slider'),
+                        min: 1,
+                        max: 6,
+                        divisions: 20,
+                        value: _analysisZoom,
+                        label: '${_analysisZoom.toStringAsFixed(1)}x',
+                        onChanged: (value) {
+                          setState(() {
+                            _analysisZoom = value;
+                            if (_analysisZoom <= 1.02) {
+                              _analysisPan = 0;
+                            }
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 300,
+                child: Row(
+                  children: [
+                    const Text('Pan', style: TextStyle(color: _kMuted)),
+                    Expanded(
+                      child: Slider(
+                        key: const Key('analysis-pan-slider'),
+                        min: 0,
+                        max: 1,
+                        value: _analysisPan,
+                        onChanged: _analysisZoom <= 1.02
+                            ? null
+                            : (value) {
+                                setState(() {
+                                  _analysisPan = value;
+                                });
+                              },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    _analysisZoom = 1;
+                    _analysisPan = 0;
+                  });
+                },
+                icon: const Icon(Icons.center_focus_strong, size: 16),
+                label: const Text('Reset View'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 250,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapDown: (details) => _onAnalysisScrub(
+                    details.localPosition.dx,
+                    width,
+                    viewport,
+                  ),
+                  onHorizontalDragStart: (details) => _onAnalysisScrub(
+                    details.localPosition.dx,
+                    width,
+                    viewport,
+                  ),
+                  onHorizontalDragUpdate: (details) => _onAnalysisScrub(
+                    details.localPosition.dx,
+                    width,
+                    viewport,
+                  ),
+                  child: CustomPaint(
+                    key: const Key('analysis-multi-signal-graph'),
+                    painter: _HiPerfLineChartPainter(
+                      series: [
+                        _ChartSeries(
+                          id: 'speed',
+                          values: speedSeries,
+                          color: _kAccentAlt,
+                          strokeWidth: 2.4,
+                        ),
+                        _ChartSeries(
+                          id: 'throttle',
+                          values: throttleSeries,
+                          color: _kOk,
+                          strokeWidth: 1.7,
+                        ),
+                        _ChartSeries(
+                          id: 'brake',
+                          values: brakeSeries,
+                          color: _kDanger,
+                          strokeWidth: 1.7,
+                        ),
+                        _ChartSeries(
+                          id: 'steering',
+                          values: steeringSeries,
+                          color: _kWarning,
+                          strokeWidth: 1.7,
+                        ),
+                        if (_analysisCompareMode &&
+                            referenceSpeedSeries.length == speedSeries.length)
+                          _ChartSeries(
+                            id: 'reference-speed',
+                            values: referenceSpeedSeries,
+                            color: Colors.white70,
+                            strokeWidth: 1.6,
+                          ),
+                      ],
+                      startIndex: viewport.startIndex,
+                      endIndex: viewport.endIndex,
+                      accentColor: _kSurfaceGlow,
+                      cursorProgress: _reviewProgress,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 6,
+            children: const [
+              _SignalLegendDot(label: 'Speed', color: _kAccentAlt),
+              _SignalLegendDot(label: 'Throttle', color: _kOk),
+              _SignalLegendDot(label: 'Brake', color: _kDanger),
+              _SignalLegendDot(label: 'Steering', color: _kWarning),
+              _SignalLegendDot(label: 'Ref Speed', color: Colors.white70),
+            ],
+          ),
+          if (_analysisCompareMode && deltaSeries.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Text(
+              'Time Delta (${_signedSeconds(currentDelta)})',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 120,
+              child: CustomPaint(
+                key: const Key('analysis-delta-graph'),
+                painter: _HiPerfLineChartPainter(
+                  series: [
+                    _ChartSeries(
+                      id: 'delta',
+                      values: deltaSeries,
+                      color: currentDelta > 0 ? _kDanger : _kOk,
+                      strokeWidth: 2.0,
+                    ),
+                  ],
+                  startIndex: viewport.startIndex
+                      .clamp(0, deltaSeries.length - 1)
+                      .toInt(),
+                  endIndex: viewport.endIndex
+                      .clamp(0, deltaSeries.length - 1)
+                      .toInt(),
+                  accentColor: _kSurfaceGlow,
+                  cursorProgress: _reviewProgress,
+                  midline: true,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          _buildSectorBreakdownVisualization(sectors),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectorBreakdownVisualization(SectorBreakdown breakdown) {
+    final primaryTotal = breakdown.totalPrimarySeconds;
+    final refTotal = max(0.01, breakdown.totalReferenceSeconds);
+    return Container(
+      key: const Key('analysis-sector-breakdown'),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kSurfaceGlow.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(_kPanelRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Sector Breakdown',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 10),
+          for (final sector in breakdown.sectors) ...[
+            _SectorBreakdownRow(
+              sector: sector,
+              baseline: refTotal / 3,
+            ),
+            if (sector.sector != breakdown.sectors.last.sector)
+              const SizedBox(height: 8),
+          ],
+          const SizedBox(height: 10),
+          Text(
+            'Total ${primaryTotal.toStringAsFixed(3)}s vs ${breakdown.totalReferenceSeconds.toStringAsFixed(3)}s '
+            '(${_signedSeconds(breakdown.totalDeltaSeconds)})',
+            style: TextStyle(
+              color: breakdown.totalDeltaSeconds > 0 ? _kDanger : _kOk,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onAnalysisScrub(
+    double localX,
+    double width,
+    GraphViewport viewport,
+  ) {
+    if (!_reviewMode || width <= 0) {
+      return;
+    }
+    final x = (localX / width).clamp(0.0, 1.0).toDouble();
+    final progress = viewport.startProgress +
+        (viewport.endProgress - viewport.startProgress) * x;
+    setState(() {
+      _reviewProgress = progress.clamp(0.0, 1.0).toDouble();
+    });
+  }
+
+  List<TelemetryFrame> _analysisFramesFromSamples(List<_SpeedSample> samples) {
+    return samples
+        .map((sample) => TelemetryFrame(
+              timestamp: sample.timestamp,
+              trackProgress: sample.trackProgress,
+              speedKmh: sample.speedKmh,
+              gear: sample.gear ?? 0,
+              rpm: sample.rpm ?? 0,
+            ))
+        .toList();
+  }
+
+  _CausalityFeedbackSnapshot _evaluateCausalityFeedback(
+      List<_SpeedSample> samples) {
+    if (samples.length < 16) {
+      return _CausalityFeedbackSnapshot(
+        analysis: const CausalityInferenceResult.empty(),
+        triggers: const [],
+        notice: 'Collecting telemetry for causal confidence.',
+      );
+    }
+
+    final response = _causalityFeedbackApi.evaluate(
+      CausalityFeedbackRequest(
+        frames: _analysisFramesFromSamples(samples),
+        now: DateTime.now(),
+        maxTriggers: 3,
+        minConfidence: 0.42,
+      ),
+    );
+
+    final notice = response.triggers.isNotEmpty
+        ? null
+        : response.analysis.insights.isEmpty
+            ? 'No actionable causal patterns detected in this review window.'
+            : 'Patterns found, but confidence is below trigger threshold.';
+    return _CausalityFeedbackSnapshot(
+      analysis: response.analysis,
+      triggers: response.triggers,
+      notice: notice,
+    );
+  }
+
+  void _dismissFeedbackSpine() {
+    setState(() {
+      _feedbackSpine = const [];
+      _causalityNotice = 'Feedback dismissed for this review pass.';
+    });
+  }
+
+  Color _confidenceColor(double confidence) {
+    if (confidence >= 0.78) {
+      return Colors.white;
+    }
+    if (confidence >= 0.6) {
+      return _kAccentAlt;
+    }
+    return _kMuted;
+  }
+
+  Widget _buildCausalityFeedbackSpine() {
+    final triggerCount = _feedbackSpine.length;
+    final insightCount = _causalityAnalysis.insights.length;
+    final highConfidenceCount = _causalityAnalysis.insights
+        .where((insight) => insight.confidenceScore >= 0.75)
+        .length;
+
+    return _HudCard(
+      key: const Key('causality-feedback-spine'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _SectionHeader(
+                  title: 'Feedback Spine',
+                  subtitle: 'BE-035~040 · Observation -> Effect -> Fix',
+                ),
+              ),
+              if (triggerCount > 0)
+                TextButton.icon(
+                  onPressed: _dismissFeedbackSpine,
+                  icon: const Icon(Icons.clear_all, size: 16),
+                  label: const Text('Dismiss All'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 6,
+            children: [
+              _MiniStat(label: 'Insights', value: insightCount.toString()),
+              _MiniStat(
+                label: 'Triggered',
+                value: triggerCount.toString(),
+              ),
+              _MiniStat(
+                label: 'High Conf',
+                value: highConfidenceCount.toString(),
+              ),
+            ],
+          ),
+          if (_causalityNotice != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              _causalityNotice!,
+              style: const TextStyle(color: _kMuted, fontSize: 12),
+            ),
+          ],
+          if (_feedbackSpine.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (var i = 0; i < _feedbackSpine.length; i++) ...[
+              _CausalityInsightCard(
+                index: i + 1,
+                trigger: _feedbackSpine[i],
+                confidenceColor: _confidenceColor(
+                  _feedbackSpine[i].insight.confidenceScore,
+                ),
+              ),
+              if (i != _feedbackSpine.length - 1) const SizedBox(height: 10),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  double _deltaAtProgress(List<TimeDeltaPoint> deltas, double progress) {
+    if (deltas.isEmpty) {
+      return 0.0;
+    }
+    if (deltas.length == 1) {
+      return deltas.first.deltaSeconds;
+    }
+    final clamped = progress.clamp(0.0, 1.0).toDouble();
+    if (clamped <= deltas.first.progress) {
+      return deltas.first.deltaSeconds;
+    }
+    if (clamped >= deltas.last.progress) {
+      return deltas.last.deltaSeconds;
+    }
+    for (var i = 1; i < deltas.length; i++) {
+      final prev = deltas[i - 1];
+      final next = deltas[i];
+      if (clamped <= next.progress) {
+        final span = max(1e-6, next.progress - prev.progress);
+        final ratio = (clamped - prev.progress) / span;
+        return prev.deltaSeconds +
+            (next.deltaSeconds - prev.deltaSeconds) * ratio;
+      }
+    }
+    return deltas.last.deltaSeconds;
+  }
+
+  String _signedSeconds(double seconds) {
+    final sign = seconds >= 0 ? '+' : '-';
+    return '$sign${seconds.abs().toStringAsFixed(3)}s';
+  }
+
+  Widget _buildVoiceInterface(DashboardSnapshot snapshot) {
+    final voice = _voice.state;
+    final warningActive = _hasSafetyWarning(snapshot);
+    final recording = voice.recording;
+    final processing = voice.processing;
+    final primaryLabel = recording
+        ? 'Listening... release to submit'
+        : (processing ? 'Processing...' : 'Hold to Talk');
+    final buttonColor =
+        recording ? _kDanger : (processing ? _kWarning : _kAccentAlt);
+
+    return _HudCard(
+      key: const Key('voice-console'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionHeader(
+            title: 'Voice Interface',
+            subtitle: 'FLT-028~033 · PTT, STT buffer, TTS, playback, ducking',
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  voice.status,
+                  style: TextStyle(
+                    color: warningActive && voice.duckingEnabled
+                        ? _kWarning
+                        : _kMuted,
+                  ),
+                ),
+              ),
+              if (processing)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Listener(
+            onPointerDown: (_) => _startPushToTalk(snapshot),
+            onPointerUp: (_) => _stopPushToTalk(snapshot),
+            onPointerCancel: (_) => _stopPushToTalk(snapshot),
+            child: AnimatedContainer(
+              key: const Key('voice-ptt-button'),
+              duration: const Duration(milliseconds: 160),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+              decoration: BoxDecoration(
+                color: buttonColor.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(_kControlRadius),
+                border: Border.all(color: buttonColor),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    recording ? Icons.mic_rounded : Icons.mic_none_rounded,
+                    color: buttonColor,
+                    size: 26,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      primaryLabel,
+                      style: TextStyle(
+                        color: buttonColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${(voice.bufferedBytes / 1024).toStringAsFixed(1)}KB',
+                    style: const TextStyle(color: _kMuted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Text('Audio Ducking', style: TextStyle(color: _kMuted)),
+              const SizedBox(width: 8),
+              Switch(
+                key: const Key('voice-ducking-switch'),
+                value: voice.duckingEnabled,
+                onChanged: _voice.setDuckingEnabled,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  warningActive
+                      ? 'Safety warning active: AI audio suppressed'
+                      : 'No safety warning',
+                  style: TextStyle(
+                    color: warningActive ? _kWarning : _kMuted,
+                    fontSize: 12,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text('Verbosity', style: TextStyle(color: _kMuted)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Slider(
+                  key: const Key('voice-verbosity-slider'),
+                  min: 0,
+                  max: 2,
+                  divisions: 2,
+                  value: _verbosityToSlider(voice.verbosity),
+                  label: voiceVerbosityLabel(voice.verbosity),
+                  onChanged: (value) {
+                    _voice.setVerbosity(_sliderToVerbosity(value));
+                  },
+                ),
+              ),
+              Text(
+                voiceVerbosityLabel(voice.verbosity),
+                style: const TextStyle(color: _kAccentAlt),
+              ),
+            ],
+          ),
+          if (voice.lastTranscript.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'STT: ${voice.lastTranscript}',
+              key: const Key('voice-last-transcript'),
+              style: const TextStyle(color: _kMuted, fontSize: 12),
+            ),
+          ],
+          if (voice.lastResponseText.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'AI: ${voice.lastResponseText}',
+              key: const Key('voice-last-response'),
+              style: TextStyle(
+                color: voice.lastResponseSuppressed ? _kWarning : _kAccent,
+                fontSize: 12,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -979,159 +3364,737 @@ class _DashboardHomeState extends State<DashboardHome> {
     return samples.map((e) => e.speedKmh).reduce(max);
   }
 
-  Widget _buildSessionList(DashboardSnapshot snapshot) {
-    final sessionActive = snapshot.status?.sessionActive ?? false;
-    final activeId = snapshot.status?.sessionId ?? '';
-
-    return _HudCard(
-      key: const Key('session-list'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _SectionHeader(
-                  title: 'Sessions',
-                  subtitle: 'FLT-015 · Archived session runs',
-                ),
-              ),
-              TextButton.icon(
-                onPressed: _refreshSessions,
-                icon: const Icon(Icons.sync, size: 18),
-                label: const Text('Refresh'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (_sessions.isEmpty)
-            const Text('No sessions recorded yet.', style: TextStyle(color: _kMuted))
-          else
-            Column(
-              children: _sessions.take(6).map((session) {
-                final isActive = session.sessionId == activeId && sessionActive;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: _SessionRow(
-                    session: session,
-                    active: isActive,
-                    onReview: () => _enterReview(session),
-                  ),
-                );
-              }).toList(),
-            ),
-        ],
-      ),
-    );
+  double _displaySpeed(double speedKmh) {
+    return speedForUnits(speedKmh, _dataPreferences.units);
   }
 
-  Widget _buildSessionControl(DashboardSnapshot snapshot) {
-    final sessionActive = snapshot.status?.sessionActive ?? false;
+  String _speedUnitLabel() {
+    return speedUnitLabel(_dataPreferences.units);
+  }
 
-    return _HudCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionHeader(title: 'Session Control', subtitle: 'FLT-017 · Run control & post-session review'),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
+  double _verbosityToSlider(VoiceVerbosity verbosity) {
+    switch (verbosity) {
+      case VoiceVerbosity.low:
+        return 0;
+      case VoiceVerbosity.medium:
+        return 1;
+      case VoiceVerbosity.high:
+        return 2;
+    }
+  }
+
+  VoiceVerbosity _sliderToVerbosity(double value) {
+    final step = value.round().clamp(0, 2);
+    switch (step) {
+      case 0:
+        return VoiceVerbosity.low;
+      case 1:
+        return VoiceVerbosity.medium;
+      default:
+        return VoiceVerbosity.high;
+    }
+  }
+
+  List<SessionMetadata> _filteredSessions() {
+    final filtered = applySessionFilters(
+      _sessions,
+      SessionBrowserFilters(
+        date: _sessionDateFilter,
+        track: _sessionTrackFilter,
+        car: _sessionCarFilter,
+        type: _sessionTypeFilter,
+      ),
+    );
+    filtered.sort((a, b) {
+      final aTs = sessionTimestamp(a)?.millisecondsSinceEpoch ?? 0;
+      final bTs = sessionTimestamp(b)?.millisecondsSinceEpoch ?? 0;
+      return bTs.compareTo(aTs);
+    });
+    return filtered;
+  }
+
+  SessionMetadata? _selectedSessionFrom(List<SessionMetadata> sessions) {
+    final selectedId = _selectedSessionId;
+    if (selectedId == null) {
+      return null;
+    }
+    for (final session in sessions) {
+      if (session.sessionId == selectedId) {
+        return session;
+      }
+    }
+    return null;
+  }
+
+  String _dateFilterLabel(SessionDateFilter filter) {
+    switch (filter) {
+      case SessionDateFilter.all:
+        return 'All dates';
+      case SessionDateFilter.today:
+        return 'Today';
+      case SessionDateFilter.last7Days:
+        return 'Last 7 days';
+      case SessionDateFilter.last30Days:
+        return 'Last 30 days';
+    }
+  }
+
+  Widget _buildSessionList(
+    DashboardSnapshot snapshot, {
+    bool engineeredCalm = false,
+  }) {
+    final sessionActive = snapshot.status?.sessionActive ?? false;
+    final activeId = snapshot.status?.sessionId ?? '';
+    final connected = client.isConnected && snapshot.connected;
+    final filtered = _filteredSessions();
+    final visibleSelected = _selectedSessionFrom(filtered);
+    final selectedSession = visibleSelected ?? _selectedSessionFrom(_sessions);
+    final tracks = trackFilterOptions(_sessions);
+    final cars = carFilterOptions(_sessions);
+    final syncedCount = filtered
+        .where((session) =>
+            inferCloudSyncState(session, connected: connected) ==
+            CloudSyncState.synced)
+        .length;
+
+    Widget body;
+    if (_sessionsLoading && _sessions.isEmpty) {
+      body = _SessionBrowserState(
+        key: const Key('session-loading-state'),
+        icon: Icons.hourglass_top_rounded,
+        message: 'Loading archived sessions…',
+        helperText: engineeredCalm
+            ? 'Select filters to browse archived sessions'
+            : null,
+        engineeredCalm: engineeredCalm,
+      );
+    } else if (_sessionsError != null && _sessions.isEmpty) {
+      body = _SessionBrowserState(
+        key: const Key('session-error-state'),
+        icon: Icons.cloud_off_rounded,
+        message: _sessionsError!,
+        helperText: engineeredCalm
+            ? 'Select filters to browse archived sessions'
+            : null,
+        actionLabel: 'Retry',
+        onAction: () => _refreshSessions(),
+        engineeredCalm: engineeredCalm,
+      );
+    } else if (filtered.isEmpty) {
+      body = _SessionBrowserState(
+        key: const Key('session-empty-state'),
+        icon: Icons.cloud_outlined,
+        message: _sessions.isEmpty
+            ? 'No archived sessions available.'
+            : 'No archived sessions found.',
+        helperText: 'Select filters to browse archived sessions',
+        engineeredCalm: engineeredCalm,
+      );
+    } else {
+      final rows = filtered.map((session) {
+        final isActive = session.sessionId == activeId && sessionActive;
+        final isSelected = _selectedSessionId == session.sessionId;
+        final type = classifySessionType(session);
+        final startedAt = sessionTimestamp(session);
+        final startedLabel =
+            startedAt == null ? '--' : _formatTimestamp(startedAt);
+        final syncState = inferCloudSyncState(session, connected: connected);
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: _SessionRow(
+            session: session,
+            active: isActive,
+            selected: isSelected,
+            syncState: syncState,
+            typeLabel: sessionTypeLabel(type),
+            startedAtLabel: startedLabel,
+            engineeredCalm: engineeredCalm,
+            onSelect: () {
+              setState(() {
+                _selectedSessionId = session.sessionId;
+              });
+            },
+            onReview: () {
+              setState(() {
+                _selectedSessionId = session.sessionId;
+              });
+              _enterReview(session);
+            },
+            onDelete: () => _deleteSessionCascade(session),
+          ),
+        );
+      }).toList();
+
+      body = filtered.length > 5
+          ? SizedBox(
+              height: 360,
+              child: ListView(
+                children: rows,
+              ),
+            )
+          : Column(children: rows);
+    }
+
+    final titleWidget = engineeredCalm
+        ? const _DataSectionHeader(
+            title: 'SESSION ARCHIVE BROWSER',
+            subtitle: 'FLT-052 · Date/track/car filters and replay',
+          )
+        : _SectionHeader(
+            title: 'Session Archive Browser',
+            subtitle: 'FLT-052 · Date/track/car filters and replay',
+          );
+
+    final reviewDisabled = selectedSession == null;
+    final reviewAction = engineeredCalm
+        ? MouseRegion(
+            cursor: reviewDisabled
+                ? SystemMouseCursors.forbidden
+                : SystemMouseCursors.click,
+            child: Opacity(
+              opacity: reviewDisabled ? 0.5 : 1.0,
+              child: OutlinedButton.icon(
+                onPressed: reviewDisabled
+                    ? null
+                    : () => _enterReview(selectedSession!),
+                icon: const Icon(Icons.play_circle_outline, size: 18),
+                label: const Text('Review Selected'),
+                style: _dataSecondaryButtonStyle(),
+              ),
+            ),
+          )
+        : FilledButton.tonalIcon(
+            onPressed: selectedSession == null
+                ? null
+                : () => _enterReview(selectedSession!),
+            icon: const Icon(Icons.play_circle_outline, size: 18),
+            label: const Text('Review Selected'),
+          );
+
+    final refreshAction = engineeredCalm
+        ? IconButton(
+            key: const Key('session-refresh-icon-button'),
+            onPressed: _refreshSessions,
+            splashRadius: 16,
+            tooltip: 'Refresh',
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            style: ButtonStyle(
+              backgroundColor:
+                  const WidgetStatePropertyAll<Color>(Colors.transparent),
+              overlayColor:
+                  const WidgetStatePropertyAll<Color>(Colors.transparent),
+              foregroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused)) {
+                  return Colors.white;
+                }
+                return _kMuted;
+              }),
+              shape: const WidgetStatePropertyAll<OutlinedBorder>(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(4)),
+                ),
+              ),
+              side: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.focused)) {
+                  return const BorderSide(color: _kDanger);
+                }
+                return const BorderSide(color: Colors.transparent);
+              }),
+            ),
+            icon: const Icon(Icons.sync, size: 18),
+          )
+        : TextButton.icon(
+            onPressed: _refreshSessions,
+            icon: const Icon(Icons.sync, size: 18),
+            label: const Text('Refresh'),
+          );
+
+    final filters = engineeredCalm
+        ? Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _DataFilterField<SessionDateFilter>(
+                width: 168,
+                fieldKey: const Key('session-filter-date'),
+                label: 'DATE',
+                value: _sessionDateFilter,
+                selected: _sessionDateFilter != SessionDateFilter.all,
+                items: SessionDateFilter.values
+                    .map((filter) => DropdownMenuItem(
+                          value: filter,
+                          child: Text(_dateFilterLabel(filter)),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _sessionDateFilter = value;
+                  });
+                },
+              ),
+              _DataFilterField<String>(
+                width: 184,
+                fieldKey: const Key('session-filter-track'),
+                label: 'TRACK',
+                value: tracks.contains(_sessionTrackFilter)
+                    ? _sessionTrackFilter
+                    : kAllTracksFilter,
+                selected: _sessionTrackFilter != kAllTracksFilter,
+                items: tracks
+                    .map((track) => DropdownMenuItem(
+                          value: track,
+                          child: Text(
+                              track == kAllTracksFilter ? 'All tracks' : track),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _sessionTrackFilter = value;
+                  });
+                },
+              ),
+              _DataFilterField<String>(
+                width: 184,
+                fieldKey: const Key('session-filter-car'),
+                label: 'CAR',
+                value: cars.contains(_sessionCarFilter)
+                    ? _sessionCarFilter
+                    : kAllCarsFilter,
+                selected: _sessionCarFilter != kAllCarsFilter,
+                items: cars
+                    .map((car) => DropdownMenuItem(
+                          value: car,
+                          child: Text(car == kAllCarsFilter ? 'All cars' : car),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _sessionCarFilter = value;
+                  });
+                },
+              ),
+              _DataFilterField<SessionTypeFilter>(
+                width: 184,
+                fieldKey: const Key('session-filter-type'),
+                label: 'TYPE',
+                value: _sessionTypeFilter,
+                selected: _sessionTypeFilter != SessionTypeFilter.all,
+                items: SessionTypeFilter.values
+                    .map((type) => DropdownMenuItem(
+                          value: type,
+                          child: Text(sessionTypeLabel(type)),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _sessionTypeFilter = value;
+                  });
+                },
+              ),
+            ],
+          )
+        : Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
               SizedBox(
-                width: 220,
-                child: TextField(
-                  controller: sessionController,
-                  decoration: const InputDecoration(labelText: 'Session ID'),
+                width: 170,
+                child: DropdownButtonFormField<SessionDateFilter>(
+                  key: const Key('session-filter-date'),
+                  isExpanded: true,
+                  value: _sessionDateFilter,
+                  items: SessionDateFilter.values
+                      .map((filter) => DropdownMenuItem(
+                            value: filter,
+                            child: Text(_dateFilterLabel(filter)),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _sessionDateFilter = value;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Date',
+                    isDense: true,
+                  ),
                 ),
               ),
               SizedBox(
-                width: 220,
-                child: TextField(
-                  controller: trackController,
-                  decoration: const InputDecoration(labelText: 'Track'),
+                width: 190,
+                child: DropdownButtonFormField<String>(
+                  key: const Key('session-filter-track'),
+                  isExpanded: true,
+                  value: tracks.contains(_sessionTrackFilter)
+                      ? _sessionTrackFilter
+                      : kAllTracksFilter,
+                  items: tracks
+                      .map((track) => DropdownMenuItem(
+                            value: track,
+                            child: Text(track == kAllTracksFilter
+                                ? 'All tracks'
+                                : track),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _sessionTrackFilter = value;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Track',
+                    isDense: true,
+                  ),
                 ),
               ),
               SizedBox(
                 width: 180,
-                child: TextField(
-                  controller: carController,
-                  decoration: const InputDecoration(labelText: 'Car'),
+                child: DropdownButtonFormField<String>(
+                  key: const Key('session-filter-car'),
+                  isExpanded: true,
+                  value: cars.contains(_sessionCarFilter)
+                      ? _sessionCarFilter
+                      : kAllCarsFilter,
+                  items: cars
+                      .map((car) => DropdownMenuItem(
+                            value: car,
+                            child:
+                                Text(car == kAllCarsFilter ? 'All cars' : car),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _sessionCarFilter = value;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Car',
+                    isDense: true,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 180,
+                child: DropdownButtonFormField<SessionTypeFilter>(
+                  key: const Key('session-filter-type'),
+                  isExpanded: true,
+                  value: _sessionTypeFilter,
+                  items: SessionTypeFilter.values
+                      .map((type) => DropdownMenuItem(
+                            value: type,
+                            child: Text(sessionTypeLabel(type)),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _sessionTypeFilter = value;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Type',
+                    isDense: true,
+                  ),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              FilledButton.icon(
-                onPressed: sessionActive
-                    ? null
-                    : () async {
-                        await client.startSession(
-                          sessionController.text.trim(),
-                          track: trackController.text.trim(),
-                          car: carController.text.trim(),
-                        );
-                      },
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('Start Session'),
+          );
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: titleWidget),
+            const SizedBox(width: 12),
+            reviewAction,
+            const SizedBox(width: 8),
+            refreshAction,
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (engineeredCalm) _dataDivider(),
+        if (engineeredCalm) const SizedBox(height: 12),
+        Row(
+          children: [
+            Text(
+              '${filtered.length} shown · ${_sessions.length} total',
+              style: engineeredCalm
+                  ? _kDataBodyStyle.copyWith(fontSize: 14)
+                  : const TextStyle(color: _kMuted, fontSize: 12),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$syncedCount cloud synced',
+              style: engineeredCalm
+                  ? _kDataBodyStyle.copyWith(color: Colors.white)
+                  : TextStyle(
+                      color: _kAccentAlt.withValues(alpha: 0.85),
+                      fontSize: 12,
+                    ),
+            ),
+            const Spacer(),
+            if (_sessionsLoading)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: sessionActive
-                    ? () async {
-                        await client.endSession(sessionController.text.trim());
-                      }
-                    : null,
-                icon: const Icon(Icons.stop_rounded),
-                label: const Text('End Session'),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: _reviewMode
-                      ? Text(
-                          "Reviewing ${_reviewSession?.sessionId ?? 'Session'}",
-                          style: const TextStyle(color: _kWarning),
-                          textAlign: TextAlign.right,
-                        )
-                      : sessionActive
-                          ? Text(
-                              "Live: ${snapshot.status?.sessionId ?? 'Session'}",
-                              style: const TextStyle(color: _kAccent),
-                              textAlign: TextAlign.right,
-                            )
-                          : const SizedBox.shrink(),
-                ),
-              ),
-            ],
+          ],
+        ),
+        const SizedBox(height: 12),
+        filters,
+        const SizedBox(height: 12),
+        if (engineeredCalm) _dataDivider(),
+        if (engineeredCalm) const SizedBox(height: 12),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: body,
+        ),
+        if (visibleSelected != null) ...[
+          const SizedBox(height: 10),
+          Text(
+            'Selected: ${visibleSelected.sessionId}',
+            key: const Key('session-selected-label'),
+            style: engineeredCalm
+                ? _kDataBodyStyle.copyWith(color: Colors.white)
+                : TextStyle(
+                    color: _kAccent.withValues(alpha: 0.9),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
           ),
         ],
+      ],
+    );
+
+    return engineeredCalm
+        ? _InteractiveDataCard(
+            key: const Key('session-list'),
+            padding: _kDataPanelPadding,
+            child: content,
+          )
+        : _HudCard(
+            key: const Key('session-list'),
+            child: content,
+          );
+  }
+
+  Widget _buildSessionControl(DashboardSnapshot snapshot) {
+    final sessionActive = snapshot.status?.sessionActive ?? false;
+    final expanded = _sessionControlExpanded;
+    final panelHeight = expanded ? 320.0 : 48.0;
+    final sessionId =
+        snapshot.status?.sessionId ?? sessionController.text.trim();
+
+    return AnimatedContainer(
+      key: const Key('session-control'),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.linear,
+      height: panelHeight,
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: const Border(
+          top: BorderSide(color: _kSurfaceGlow),
+        ),
+      ),
+      child: ClipRect(
+        child: Column(
+          children: [
+            InkWell(
+              onTap: () {
+                setState(() {
+                  _sessionControlExpanded = !_sessionControlExpanded;
+                });
+              },
+              child: SizedBox(
+                height: 46,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'SESSION CONTROL',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (sessionActive)
+                        Text(
+                          'LIVE: $sessionId',
+                          style: const TextStyle(
+                            color: _kSystemOk,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'RobotoMono',
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        expanded
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        color: _kMuted,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (expanded)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 760;
+                          if (compact) {
+                            return Column(
+                              children: [
+                                _SessionControlField(
+                                  label: 'SESSION ID',
+                                  controller: sessionController,
+                                ),
+                                const SizedBox(height: 12),
+                                _SessionControlField(
+                                  label: 'TRACK',
+                                  controller: trackController,
+                                ),
+                                const SizedBox(height: 12),
+                                _SessionControlField(
+                                  label: 'CAR',
+                                  controller: carController,
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _SessionControlField(
+                                  label: 'SESSION ID',
+                                  controller: sessionController,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _SessionControlField(
+                                  label: 'TRACK',
+                                  controller: trackController,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _SessionControlField(
+                                  label: 'CAR',
+                                  controller: carController,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: FilledButton.icon(
+                          onPressed: sessionActive
+                              ? null
+                              : () async {
+                                  setState(() {
+                                    _sessionControlExpanded = true;
+                                  });
+                                  await client.startSession(
+                                    sessionController.text.trim(),
+                                    track: trackController.text.trim(),
+                                    car: carController.text.trim(),
+                                  );
+                                },
+                          style: _dataPrimaryButtonStyle(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                          ),
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          label: const Text('Start Session'),
+                        ),
+                      ),
+                      if (sessionActive) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              await client
+                                  .endSession(sessionController.text.trim());
+                            },
+                            style: _dataSecondaryButtonStyle(),
+                            icon: const Icon(Icons.stop_rounded),
+                            label: const Text('End Session'),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildSystemHeader(DashboardSnapshot snapshot) {
-    return _HudCard(
+    final faultPresent = snapshot.status?.state == Status_State.STATE_FAULT;
+    return _SystemPanel(
+      accentLeft: faultPresent,
       child: Row(
         children: [
-          const Icon(Icons.security, color: _kAccentAlt),
-          const SizedBox(width: 12),
           const Expanded(
-            child: Text('System Status & Safety', style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-          if (snapshot.status?.state == Status_State.STATE_FAULT)
-            Text(
-              'FAULT ACTIVE',
-              style: TextStyle(color: _kDanger.withOpacity(0.9), fontWeight: FontWeight.w700),
-            )
-          else
-            Text(
-              'SYSTEM NOMINAL',
-              style: TextStyle(color: _kOk.withOpacity(0.9), fontWeight: FontWeight.w700),
+            child: Text(
+              'SYSTEM STATUS',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2.2,
+                height: 1.2,
+              ),
             ),
+          ),
+          Text(
+            faultPresent ? 'SYSTEM FAULT' : 'SYSTEM NOMINAL',
+            style: TextStyle(
+              color: faultPresent ? _kDanger : _kSystemOk,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
+              fontFamily: 'RobotoMono',
+              height: 1.2,
+            ),
+          ),
         ],
       ),
     );
@@ -1139,62 +4102,111 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Widget _buildSystemStatusCard(DashboardSnapshot snapshot) {
     final status = snapshot.status;
-    final state = status?.state.name.replaceAll('STATE_', '') ?? 'UNKNOWN';
+    final state = (status?.state.name.replaceAll('STATE_', '') ?? 'UNKNOWN')
+        .toUpperCase();
     final connected = client.isConnected && snapshot.connected;
+    final usbState = connected ? 'ONLINE' : 'OFFLINE';
+    final sessionState = status?.sessionActive == true ? 'ACTIVE' : 'IDLE';
     final updatedAt = status?.updatedAtNs.toInt() ?? 0;
-    final updatedText = updatedAt == 0 ? '--' : _formatTimestamp(DateTime.fromMillisecondsSinceEpoch(updatedAt ~/ 1000000));
+    final updatedText = updatedAt == 0
+        ? '--'
+        : _formatTimestamp(
+            DateTime.fromMillisecondsSinceEpoch(updatedAt ~/ 1000000));
 
-    return _HudCard(
+    return _SystemPanel(
       key: const Key('system-status'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'System Status', subtitle: 'FLT-019 · MCU state, faults, USB'),
-          const SizedBox(height: 12),
+          const _SystemPanelHeader(
+            title: 'SYSTEM OVERVIEW',
+            subtitle: 'FLT-019 — MCU STATE, FAULTS, USB',
+          ),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StatusTile(
-                label: 'MCU State',
+              _SystemStatusCell(
+                label: 'MCU STATE',
                 value: state,
-                color: status?.state == Status_State.STATE_FAULT ? _kDanger : _kAccent,
+                timestamp: updatedText,
+                critical: status?.state == Status_State.STATE_FAULT,
               ),
-              const SizedBox(width: 12),
-              _StatusTile(
-                label: 'USB Link',
-                value: connected ? 'Online' : 'Offline',
-                color: connected ? _kOk : _kDanger,
+              const SizedBox(width: 8),
+              _SystemStatusCell(
+                label: 'USB LINK',
+                value: usbState,
+                timestamp: updatedText,
+                critical: !connected,
               ),
-              const SizedBox(width: 12),
-              _StatusTile(
-                label: 'Session',
-                value: status?.sessionActive == true ? 'Active' : 'Idle',
-                color: status?.sessionActive == true ? _kAccentAlt : _kMuted,
+              const SizedBox(width: 8),
+              _SystemStatusCell(
+                label: 'SESSION',
+                value: sessionState,
+                timestamp: updatedText,
+                critical: false,
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text('Last update: $updatedText', style: const TextStyle(color: _kMuted)),
         ],
       ),
     );
   }
 
   Widget _buildFaultPanel(List<_Fault> faults) {
-    return _HudCard(
+    final activeCount = faults.length;
+    return _SystemPanel(
       key: const Key('fault-panel'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Faults & Recovery', subtitle: 'FLT-020 · Actionable recovery steps'),
-          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Expanded(
+                child: _SystemPanelHeader(
+                  title: 'FAULTS & RECOVERY',
+                  subtitle: 'FLT-020 — ACTIONABLE RECOVERY STEPS',
+                ),
+              ),
+              Container(
+                height: 20,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color:
+                      _kDanger.withValues(alpha: activeCount > 0 ? 0.18 : 0.0),
+                  border: Border.all(
+                      color: activeCount > 0 ? _kDanger : _kSurfaceGlow),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${activeCount.toString()} ACTIVE',
+                  style: TextStyle(
+                    color: activeCount > 0 ? _kDanger : _kMutedSoft,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
           if (faults.isEmpty)
-            const Text('No active faults detected.', style: TextStyle(color: _kOk))
+            Text(
+              'No active faults detected.',
+              style: _kDataBodyStyle.copyWith(color: _kSystemOk),
+            )
           else
             Column(
               children: faults.map((fault) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _FaultCard(fault: fault),
+                  child: _SystemFaultCard(fault: fault),
                 );
               }).toList(),
             ),
@@ -1225,7 +4237,9 @@ class _DashboardHomeState extends State<DashboardHome> {
       faults.add(
         _Fault(
           title: 'MCU Fault State',
-          detail: status?.lastError.isNotEmpty == true ? status!.lastError : 'Fault flag asserted.',
+          detail: status?.lastError.isNotEmpty == true
+              ? status!.lastError
+              : 'Fault flag asserted.',
           color: _kDanger,
           steps: const [
             'Ensure the vehicle is safe and stationary.',
@@ -1270,13 +4284,18 @@ class _DashboardHomeState extends State<DashboardHome> {
   Widget _buildSafetyZones(DashboardSnapshot snapshot) {
     final estopActive = snapshot.status?.estopActive ?? estopEngaged;
 
-    return _HudCard(
+    return _SystemPanel(
       key: const Key('safety-zones'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Safety Zones', subtitle: 'FLT-021 · Visual safety coverage'),
-          const SizedBox(height: 12),
+          const _SystemPanelHeader(
+            title: 'SAFETY ZONES',
+            subtitle: 'FLT-021 — VISUAL SAFETY COVERAGE',
+          ),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
           SizedBox(
             height: 180,
             child: CustomPaint(
@@ -1287,36 +4306,44 @@ class _DashboardHomeState extends State<DashboardHome> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          CheckboxListTile(
-            value: safetyCentered,
-            onChanged: (value) {
-              setState(() {
-                safetyCentered = value ?? false;
-              });
-            },
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Operator zone clear'),
-          ),
-          CheckboxListTile(
-            value: safetyClear,
-            onChanged: (value) {
-              setState(() {
-                safetyClear = value ?? false;
-              });
-            },
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Track perimeter clear'),
-          ),
-          CheckboxListTile(
-            value: safetyEstop,
-            onChanged: (value) {
-              setState(() {
-                safetyEstop = value ?? false;
-              });
-            },
-            contentPadding: EdgeInsets.zero,
-            title: const Text('E-Stop accessible'),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Column(
+              children: [
+                _SafetyChecklistRow(
+                  label: 'OPERATOR ZONE CLEAR',
+                  value: safetyCentered,
+                  onChanged: (value) {
+                    setState(() {
+                      safetyCentered = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                _SafetyChecklistRow(
+                  label: 'TRACK PERIMETER CLEAR',
+                  value: safetyClear,
+                  onChanged: (value) {
+                    setState(() {
+                      safetyClear = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                _SafetyChecklistRow(
+                  label: 'E-STOP ACCESSIBLE',
+                  value: safetyEstop,
+                  onChanged: (value) {
+                    setState(() {
+                      safetyEstop = value;
+                    });
+                  },
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1325,55 +4352,90 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Widget _buildFirmwareManager(DashboardSnapshot snapshot) {
     final connected = client.isConnected && snapshot.connected;
-    final firmwareStatus = _dfuActive ? 'DFU ACTIVE' : 'Ready';
+    final firmwareStatus = (_dfuActive ? 'DFU ACTIVE' : 'READY').toUpperCase();
 
-    return _HudCard(
+    return _SystemPanel(
       key: const Key('firmware-manager'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Firmware Manager', subtitle: 'FLT-023 · DFU operations'),
-          const SizedBox(height: 12),
+          const _SystemPanelHeader(
+            title: 'FIRMWARE MANAGER',
+            subtitle: 'FLT-023 — DFU OPERATIONS',
+          ),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StatusTile(
-                label: 'MCU Firmware',
-                value: 'v1.3.2',
-                color: _kAccentAlt,
+              Expanded(
+                child: _SystemInfoTile(
+                  label: 'MCU FIRMWARE',
+                  value: 'v1.3.2',
+                  mono: true,
+                  valueColor: Colors.white,
+                ),
               ),
-              const SizedBox(width: 12),
-              _StatusTile(
-                label: 'DFU Mode',
-                value: firmwareStatus,
-                color: _dfuActive ? _kWarning : _kOk,
+              const SizedBox(width: 8),
+              Expanded(
+                child: _SystemInfoTile(
+                  label: 'DFU MODE',
+                  value: firmwareStatus,
+                  mono: false,
+                  dotColor: _dfuActive ? _kDanger : _kSystemOk,
+                  valueColor: _dfuActive ? _kDanger : _kSystemOk,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           LinearProgressIndicator(
             value: _dfuActive ? _dfuProgress : 0.0,
             minHeight: 6,
             backgroundColor: _kSurfaceGlow,
-            valueColor: AlwaysStoppedAnimation(_dfuActive ? _kWarning : _kAccentAlt),
+            valueColor: AlwaysStoppedAnimation(
+              _dfuActive ? _kDanger : _kSystemOk,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             children: [
-              FilledButton.icon(
+              FilledButton(
                 onPressed: connected && !_dfuActive ? _startDfu : null,
-                icon: const Icon(Icons.usb_rounded),
-                label: const Text('Enter DFU'),
+                style: _dataPrimaryButtonStyle(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+                child: const Text('Enter DFU'),
               ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
+              const SizedBox(width: 8),
+              OutlinedButton(
                 onPressed: _dfuActive ? _cancelDfu : null,
-                icon: const Icon(Icons.cancel),
-                label: const Text('Cancel'),
+                style: _dataSecondaryButtonStyle(),
+                child: const Text('Cancel'),
               ),
               const Spacer(),
-              Text(
-                connected ? 'USB connected' : 'USB offline',
-                style: TextStyle(color: connected ? _kOk : _kDanger),
+              Row(
+                children: [
+                  Icon(
+                    connected
+                        ? Icons.usb_rounded
+                        : Icons.portable_wifi_off_rounded,
+                    size: 14,
+                    color: connected ? _kMuted : _kDanger,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    connected ? 'USB CONNECTED' : 'USB OFFLINE',
+                    style: TextStyle(
+                      color: connected ? _kMutedSoft : _kDanger,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -1384,35 +4446,69 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Widget _buildCalibrationConsole(DashboardSnapshot snapshot) {
     final status = snapshot.status;
-    final calibrationState = status?.calibrationState ?? Status_CalibrationState.CALIBRATION_UNKNOWN;
-    final calibrationProgress = (status?.calibrationProgress ?? 0.0).clamp(0.0, 1.0);
-    final calibrationMessage = status?.calibrationMessage ?? 'Awaiting calibration.';
+    final calibrationState =
+        status?.calibrationState ?? Status_CalibrationState.CALIBRATION_UNKNOWN;
+    final calibrationProgress =
+        (status?.calibrationProgress ?? 0.0).clamp(0.0, 1.0);
+    final calibrationMessage =
+        status?.calibrationMessage ?? 'Awaiting calibration.';
     final attempts = status?.calibrationAttempts ?? calibrationHistory.length;
 
-    return _HudCard(
+    return _SystemPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(title: 'Calibration Console', subtitle: 'Profile + sensor zeroing'),
-          const SizedBox(height: 12),
+          const _SystemPanelHeader(
+            title: 'CALIBRATION CONSOLE',
+            subtitle: 'PROFILE + SENSOR ZEROING',
+          ),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 12,
             runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               SizedBox(
-                width: 220,
+                width: 240,
                 child: TextField(
                   controller: profileController,
-                  decoration: const InputDecoration(labelText: 'Profile ID'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'RobotoMono',
+                    fontSize: 14,
+                    letterSpacing: 0.2,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'PROFILE ID',
+                    labelStyle: _kDataSubheaderStyle.copyWith(fontSize: 11),
+                    filled: true,
+                    fillColor: _kSurface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(_kControlRadius),
+                      borderSide: const BorderSide(color: _kSurfaceGlow),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(_kControlRadius),
+                      borderSide: const BorderSide(color: _kSurfaceGlow),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(_kControlRadius),
+                      borderSide: const BorderSide(color: _kDanger),
+                    ),
+                  ),
                 ),
               ),
-              FilledButton(
+              OutlinedButton(
                 onPressed: _handleSetProfile,
+                style: _dataSecondaryButtonStyle(),
                 child: const Text('Set Profile'),
               ),
               if (profileReady)
                 Chip(
-                  label: Text('Active: ${status?.activeProfile ?? profileController.text.trim()}'),
+                  label: Text(
+                      'Active: ${status?.activeProfile ?? profileController.text.trim()}'),
                   backgroundColor: _kSurfaceGlow,
                 ),
             ],
@@ -1423,32 +4519,53 @@ class _DashboardHomeState extends State<DashboardHome> {
             minHeight: 6,
             backgroundColor: _kSurfaceGlow,
             valueColor: AlwaysStoppedAnimation(
-              calibrationState == Status_CalibrationState.CALIBRATION_FAILED ? _kDanger : _kAccent,
+              calibrationState == Status_CalibrationState.CALIBRATION_FAILED
+                  ? _kDanger
+                  : _kAccent,
             ),
           ),
           const SizedBox(height: 8),
-          Text(calibrationMessage, style: const TextStyle(color: _kMuted)),
+          _AnimatedStatusLine(
+            text: calibrationMessage,
+            animate: calibrationMessage.trim().toLowerCase() ==
+                'awaiting calibration.',
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: FilledButton.icon(
+                    onPressed: _startCalibration,
+                    style: _dataPrimaryButtonStyle(),
+                    icon: const Icon(Icons.tune),
+                    label: const Text('Start Calibration'),
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
-              FilledButton.icon(
-                onPressed: _startCalibration,
-                icon: const Icon(Icons.tune),
-                label: const Text('Start Calibration'),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
+              _HoverUnderlineTextButton(
                 onPressed: _cancelCalibration,
-                icon: const Icon(Icons.close),
-                label: const Text('Cancel'),
+                label: 'Cancel',
               ),
               const Spacer(),
-              Text('Attempts: $attempts', style: const TextStyle(color: _kMuted)),
+              Text(
+                'Attempts: $attempts',
+                style: _kDataBodyStyle,
+              ),
             ],
           ),
           if (calibrationHistory.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text('Recent Events', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'RECENT EVENTS',
+              style: _kDataSubheaderStyle.copyWith(color: Colors.white),
+            ),
             const SizedBox(height: 8),
             Column(
               children: calibrationHistory.take(3).map((entry) {
@@ -1457,12 +4574,19 @@ class _DashboardHomeState extends State<DashboardHome> {
                   child: Row(
                     children: [
                       Icon(
-                        entry.success ? Icons.check_circle : Icons.error_outline,
-                        color: entry.success ? _kOk : _kWarning,
+                        entry.success
+                            ? Icons.check_circle
+                            : Icons.error_outline,
+                        color: entry.success ? _kSystemOk : _kDanger,
                         size: 18,
                       ),
                       const SizedBox(width: 8),
-                      Expanded(child: Text('${_formatTimestamp(entry.timestamp)} — ${entry.message}')),
+                      Expanded(
+                        child: Text(
+                          '${_formatTimestamp(entry.timestamp)} — ${entry.message}',
+                          style: _kDataBodyStyle,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -1476,20 +4600,20 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Widget _buildEStopFab(DashboardSnapshot snapshot) {
     final engaged = snapshot.status?.estopActive ?? estopEngaged;
-    final color = engaged ? _kDanger : _kWarning;
 
-    return FloatingActionButton.extended(
-      key: const Key('estop-control'),
-      onPressed: () async {
-        final next = !engaged;
-        setState(() {
-          estopEngaged = next;
-        });
-        await client.setEStop(next, reason: next ? 'UI' : 'UI clear');
-      },
-      backgroundColor: color,
-      icon: const Icon(Icons.warning_amber_rounded),
-      label: Text(engaged ? 'E-STOP ENGAGED' : 'E-STOP READY'),
+    return Padding(
+      padding: const EdgeInsets.only(right: 8, bottom: 8),
+      child: _EStopIndicator(
+        key: const Key('estop-control'),
+        engaged: engaged,
+        onPressed: () async {
+          final next = !engaged;
+          setState(() {
+            estopEngaged = next;
+          });
+          await client.setEStop(next, reason: next ? 'UI' : 'UI clear');
+        },
+      ),
     );
   }
 }
@@ -1503,23 +4627,976 @@ class _HudCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_kSurface, _kSurfaceRaised],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(_kPanelRadius),
         border: Border.all(color: _kSurfaceGlow),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
       padding: const EdgeInsets.all(16),
       child: child,
+    );
+  }
+}
+
+class _SystemPanel extends StatefulWidget {
+  const _SystemPanel({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    this.accentLeft = false,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final bool accentLeft;
+
+  @override
+  State<_SystemPanel> createState() => _SystemPanelState();
+}
+
+class _SystemPanelState extends State<_SystemPanel> {
+  bool _hovered = false;
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseBorder = widget.accentLeft ? 4.0 : 1.0;
+    return MouseRegion(
+      cursor: SystemMouseCursors.basic,
+      onEnter: (_) {
+        if (_hovered) return;
+        setState(() {
+          _hovered = true;
+        });
+      },
+      onExit: (_) {
+        if (!_hovered) return;
+        setState(() {
+          _hovered = false;
+        });
+      },
+      child: Focus(
+        onFocusChange: (value) {
+          if (_focused == value) return;
+          setState(() {
+            _focused = value;
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_kControlRadius + 2),
+            border: Border.all(color: _focused ? _kDanger : Colors.transparent),
+          ),
+          child: Stack(
+            children: [
+              Container(
+                padding: widget.padding,
+                decoration: BoxDecoration(
+                  color: _kSurface,
+                  borderRadius: BorderRadius.circular(_kControlRadius),
+                  border: Border(
+                    left: BorderSide(
+                      color: widget.accentLeft ? _kDanger : _kSurfaceGlow,
+                      width: baseBorder,
+                    ),
+                    top: const BorderSide(color: _kSurfaceGlow),
+                    right: const BorderSide(color: _kSurfaceGlow),
+                    bottom: const BorderSide(color: _kSurfaceGlow),
+                  ),
+                ),
+                child: widget.child,
+              ),
+              Positioned(
+                left: widget.accentLeft ? 4 : 0,
+                top: 0,
+                bottom: 0,
+                child: IgnorePointer(
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 120),
+                    opacity: _hovered ? 1 : 0,
+                    child: Container(
+                      width: 2,
+                      decoration: BoxDecoration(
+                        color: _kDanger,
+                        borderRadius: BorderRadius.circular(_kControlRadius),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SystemPanelHeader extends StatelessWidget {
+  const _SystemPanelHeader({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2.0,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: _kMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.0,
+            height: 1.3,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SystemStatusCell extends StatelessWidget {
+  const _SystemStatusCell({
+    required this.label,
+    required this.value,
+    required this.timestamp,
+    required this.critical,
+  });
+
+  final String label;
+  final String value;
+  final String timestamp;
+  final bool critical;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        height: 116,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: critical ? _kDanger.withValues(alpha: 0.10) : _kSurface,
+          borderRadius: BorderRadius.circular(_kControlRadius),
+          border: Border.all(color: critical ? _kDanger : _kSurfaceGlow),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: _kMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4,
+                fontFamily: 'RobotoMono',
+              ),
+            ),
+            const Spacer(),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Text(
+                timestamp,
+                style: const TextStyle(
+                  color: _kMutedSoft,
+                  fontSize: 12,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SystemFaultCard extends StatelessWidget {
+  const _SystemFaultCard({required this.fault});
+
+  final _Fault fault;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = _faultCodeFromTitle(fault.title);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border(
+          left: const BorderSide(color: _kDanger, width: 4),
+          top: BorderSide(color: _kSurfaceGlow),
+          right: BorderSide(color: _kSurfaceGlow),
+          bottom: BorderSide(color: _kSurfaceGlow),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            fault.title,
+            style: const TextStyle(
+              color: _kDanger,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'CODE: $code',
+            style: const TextStyle(
+              color: _kMutedSoft,
+              fontSize: 12,
+              fontFamily: 'RobotoMono',
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 65 * 8.0),
+            child: Text(
+              fault.detail,
+              style: const TextStyle(
+                color: _kMuted,
+                fontSize: 14,
+                height: 1.6,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (final step in fault.steps) ...[
+            Text(
+              '— $step',
+              style: const TextStyle(
+                color: _kMuted,
+                fontSize: 14,
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SafetyChecklistRow extends StatelessWidget {
+  const _SafetyChecklistRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onChanged(!value),
+      child: Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: _kSurface,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: _kSurfaceGlow),
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: value ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: const TextStyle(
+              color: _kMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SystemInfoTile extends StatelessWidget {
+  const _SystemInfoTile({
+    required this.label,
+    required this.value,
+    required this.mono,
+    required this.valueColor,
+    this.dotColor,
+  });
+
+  final String label;
+  final String value;
+  final bool mono;
+  final Color valueColor;
+  final Color? dotColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: _kMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              if (dotColor != null) ...[
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: dotColor!,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                value,
+                style: TextStyle(
+                  color: valueColor,
+                  fontSize: mono ? 16 : 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: mono ? 0.8 : 0.5,
+                  fontFamily: mono ? 'RobotoMono' : null,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnimatedStatusLine extends StatefulWidget {
+  const _AnimatedStatusLine({
+    required this.text,
+    required this.animate,
+  });
+
+  final String text;
+  final bool animate;
+
+  @override
+  State<_AnimatedStatusLine> createState() => _AnimatedStatusLineState();
+}
+
+class _AnimatedStatusLineState extends State<_AnimatedStatusLine>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 1),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animate) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedStatusLine oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animate && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if (!widget.animate && _controller.isAnimating) {
+      _controller.stop();
+      _controller.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.animate) {
+      return Text(
+        widget.text,
+        style: const TextStyle(
+          color: _kMuted,
+          fontSize: 14,
+          fontStyle: FontStyle.italic,
+          height: 1.4,
+        ),
+      );
+    }
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final dots = ((_controller.value * 4).floor() % 4);
+        final suffix = '.' * dots;
+        return Text(
+          '${widget.text}$suffix',
+          style: const TextStyle(
+            color: _kMuted,
+            fontSize: 14,
+            fontStyle: FontStyle.italic,
+            height: 1.4,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HoverUnderlineTextButton extends StatefulWidget {
+  const _HoverUnderlineTextButton({
+    required this.onPressed,
+    required this.label,
+  });
+
+  final VoidCallback? onPressed;
+  final String label;
+
+  @override
+  State<_HoverUnderlineTextButton> createState() =>
+      _HoverUnderlineTextButtonState();
+}
+
+class _HoverUnderlineTextButtonState extends State<_HoverUnderlineTextButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: TextButton(
+        onPressed: widget.onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: _kMuted,
+          textStyle: TextStyle(
+            fontSize: 14,
+            decoration:
+                _hovered ? TextDecoration.underline : TextDecoration.none,
+          ),
+        ),
+        child: Text(widget.label),
+      ),
+    );
+  }
+}
+
+class _EStopIndicator extends StatefulWidget {
+  const _EStopIndicator({
+    super.key,
+    required this.engaged,
+    required this.onPressed,
+  });
+
+  final bool engaged;
+  final VoidCallback onPressed;
+
+  @override
+  State<_EStopIndicator> createState() => _EStopIndicatorState();
+}
+
+class _EStopIndicatorState extends State<_EStopIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.engaged) {
+      _pulse.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _EStopIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.engaged && !_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    } else if (!widget.engaged && _pulse.isAnimating) {
+      _pulse.stop();
+      _pulse.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final background = widget.engaged ? _kDanger : _kSurface;
+    final iconColor = widget.engaged ? Colors.white : _kDanger;
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (context, _) {
+        final scale = widget.engaged ? 1.0 + (_pulse.value * 0.04) : 1.0;
+        return Transform.scale(
+          scale: scale,
+          child: GestureDetector(
+            onTap: widget.onPressed,
+            behavior: HitTestBehavior.opaque,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: _kSurfaceGlow),
+                  ),
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    size: 20,
+                    color: iconColor,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  widget.engaged ? 'E-STOP ENGAGED' : 'E-STOP READY',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: widget.engaged ? Colors.white : _kMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+String _faultCodeFromTitle(String title) {
+  final normalized = title
+      .toUpperCase()
+      .replaceAll(RegExp(r'[^A-Z0-9]+'), '_')
+      .replaceAll(RegExp(r'_+'), '_')
+      .replaceAll(RegExp(r'^_|_$'), '');
+  return normalized.isEmpty ? 'UNKNOWN' : normalized;
+}
+
+Widget _dataDivider() {
+  return Container(
+    width: double.infinity,
+    height: 1,
+    color: _kSurfaceGlow,
+  );
+}
+
+InputDecoration _dataSelectDecoration(
+  String label, {
+  required bool selected,
+}) {
+  return InputDecoration(
+    labelText: label,
+    isDense: true,
+    filled: true,
+    fillColor: selected ? _kSurfaceGlow.withValues(alpha: 0.42) : _kSurface,
+    labelStyle: _kDataSubheaderStyle.copyWith(fontSize: 11),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(_kControlRadius),
+      borderSide: const BorderSide(color: _kSurfaceGlow),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(_kControlRadius),
+      borderSide: const BorderSide(color: _kSurfaceGlow),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(_kControlRadius),
+      borderSide: const BorderSide(color: _kDanger),
+    ),
+  );
+}
+
+SliderThemeData _storageSliderTheme(BuildContext context) {
+  return SliderTheme.of(context).copyWith(
+    trackHeight: 4,
+    activeTrackColor: Colors.white,
+    inactiveTrackColor: _kMuted,
+    thumbColor: Colors.white,
+    overlayColor: Colors.transparent,
+    tickMarkShape: const RoundSliderTickMarkShape(tickMarkRadius: 1),
+    activeTickMarkColor: _kSurfaceGlow,
+    inactiveTickMarkColor: _kSurfaceGlow,
+  );
+}
+
+ButtonStyle _dataPrimaryButtonStyle({
+  EdgeInsetsGeometry padding =
+      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+}) {
+  return FilledButton.styleFrom(
+    backgroundColor: _kDanger,
+    foregroundColor: Colors.white,
+    padding: padding,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_kControlRadius),
+      side: const BorderSide(color: _kDanger),
+    ),
+    textStyle: const TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.4,
+    ),
+    elevation: 0,
+    shadowColor: Colors.transparent,
+  ).copyWith(
+    side: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.focused)) {
+        return const BorderSide(color: _kDanger);
+      }
+      return const BorderSide(color: _kDanger);
+    }),
+    overlayColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
+  );
+}
+
+ButtonStyle _dataSecondaryButtonStyle({
+  EdgeInsetsGeometry padding =
+      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+}) {
+  return OutlinedButton.styleFrom(
+    backgroundColor: Colors.transparent,
+    foregroundColor: Colors.white,
+    side: const BorderSide(color: _kSurfaceGlow),
+    padding: padding,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_kControlRadius),
+    ),
+    textStyle: const TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.4,
+    ),
+  ).copyWith(
+    side: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.focused)) {
+        return const BorderSide(color: _kDanger);
+      }
+      return const BorderSide(color: _kSurfaceGlow);
+    }),
+    overlayColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
+  );
+}
+
+class _InteractiveDataCard extends StatefulWidget {
+  const _InteractiveDataCard({
+    super.key,
+    required this.child,
+    this.padding = _kDataPanelPadding,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  State<_InteractiveDataCard> createState() => _InteractiveDataCardState();
+}
+
+class _InteractiveDataCardState extends State<_InteractiveDataCard> {
+  bool _hovered = false;
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.basic,
+      onEnter: (_) {
+        if (_hovered) return;
+        setState(() {
+          _hovered = true;
+        });
+      },
+      onExit: (_) {
+        if (!_hovered) return;
+        setState(() {
+          _hovered = false;
+        });
+      },
+      child: Focus(
+        onFocusChange: (value) {
+          if (_focused == value) return;
+          setState(() {
+            _focused = value;
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_kPanelRadius + 2),
+            border: Border.all(color: _focused ? _kDanger : Colors.transparent),
+          ),
+          child: Stack(
+            children: [
+              Container(
+                padding: widget.padding,
+                decoration: BoxDecoration(
+                  color: _kSurface,
+                  borderRadius: BorderRadius.circular(_kPanelRadius),
+                  border: Border.all(color: _kSurfaceGlow),
+                ),
+                child: widget.child,
+              ),
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: IgnorePointer(
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 120),
+                    opacity: _hovered ? 1 : 0,
+                    child: Container(
+                      width: 2,
+                      decoration: BoxDecoration(
+                        color: _kDanger,
+                        borderRadius: BorderRadius.circular(_kPanelRadius),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DataSectionHeader extends StatelessWidget {
+  const _DataSectionHeader({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title.toUpperCase(), style: _kDataHeaderStyle),
+        const SizedBox(height: 4),
+        Text(subtitle.toUpperCase(), style: _kDataSubheaderStyle),
+      ],
+    );
+  }
+}
+
+class _DataFilterField<T> extends StatelessWidget {
+  const _DataFilterField({
+    required this.width,
+    required this.fieldKey,
+    required this.label,
+    required this.value,
+    required this.selected,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final double width;
+  final Key fieldKey;
+  final String label;
+  final T value;
+  final bool selected;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: DropdownButtonFormField<T>(
+        key: fieldKey,
+        isExpanded: true,
+        value: value,
+        items: items,
+        onChanged: onChanged,
+        style: _kDataBodyStyle,
+        dropdownColor: _kSurface,
+        iconEnabledColor: _kMuted,
+        decoration: _dataSelectDecoration(label, selected: selected),
+      ),
+    );
+  }
+}
+
+class _StorageTickMarks extends StatelessWidget {
+  const _StorageTickMarks({
+    required this.min,
+    required this.max,
+    required this.step,
+  });
+
+  final int min;
+  final int max;
+  final int step;
+
+  @override
+  Widget build(BuildContext context) {
+    final marks = <int>[];
+    for (var value = min; value <= max; value += step) {
+      marks.add(value);
+    }
+
+    return Row(
+      children: [
+        for (var i = 0; i < marks.length; i++) ...[
+          if (i != 0) const Spacer(),
+          Column(
+            children: [
+              Container(
+                width: 1,
+                height: 6,
+                color: _kSurfaceGlow,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${marks[i]}',
+                style: _kDataSubheaderStyle.copyWith(fontSize: 10),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PrecisionToggle extends StatefulWidget {
+  const _PrecisionToggle({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  State<_PrecisionToggle> createState() => _PrecisionToggleState();
+}
+
+class _PrecisionToggleState extends State<_PrecisionToggle> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.onChanged != null;
+    return FocusableActionDetector(
+      onShowFocusHighlight: (value) {
+        if (_focused == value) return;
+        setState(() {
+          _focused = value;
+        });
+      },
+      child: GestureDetector(
+        onTap: enabled ? () => widget.onChanged!.call(!widget.value) : null,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          width: 32,
+          height: 16,
+          padding: const EdgeInsets.all(1),
+          decoration: BoxDecoration(
+            color: widget.value ? _kSurface : _kSurfaceGlow,
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: _focused ? _kDanger : _kSurfaceGlow),
+          ),
+          child: Align(
+            alignment:
+                widget.value ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(99),
+                border: Border.all(color: _kSurfaceGlow),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1532,47 +5609,22 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final titleStyle =
+        Theme.of(context).textTheme.titleLarge?.copyWith(letterSpacing: 0.4);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        Text(title, style: titleStyle),
         const SizedBox(height: 4),
-        Text(subtitle, style: const TextStyle(color: _kMuted, fontSize: 12)),
-      ],
-    );
-  }
-}
-
-class _HudMetric extends StatelessWidget {
-  const _HudMetric({required this.label, required this.value, required this.unit, required this.glow});
-
-  final String label;
-  final String value;
-  final String unit;
-  final Color glow;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _kSurfaceGlow.withOpacity(0.35),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: glow.withOpacity(0.6)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: _kMuted, fontSize: 11, letterSpacing: 1.4)),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, color: glow),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: _kMuted,
+            fontSize: 12,
+            height: 1.5,
           ),
-          if (unit.isNotEmpty)
-            Text(unit, style: const TextStyle(color: _kMuted, fontSize: 11, letterSpacing: 1.2)),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1597,7 +5649,8 @@ class _MiniStat extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.value, required this.color});
+  const _StatusPill(
+      {required this.label, required this.value, required this.color});
 
   final String label;
   final String value;
@@ -1608,9 +5661,9 @@ class _StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.6)),
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1623,7 +5676,12 @@ class _StatusPill extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             '$label: $value',
-            style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12),
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+              letterSpacing: 0.4,
+            ),
           ),
         ],
       ),
@@ -1631,8 +5689,287 @@ class _StatusPill extends StatelessWidget {
   }
 }
 
+class _LiveStatusPill extends StatelessWidget {
+  const _LiveStatusPill({
+    required this.label,
+    required this.value,
+    required this.dotColor,
+    this.monoValue = false,
+  });
+
+  final String label;
+  final String value;
+  final Color dotColor;
+  final bool monoValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: dotColor,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text.rich(
+            TextSpan(
+              text: '${label.toUpperCase()}: ',
+              children: [
+                TextSpan(
+                  text: value,
+                  style: TextStyle(
+                    fontFamily: monoValue ? 'RobotoMono' : null,
+                    letterSpacing: monoValue ? 0.2 : 0.8,
+                  ),
+                ),
+              ],
+            ),
+            style: const TextStyle(
+              color: _kMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.9,
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveHudMetricBlock extends StatelessWidget {
+  const _LiveHudMetricBlock({
+    required this.label,
+    required this.value,
+    required this.unit,
+    this.showBar = false,
+    this.barFill = 0,
+  });
+
+  final String label;
+  final String value;
+  final String unit;
+  final bool showBar;
+  final double barFill;
+
+  @override
+  Widget build(BuildContext context) {
+    final fill = barFill.clamp(0.0, 1.0).toDouble();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: _kMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.1,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'RobotoMono',
+                height: 1,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                unit.toLowerCase(),
+                style: const TextStyle(
+                  color: _kMutedSoft,
+                  fontSize: 12,
+                  height: 1.1,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (showBar) ...[
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: SizedBox(
+              height: 2,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  return Stack(
+                    children: [
+                      Container(
+                        width: width,
+                        height: 2,
+                        color: _kSurfaceGlow,
+                      ),
+                      Container(
+                        width: width * fill,
+                        height: 2,
+                        color: Colors.white,
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _GearHudBlock extends StatelessWidget {
+  const _GearHudBlock({required this.value});
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'GEAR',
+          style: TextStyle(
+            color: _kMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.1,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          width: 64,
+          height: 64,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: _kSurfaceGlow, width: 2),
+          ),
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 48,
+              fontWeight: FontWeight.w700,
+              height: 1,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HudMetaReadout extends StatelessWidget {
+  const _HudMetaReadout({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '$label $value',
+      style: const TextStyle(
+        color: _kMutedSoft,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.9,
+        height: 1.2,
+      ),
+    );
+  }
+}
+
+class _SessionControlField extends StatelessWidget {
+  const _SessionControlField({
+    required this.label,
+    required this.controller,
+  });
+
+  final String label;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            color: _kMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.0,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontFamily: 'RobotoMono',
+            letterSpacing: 0.2,
+          ),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: _kBackground,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(_kControlRadius),
+              borderSide: const BorderSide(color: _kSurfaceGlow),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(_kControlRadius),
+              borderSide: const BorderSide(color: _kSurfaceGlow),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(_kControlRadius),
+              borderSide: const BorderSide(color: _kDanger),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _StatusTile extends StatelessWidget {
-  const _StatusTile({required this.label, required this.value, required this.color});
+  const _StatusTile(
+      {required this.label, required this.value, required this.color});
 
   final String label;
   final String value;
@@ -1644,16 +5981,17 @@ class _StatusTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: _kSurfaceGlow.withOpacity(0.45),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.5)),
+          color: _kSurfaceRaised,
+          borderRadius: BorderRadius.circular(_kPanelRadius),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(label, style: const TextStyle(color: _kMuted, fontSize: 11)),
             const SizedBox(height: 6),
-            Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+            Text(value,
+                style: TextStyle(color: color, fontWeight: FontWeight.w700)),
           ],
         ),
       ),
@@ -1661,55 +5999,495 @@ class _StatusTile extends StatelessWidget {
   }
 }
 
-class _SessionRow extends StatelessWidget {
-  const _SessionRow({required this.session, required this.active, required this.onReview});
+class _SessionBrowserState extends StatelessWidget {
+  const _SessionBrowserState({
+    super.key,
+    required this.icon,
+    required this.message,
+    this.helperText,
+    this.actionLabel,
+    this.onAction,
+    this.engineeredCalm = false,
+  });
 
-  final SessionMetadata session;
-  final bool active;
-  final VoidCallback onReview;
+  final IconData icon;
+  final String message;
+  final String? helperText;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final bool engineeredCalm;
 
   @override
   Widget build(BuildContext context) {
-    final duration = session.durationMs > 0 ? Duration(milliseconds: session.durationMs.toInt()) : null;
-    final durationLabel = duration == null ? '--' : _formatDuration(duration);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: active ? _kSurfaceGlow.withOpacity(0.6) : _kSurfaceGlow.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: active ? _kAccentAlt : _kSurfaceGlow),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(session.sessionId.isEmpty ? 'Session' : session.sessionId, style: const TextStyle(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 4),
-                Text(
-                  session.track.isEmpty ? 'Track: --' : 'Track: ${session.track}',
-                  style: const TextStyle(color: _kMuted, fontSize: 12),
+    if (engineeredCalm) {
+      return Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 320),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        decoration: BoxDecoration(
+          color: _kSurfaceRaised,
+          borderRadius: BorderRadius.circular(_kPanelRadius),
+          border: Border.all(color: _kSurfaceGlow),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: _kSurfaceGlow, size: 48, weight: 1.5),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                helperText ?? 'Select filters to browse archived sessions',
+                textAlign: TextAlign.center,
+                style: _kDataBodyStyle,
+              ),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: onAction,
+                  style: _dataSecondaryButtonStyle(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 16),
+                  ),
+                  child: Text(actionLabel!),
                 ),
               ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(durationLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 4),
-              Text(active ? 'LIVE' : 'COMPLETE', style: TextStyle(color: active ? _kAccent : _kMuted, fontSize: 11)),
             ],
           ),
-          const SizedBox(width: 12),
-          OutlinedButton(
-            onPressed: onReview,
-            child: const Text('Review'),
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
+      decoration: BoxDecoration(
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kPanelRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: _kMuted),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _kMuted),
+          ),
+          if (helperText != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              helperText!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _kMuted, fontSize: 12),
+            ),
+          ],
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: onAction,
+              child: Text(actionLabel!),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CloudSyncBadge extends StatelessWidget {
+  const _CloudSyncBadge({
+    super.key,
+    required this.state,
+  });
+
+  final CloudSyncState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (state) {
+      CloudSyncState.synced => _kOk,
+      CloudSyncState.syncing => _kAccentAlt,
+      CloudSyncState.pending => _kWarning,
+      CloudSyncState.offline => _kMuted,
+    };
+    final icon = switch (state) {
+      CloudSyncState.synced => Icons.cloud_done_rounded,
+      CloudSyncState.syncing => Icons.cloud_sync_rounded,
+      CloudSyncState.pending => Icons.cloud_upload_rounded,
+      CloudSyncState.offline => Icons.cloud_off_rounded,
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            cloudSyncLabel(state),
+            style: TextStyle(
+                color: color, fontWeight: FontWeight.w600, fontSize: 11),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SessionRow extends StatelessWidget {
+  const _SessionRow({
+    required this.session,
+    required this.active,
+    required this.selected,
+    required this.syncState,
+    required this.typeLabel,
+    required this.startedAtLabel,
+    required this.engineeredCalm,
+    required this.onSelect,
+    required this.onReview,
+    required this.onDelete,
+  });
+
+  final SessionMetadata session;
+  final bool active;
+  final bool selected;
+  final CloudSyncState syncState;
+  final String typeLabel;
+  final String startedAtLabel;
+  final bool engineeredCalm;
+  final VoidCallback onSelect;
+  final VoidCallback onReview;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final duration = session.durationMs > 0
+        ? Duration(milliseconds: session.durationMs.toInt())
+        : null;
+    final durationLabel = duration == null ? '--' : _formatDuration(duration);
+    final accent = selected ? _kAccent : (active ? _kAccentAlt : _kSurfaceGlow);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(_kPanelRadius),
+        onTap: onSelect,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected
+                ? _kSurfaceRaised
+                : (active
+                    ? _kSurfaceRaised.withValues(alpha: 0.85)
+                    : _kSurface.withValues(alpha: 0.95)),
+            borderRadius: BorderRadius.circular(_kPanelRadius),
+            border: Border.all(color: accent),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      session.sessionId.isEmpty ? 'Session' : session.sessionId,
+                      style: engineeredCalm
+                          ? _kDataBodyStyle.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            )
+                          : const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Track: ${trackLabelForSession(session)} · Car: ${carLabelForSession(session)} · $typeLabel',
+                      style: engineeredCalm
+                          ? _kDataBodyStyle
+                          : const TextStyle(color: _kMuted, fontSize: 12),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Started: $startedAtLabel',
+                      style: engineeredCalm
+                          ? _kDataBodyStyle
+                          : const TextStyle(color: _kMuted, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    durationLabel,
+                    style: engineeredCalm
+                        ? _kDataMonoValueStyle.copyWith(fontSize: 14)
+                        : const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    active ? 'LIVE' : (selected ? 'SELECTED' : 'COMPLETE'),
+                    style: TextStyle(
+                      color:
+                          active ? _kDanger : (selected ? _kAccent : _kMuted),
+                      fontSize: engineeredCalm ? 12 : 11,
+                      letterSpacing: engineeredCalm ? 0.6 : 0.2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _CloudSyncBadge(
+                    key: Key('session-cloud-${session.sessionId}'),
+                    state: syncState,
+                  ),
+                ],
+              ),
+              const SizedBox(width: 10),
+              Column(
+                children: [
+                  OutlinedButton(
+                    onPressed: onReview,
+                    child: const Text('Open'),
+                  ),
+                  const SizedBox(height: 6),
+                  OutlinedButton.icon(
+                    key: Key('session-delete-${session.sessionId}'),
+                    onPressed: active ? null : onDelete,
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Delete'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SignalLegendDot extends StatelessWidget {
+  const _SignalLegendDot({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(99),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: const TextStyle(color: _kMuted, fontSize: 12)),
+      ],
+    );
+  }
+}
+
+class _CausalityInsightCard extends StatelessWidget {
+  const _CausalityInsightCard({
+    required this.index,
+    required this.trigger,
+    required this.confidenceColor,
+  });
+
+  final int index;
+  final CausalityFeedbackTrigger trigger;
+  final Color confidenceColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final insight = trigger.insight;
+    final confidencePct = (insight.confidenceScore * 100).round();
+    final severityPct = (insight.severityScore * 100).round();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kPanelRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _kSurfaceGlow,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text(
+                  '$index',
+                  style: const TextStyle(
+                    color: _kAccentAlt,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  causalitySignalLabel(insight.signal),
+                  style: const TextStyle(
+                    color: _kAccentAlt,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              Text(
+                'Confidence ${confidencePct.toString()}%',
+                style: TextStyle(
+                  color: confidenceColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'AI Suggestion: ${insight.fix}',
+            style: const TextStyle(
+              color: _kAccent,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Observation: ${insight.observation}',
+            style: const TextStyle(color: _kMuted, fontSize: 12),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Effect: ${insight.effect}',
+            style: const TextStyle(color: _kMuted, fontSize: 12),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Severity ${severityPct.toString()}%',
+            style: const TextStyle(color: _kWarning, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectorBreakdownRow extends StatelessWidget {
+  const _SectorBreakdownRow({
+    required this.sector,
+    required this.baseline,
+  });
+
+  final SectorSplit sector;
+  final double baseline;
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryRatio = (sector.primarySeconds / max(0.1, baseline))
+        .clamp(0.05, 1.0)
+        .toDouble();
+    final refRatio = (sector.referenceSeconds / max(0.1, baseline))
+        .clamp(0.05, 1.0)
+        .toDouble();
+    final deltaPositive = sector.deltaSeconds > 0;
+    final deltaColor = deltaPositive ? _kDanger : _kOk;
+    final deltaLabel =
+        '${deltaPositive ? '+' : '-'}${sector.deltaSeconds.abs().toStringAsFixed(3)}s';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('S${sector.sector}',
+                style: const TextStyle(
+                    color: _kAccentAlt, fontWeight: FontWeight.w700)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Stack(
+                children: [
+                  Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _kSurfaceRaised,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  FractionallySizedBox(
+                    widthFactor: refRatio,
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  FractionallySizedBox(
+                    widthFactor: primaryRatio,
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _kAccentAlt.withValues(alpha: 0.8),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 72,
+              child: Text(
+                deltaLabel,
+                textAlign: TextAlign.right,
+                style:
+                    TextStyle(color: deltaColor, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Text(
+          'Run ${sector.primarySeconds.toStringAsFixed(3)}s · Ref ${sector.referenceSeconds.toStringAsFixed(3)}s',
+          style: const TextStyle(color: _kMuted, fontSize: 11),
+        ),
+      ],
     );
   }
 }
@@ -1724,19 +6502,22 @@ class _FaultCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: fault.color.withOpacity(0.6)),
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kPanelRadius),
+        border: Border.all(color: fault.color.withValues(alpha: 0.6)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(fault.title, style: TextStyle(color: fault.color, fontWeight: FontWeight.w700)),
+          Text(fault.title,
+              style:
+                  TextStyle(color: fault.color, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
           Text(fault.detail, style: const TextStyle(color: _kMuted)),
           const SizedBox(height: 8),
           for (final step in fault.steps)
-            Text('• $step', style: const TextStyle(color: _kMuted, fontSize: 12)),
+            Text('• $step',
+                style: const TextStyle(color: _kMuted, fontSize: 12)),
         ],
       ),
     );
@@ -1754,8 +6535,8 @@ class _ConnectionPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow,
-        borderRadius: BorderRadius.circular(20),
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kControlRadius),
         border: Border.all(color: connected ? _kOk : _kDanger),
       ),
       child: Row(
@@ -1768,7 +6549,9 @@ class _ConnectionPill extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             connected ? 'Connected' : 'Disconnected',
-            style: TextStyle(color: connected ? _kOk : _kDanger, fontWeight: FontWeight.w600),
+            style: TextStyle(
+                color: connected ? _kOk : _kDanger,
+                fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -1776,64 +6559,306 @@ class _ConnectionPill extends StatelessWidget {
   }
 }
 
+class _TrackMapInterpolator extends StatefulWidget {
+  const _TrackMapInterpolator({
+    required this.progress,
+    required this.durationMs,
+    required this.builder,
+  });
+
+  final double progress;
+  final int durationMs;
+  final Widget Function(double progress) builder;
+
+  @override
+  State<_TrackMapInterpolator> createState() => _TrackMapInterpolatorState();
+}
+
+class _TrackMapInterpolatorState extends State<_TrackMapInterpolator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 120),
+    value: 1,
+  )..addListener(() {
+      if (!mounted) return;
+      setState(() {});
+    });
+
+  late double _from = _wrapUnit(widget.progress);
+  late double _to = _from;
+
+  @override
+  void didUpdateWidget(covariant _TrackMapInterpolator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = _wrapUnit(widget.progress);
+    final current = _controller.isAnimating ? _currentValue() : _to;
+    var delta = next - _wrapUnit(current);
+    if (delta > 0.5) {
+      delta -= 1.0;
+    } else if (delta < -0.5) {
+      delta += 1.0;
+    }
+    if (delta.abs() < 1e-6) {
+      _to = current;
+      return;
+    }
+    _from = current;
+    _to = current + delta;
+    final duration = Duration(milliseconds: widget.durationMs.clamp(16, 250));
+    _controller
+      ..duration = duration
+      ..reset()
+      ..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double _currentValue() {
+    return _from + (_to - _from) * _controller.value;
+  }
+
+  double _wrapUnit(double value) {
+    final wrapped = value % 1.0;
+    return wrapped < 0 ? wrapped + 1.0 : wrapped;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = _controller.isAnimating ? _currentValue() : _to;
+    return widget.builder(_wrapUnit(current));
+  }
+}
+
 class _TrackMapPainter extends CustomPainter {
-  _TrackMapPainter({required this.progress, required this.trackColor, required this.dotColor});
+  _TrackMapPainter(
+      {required this.progress,
+      required this.trackColor,
+      required this.dotColor,
+      this.showSectorMarkers = false});
 
   final double progress;
   final Color trackColor;
   final Color dotColor;
+  final bool showSectorMarkers;
 
   @override
   void paint(Canvas canvas, Size size) {
     final inset = 16.0;
-    final rect = Rect.fromLTWH(inset, inset, size.width - inset * 2, size.height - inset * 2);
+    final rect = Rect.fromLTWH(
+        inset, inset, size.width - inset * 2, size.height - inset * 2);
 
     final path = Path()
       ..moveTo(rect.left + rect.width * 0.1, rect.top + rect.height * 0.2)
-      ..quadraticBezierTo(rect.left + rect.width * 0.5, rect.top, rect.right - rect.width * 0.1, rect.top + rect.height * 0.2)
+      ..quadraticBezierTo(rect.left + rect.width * 0.5, rect.top,
+          rect.right - rect.width * 0.1, rect.top + rect.height * 0.2)
       ..lineTo(rect.right, rect.center.dy - rect.height * 0.1)
-      ..quadraticBezierTo(rect.right + rect.width * 0.05, rect.center.dy + rect.height * 0.15, rect.right - rect.width * 0.05, rect.bottom - rect.height * 0.2)
+      ..quadraticBezierTo(
+          rect.right + rect.width * 0.05,
+          rect.center.dy + rect.height * 0.15,
+          rect.right - rect.width * 0.05,
+          rect.bottom - rect.height * 0.2)
       ..lineTo(rect.center.dx + rect.width * 0.1, rect.bottom)
-      ..quadraticBezierTo(rect.center.dx - rect.width * 0.25, rect.bottom - rect.height * 0.1, rect.left + rect.width * 0.1, rect.bottom - rect.height * 0.25)
+      ..quadraticBezierTo(
+          rect.center.dx - rect.width * 0.25,
+          rect.bottom - rect.height * 0.1,
+          rect.left + rect.width * 0.1,
+          rect.bottom - rect.height * 0.25)
       ..lineTo(rect.left, rect.center.dy + rect.height * 0.05)
-      ..quadraticBezierTo(rect.left - rect.width * 0.05, rect.center.dy - rect.height * 0.2, rect.left + rect.width * 0.05, rect.top + rect.height * 0.3)
+      ..quadraticBezierTo(
+          rect.left - rect.width * 0.05,
+          rect.center.dy - rect.height * 0.2,
+          rect.left + rect.width * 0.05,
+          rect.top + rect.height * 0.3)
       ..close();
 
     final trackPaint = Paint()
       ..color = trackColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
+      ..strokeWidth = 1
       ..strokeCap = StrokeCap.round;
 
-    final glowPaint = Paint()
-      ..color = trackColor.withOpacity(0.35)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawPath(path, glowPaint);
     canvas.drawPath(path, trackPaint);
 
-    final metric = path.computeMetrics().isEmpty ? null : path.computeMetrics().first;
+    final metric =
+        path.computeMetrics().isEmpty ? null : path.computeMetrics().first;
     if (metric != null) {
-      final distance = metric.length * progress.clamp(0.0, 1.0);
+      if (showSectorMarkers) {
+        for (final marker in const [0.2, 0.45, 0.7, 0.9]) {
+          final tangent = metric.getTangentForOffset(metric.length * marker);
+          if (tangent == null) {
+            continue;
+          }
+          final vector = tangent.vector;
+          final magnitude = vector.distance;
+          if (magnitude <= 1e-6) {
+            continue;
+          }
+          final normal = Offset(-vector.dy / magnitude, vector.dx / magnitude);
+          final center = tangent.position;
+          canvas.drawLine(
+            center - normal * 2,
+            center + normal * 2,
+            Paint()
+              ..color = trackColor
+              ..strokeWidth = 1,
+          );
+        }
+      }
+      final distance = metric.length * progress.clamp(0.0, 1.0).toDouble();
       final tangent = metric.getTangentForOffset(distance);
       if (tangent != null) {
-        final dotPaint = Paint()..color = dotColor;
-        canvas.drawCircle(tangent.position, 6.5, Paint()..color = dotColor.withOpacity(0.3));
-        canvas.drawCircle(tangent.position, 3.5, dotPaint);
+        canvas.drawCircle(
+          tangent.position,
+          6,
+          Paint()..color = _kBackground,
+        );
+        canvas.drawCircle(
+          tangent.position,
+          4,
+          Paint()..color = dotColor,
+        );
       }
     }
   }
 
   @override
   bool shouldRepaint(covariant _TrackMapPainter oldDelegate) {
-    return oldDelegate.progress != progress || oldDelegate.trackColor != trackColor || oldDelegate.dotColor != dotColor;
+    return oldDelegate.progress != progress ||
+        oldDelegate.trackColor != trackColor ||
+        oldDelegate.dotColor != dotColor ||
+        oldDelegate.showSectorMarkers != showSectorMarkers;
+  }
+}
+
+class _ChartSeries {
+  const _ChartSeries({
+    required this.id,
+    required this.values,
+    required this.color,
+    required this.strokeWidth,
+  });
+
+  final String id;
+  final List<double> values;
+  final Color color;
+  final double strokeWidth;
+}
+
+class _HiPerfLineChartPainter extends CustomPainter {
+  _HiPerfLineChartPainter({
+    required this.series,
+    required this.startIndex,
+    required this.endIndex,
+    required this.accentColor,
+    required this.cursorProgress,
+    this.midline = false,
+  });
+
+  final List<_ChartSeries> series;
+  final int startIndex;
+  final int endIndex;
+  final Color accentColor;
+  final double cursorProgress;
+  final bool midline;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final safeStart = max(0, startIndex);
+    final safeEnd = max(safeStart, endIndex);
+    final span = max(1, safeEnd - safeStart);
+
+    final gridPaint = Paint()
+      ..color = accentColor.withValues(alpha: 0.42)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (var i = 1; i <= 4; i++) {
+      final dy = rect.top + rect.height * (i / 5);
+      canvas.drawLine(Offset(rect.left, dy), Offset(rect.right, dy), gridPaint);
+    }
+    if (midline) {
+      canvas.drawLine(
+        Offset(rect.left, rect.center.dy),
+        Offset(rect.right, rect.center.dy),
+        Paint()
+          ..color = Colors.white30
+          ..strokeWidth = 1.2,
+      );
+    }
+
+    for (final signal in series) {
+      if (signal.values.length < 2) {
+        continue;
+      }
+      final cappedEnd = min(safeEnd, signal.values.length - 1);
+      final cappedStart = min(safeStart, cappedEnd);
+      final visibleCount = max(2, cappedEnd - cappedStart + 1);
+      final targetPoints = max(24, rect.width.floor());
+      final stride = max(1, visibleCount ~/ targetPoints);
+      final path = Path();
+      var started = false;
+      for (var i = cappedStart; i <= cappedEnd; i += stride) {
+        final xNorm = (i - safeStart) / span;
+        final yNorm = signal.values[i].clamp(0.0, 1.0).toDouble();
+        final dx = rect.left + rect.width * xNorm.clamp(0.0, 1.0).toDouble();
+        final dy = rect.bottom - rect.height * yNorm;
+        if (!started) {
+          path.moveTo(dx, dy);
+          started = true;
+        } else {
+          path.lineTo(dx, dy);
+        }
+      }
+      final lastIndex = cappedEnd;
+      final lastXNorm = (lastIndex - safeStart) / span;
+      final lastDy = rect.bottom -
+          rect.height * signal.values[lastIndex].clamp(0.0, 1.0).toDouble();
+      path.lineTo(rect.left + rect.width * lastXNorm.clamp(0.0, 1.0).toDouble(),
+          lastDy);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = signal.color
+          ..strokeWidth = signal.strokeWidth
+          ..strokeJoin = StrokeJoin.round
+          ..strokeCap = StrokeCap.round
+          ..style = PaintingStyle.stroke,
+      );
+    }
+
+    final cursorX =
+        rect.left + rect.width * cursorProgress.clamp(0.0, 1.0).toDouble();
+    canvas.drawLine(
+      Offset(cursorX, rect.top),
+      Offset(cursorX, rect.bottom),
+      Paint()
+        ..color = _kWarning.withValues(alpha: 0.75)
+        ..strokeWidth = 1.4,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _HiPerfLineChartPainter oldDelegate) {
+    return oldDelegate.series != series ||
+        oldDelegate.startIndex != startIndex ||
+        oldDelegate.endIndex != endIndex ||
+        oldDelegate.cursorProgress != cursorProgress ||
+        oldDelegate.midline != midline ||
+        oldDelegate.accentColor != accentColor;
   }
 }
 
 class _SpeedGraphPainter extends CustomPainter {
-  _SpeedGraphPainter({required this.samples, required this.lineColor, required this.accentColor, this.cursorPercent});
+  _SpeedGraphPainter(
+      {required this.samples,
+      required this.lineColor,
+      required this.accentColor,
+      this.cursorPercent});
 
   final List<_SpeedSample> samples;
   final Color lineColor;
@@ -1844,7 +6869,7 @@ class _SpeedGraphPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     final paintGrid = Paint()
-      ..color = accentColor.withOpacity(0.4)
+      ..color = accentColor.withValues(alpha: 0.4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
@@ -1855,14 +6880,19 @@ class _SpeedGraphPainter extends CustomPainter {
 
     if (samples.isEmpty) {
       final textPainter = TextPainter(
-        text: const TextSpan(text: 'Awaiting telemetry', style: TextStyle(color: _kMuted)),
+        text: const TextSpan(
+            text: 'Awaiting telemetry', style: TextStyle(color: _kMuted)),
         textDirection: TextDirection.ltr,
       )..layout(maxWidth: rect.width);
-      textPainter.paint(canvas, Offset(rect.center.dx - textPainter.width / 2, rect.center.dy - textPainter.height / 2));
+      textPainter.paint(
+          canvas,
+          Offset(rect.center.dx - textPainter.width / 2,
+              rect.center.dy - textPainter.height / 2));
       return;
     }
 
-    final maxSpeed = samples.map((e) => e.speedKmh).reduce(max).clamp(1, 260).toDouble();
+    final maxSpeed =
+        samples.map((e) => e.speedKmh).reduce(max).clamp(1, 260).toDouble();
     final path = Path();
     final denom = samples.length > 1 ? (samples.length - 1) : 1;
     for (var i = 0; i < samples.length; i++) {
@@ -1888,9 +6918,12 @@ class _SpeedGraphPainter extends CustomPainter {
 
     if (cursorPercent != null) {
       final cx = rect.left + rect.width * cursorPercent!.clamp(0.0, 1.0);
-      canvas.drawLine(Offset(cx, rect.top), Offset(cx, rect.bottom), Paint()
-        ..color = lineColor.withOpacity(0.6)
-        ..strokeWidth = 1.5);
+      canvas.drawLine(
+          Offset(cx, rect.top),
+          Offset(cx, rect.bottom),
+          Paint()
+            ..color = lineColor.withValues(alpha: 0.6)
+            ..strokeWidth = 1.5);
     }
   }
 
@@ -1901,7 +6934,10 @@ class _SpeedGraphPainter extends CustomPainter {
 }
 
 class _SafetyZonePainter extends CustomPainter {
-  _SafetyZonePainter({required this.operatorClear, required this.trackClear, required this.estopReady});
+  _SafetyZonePainter(
+      {required this.operatorClear,
+      required this.trackClear,
+      required this.estopReady});
 
   final bool operatorClear;
   final bool trackClear;
@@ -1915,21 +6951,48 @@ class _SafetyZonePainter extends CustomPainter {
       ..strokeWidth = 2
       ..color = _kSurfaceGlow;
 
-    final operatorRect = Rect.fromLTWH(0, 0, size.width * 0.45, size.height * 0.45);
-    final trackRect = Rect.fromLTWH(size.width * 0.55, 0, size.width * 0.45, size.height * 0.65);
-    final estopRect = Rect.fromLTWH(0, size.height * 0.55, size.width * 0.6, size.height * 0.4);
+    final operatorRect =
+        Rect.fromLTWH(0, 0, size.width * 0.45, size.height * 0.45);
+    final trackRect = Rect.fromLTWH(
+        size.width * 0.55, 0, size.width * 0.45, size.height * 0.65);
+    final estopRect = Rect.fromLTWH(
+        0, size.height * 0.55, size.width * 0.6, size.height * 0.4);
 
-    zonePaint.color = operatorClear ? _kOk.withOpacity(0.4) : _kWarning.withOpacity(0.4);
-    canvas.drawRRect(RRect.fromRectAndRadius(operatorRect, const Radius.circular(12)), zonePaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(operatorRect, const Radius.circular(12)), borderPaint);
+    zonePaint.color = operatorClear
+        ? _kOk.withValues(alpha: 0.4)
+        : _kWarning.withValues(alpha: 0.4);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            operatorRect, const Radius.circular(_kControlRadius)),
+        zonePaint);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            operatorRect, const Radius.circular(_kControlRadius)),
+        borderPaint);
 
-    zonePaint.color = trackClear ? _kOk.withOpacity(0.4) : _kDanger.withOpacity(0.4);
-    canvas.drawRRect(RRect.fromRectAndRadius(trackRect, const Radius.circular(12)), zonePaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(trackRect, const Radius.circular(12)), borderPaint);
+    zonePaint.color = trackClear
+        ? _kOk.withValues(alpha: 0.4)
+        : _kDanger.withValues(alpha: 0.4);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            trackRect, const Radius.circular(_kControlRadius)),
+        zonePaint);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            trackRect, const Radius.circular(_kControlRadius)),
+        borderPaint);
 
-    zonePaint.color = estopReady ? _kOk.withOpacity(0.4) : _kWarning.withOpacity(0.4);
-    canvas.drawRRect(RRect.fromRectAndRadius(estopRect, const Radius.circular(12)), zonePaint);
-    canvas.drawRRect(RRect.fromRectAndRadius(estopRect, const Radius.circular(12)), borderPaint);
+    zonePaint.color = estopReady
+        ? _kOk.withValues(alpha: 0.4)
+        : _kWarning.withValues(alpha: 0.4);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            estopRect, const Radius.circular(_kControlRadius)),
+        zonePaint);
+    canvas.drawRRect(
+        RRect.fromRectAndRadius(
+            estopRect, const Radius.circular(_kControlRadius)),
+        borderPaint);
 
     _drawZoneLabel(canvas, operatorRect, 'Operator');
     _drawZoneLabel(canvas, trackRect, 'Track');
@@ -1938,7 +7001,12 @@ class _SafetyZonePainter extends CustomPainter {
 
   void _drawZoneLabel(Canvas canvas, Rect rect, String text) {
     final textPainter = TextPainter(
-      text: TextSpan(text: text, style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
+      text: TextSpan(
+          text: text,
+          style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              fontWeight: FontWeight.w600)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: rect.width);
     textPainter.paint(canvas, Offset(rect.left + 12, rect.top + 10));
@@ -1959,6 +7027,7 @@ class _DerivedTelemetry {
     required this.rpm,
     required this.latencyMs,
     required this.trackProgress,
+    required this.sampleTimestampNs,
   });
 
   final double speedKmh;
@@ -1966,6 +7035,19 @@ class _DerivedTelemetry {
   final double rpm;
   final double latencyMs;
   final double trackProgress;
+  final int sampleTimestampNs;
+}
+
+class _CausalityFeedbackSnapshot {
+  const _CausalityFeedbackSnapshot({
+    required this.analysis,
+    required this.triggers,
+    required this.notice,
+  });
+
+  final CausalityInferenceResult analysis;
+  final List<CausalityFeedbackTrigger> triggers;
+  final String? notice;
 }
 
 class _ReviewFallback {
@@ -1991,8 +7073,25 @@ class _SpeedSample {
   final double? rpm;
 }
 
+class _LeaderboardEntry {
+  const _LeaderboardEntry({
+    required this.label,
+    required this.tag,
+    required this.speedKmh,
+    required this.progress,
+    required this.color,
+  });
+
+  final String label;
+  final String tag;
+  final double speedKmh;
+  final double progress;
+  final Color color;
+}
+
 class _CalibrationAttempt {
-  const _CalibrationAttempt({required this.timestamp, required this.success, required this.message});
+  const _CalibrationAttempt(
+      {required this.timestamp, required this.success, required this.message});
 
   final DateTime timestamp;
   final bool success;
@@ -2000,7 +7099,11 @@ class _CalibrationAttempt {
 }
 
 class _Fault {
-  const _Fault({required this.title, required this.detail, required this.steps, required this.color});
+  const _Fault(
+      {required this.title,
+      required this.detail,
+      required this.steps,
+      required this.color});
 
   final String title;
   final String detail;

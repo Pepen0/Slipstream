@@ -1,6 +1,7 @@
 #include "assetto_corsa_adapter.h"
 
 #include "ac_shmem.hpp"
+#include "coordinate_normalizer.h"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -41,6 +42,14 @@ AssettoCorsaAdapter::~AssettoCorsaAdapter() {
   delete impl_;
 }
 
+GameId AssettoCorsaAdapter::game_id() const {
+  return GameId::AssettoCorsa;
+}
+
+bool AssettoCorsaAdapter::probe(std::chrono::milliseconds) {
+  return start();
+}
+
 static ShmHandle open_shm(const wchar_t *name, size_t size) {
   ShmHandle h;
   h.map = OpenFileMappingW(FILE_MAP_READ, FALSE, name);
@@ -56,6 +65,10 @@ static ShmHandle open_shm(const wchar_t *name, size_t size) {
 }
 
 bool AssettoCorsaAdapter::start() {
+  if (impl_->phys.view && impl_->gfx.view && impl_->stat.view) {
+    return true;
+  }
+
   try {
     impl_->phys = open_shm(AC_SHM_PHYSICS, sizeof(SPageFilePhysics));
     impl_->gfx = open_shm(AC_SHM_GRAPHICS, sizeof(SPageFileGraphics));
@@ -79,17 +92,13 @@ bool AssettoCorsaAdapter::read(TelemetrySample &out_sample) {
 
   out_sample.timestamp_ns = now_ns();
   constexpr float g = 9.80665f;
-  out_sample.accel_mps2[0] = p->accG[0] * g;
-  out_sample.accel_mps2[1] = p->accG[1] * g;
-  out_sample.accel_mps2[2] = p->accG[2] * g;
+  float accel_raw[3] = {p->accG[0] * g, p->accG[1] * g, p->accG[2] * g};
+  float velocity_raw[3] = {p->velocity[0], p->velocity[1], p->velocity[2]};
+  float angular_raw[3] = {p->angularVelocity[0], p->angularVelocity[1], p->angularVelocity[2]};
 
-  out_sample.velocity_mps[0] = p->velocity[0];
-  out_sample.velocity_mps[1] = p->velocity[1];
-  out_sample.velocity_mps[2] = p->velocity[2];
-
-  out_sample.angular_vel_rad[0] = p->angularVelocity[0];
-  out_sample.angular_vel_rad[1] = p->angularVelocity[1];
-  out_sample.angular_vel_rad[2] = p->angularVelocity[2];
+  normalize_vector_to_z_up(accel_raw, UpAxis::ZUp, out_sample.accel_mps2);
+  normalize_vector_to_z_up(velocity_raw, UpAxis::ZUp, out_sample.velocity_mps);
+  normalize_vector_to_z_up(angular_raw, UpAxis::ZUp, out_sample.angular_vel_rad);
 
   out_sample.speed_mps = p->speedKmh / 3.6f;
   return true;

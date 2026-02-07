@@ -47,6 +47,23 @@ struct mcu_command_t {
 }
 ```
 
+### Jog/test payload (PC → MCU)
+
+Use a `JOG` frame to apply a short open-loop torque for calibration/tuning. The command
+auto-expires after `duration_ms` (clamped to `APP_JOG_MAX_DURATION_MS`). Send both torques
+as zero to stop a jog immediately. A `duration_ms` of 0 uses `APP_JOG_DEFAULT_DURATION_MS`.
+
+```
+struct mcu_jog_command_t {
+  uint16 magic = 0xC0D3;
+  uint8  mode = 0;          // MCU_JOG_MODE_TORQUE
+  uint8  reserved;
+  float  left_torque;
+  float  right_torque;
+  uint32 duration_ms;
+}
+```
+
 ## Torque decay ramp
 
 On heartbeat loss, the MCU enters **Fault** and applies a linear torque‑decay ramp over `APP_TORQUE_DECAY_MS`, then disables PWM. E‑Stop and USB disconnect still force an immediate cutoff.
@@ -87,6 +104,37 @@ struct mcu_status_t {
   uint8  update_state;
   uint8  update_result;
   uint16 update_reserved;
+}
+```
+
+### Diagnostic telemetry (MCU → PC, on demand)
+
+Send a `DIAGNOSTIC` frame with a `REQUEST` payload to receive high‑resolution sensor
+readouts and raw ADC values for diagnostics.
+
+```
+struct mcu_diag_request_t {
+  uint16 magic = 0xD1A6;
+  uint8  opcode = 0x01; // MCU_DIAG_OP_REQUEST
+  uint8  reserved;
+  uint32 token;
+}
+
+struct mcu_diag_response_t {
+  uint16 magic = 0xD1A6;
+  uint8  opcode = 0x81; // MCU_DIAG_OP_RESPONSE
+  uint8  reserved;
+  uint32 token;
+  uint32 uptime_ms;
+  float  left_pos_m;
+  float  right_pos_m;
+  uint16 left_adc_raw;
+  uint16 right_adc_raw;
+  uint8  left_limit;
+  uint8  right_limit;
+  float  left_cmd;
+  float  right_cmd;
+  float  torque_scale;
 }
 ```
 
