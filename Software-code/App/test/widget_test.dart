@@ -23,6 +23,10 @@ void main() {
     expect(find.byKey(const Key('session-filter-date')), findsOneWidget);
     expect(find.byKey(const Key('session-filter-track')), findsOneWidget);
     expect(find.byKey(const Key('session-filter-type')), findsOneWidget);
+    expect(find.byKey(const Key('voice-console')), findsOneWidget);
+    expect(find.byKey(const Key('voice-ptt-button')), findsOneWidget);
+    expect(find.byKey(const Key('voice-verbosity-slider')), findsOneWidget);
+    expect(find.byKey(const Key('voice-ducking-switch')), findsOneWidget);
     expect(find.byKey(const Key('estop-control')), findsOneWidget);
 
     await tester.tap(find.text('System Status'));

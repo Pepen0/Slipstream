@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'gen/dashboard/v1/dashboard.pb.dart';
 import 'session_browser.dart';
 import 'services/dashboard_client.dart';
+import 'services/voice_pipeline.dart';
 
 const Color _kBackground = Color(0xFF0A0F14);
 const Color _kSurface = Color(0xFF121923);
@@ -30,7 +31,6 @@ class DashboardApp extends StatelessWidget {
       primary: _kAccent,
       secondary: _kAccentAlt,
       surface: _kSurface,
-      background: _kBackground,
       error: _kDanger,
     );
 
@@ -72,7 +72,7 @@ class DashboardApp extends StatelessWidget {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: _kSurfaceRaised,
-        hintStyle: TextStyle(color: _kMuted.withOpacity(0.7)),
+        hintStyle: TextStyle(color: _kMuted.withValues(alpha: 0.7)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: _kSurfaceGlow),
@@ -118,6 +118,7 @@ class DashboardHome extends StatefulWidget {
 
 class _DashboardHomeState extends State<DashboardHome> {
   final DashboardClient client = DashboardClient();
+  final VoicePipelineController _voice = VoicePipelineController();
   final TextEditingController profileController =
       TextEditingController(text: 'default');
   final TextEditingController sessionController =
@@ -160,11 +161,13 @@ class _DashboardHomeState extends State<DashboardHome> {
   Timer? _dfuTimer;
   bool _dfuActive = false;
   double _dfuProgress = 0.0;
+  bool _voicePointerDown = false;
 
   @override
   void initState() {
     super.initState();
     client.snapshot.addListener(_onSnapshotUpdate);
+    _voice.addListener(_onVoiceUpdate);
     client.connect().then((_) {
       client.startTelemetryStream();
       _refreshSessions();
@@ -176,6 +179,9 @@ class _DashboardHomeState extends State<DashboardHome> {
   @override
   void dispose() {
     client.snapshot.removeListener(_onSnapshotUpdate);
+    _voice.removeListener(_onVoiceUpdate);
+    unawaited(_voice.cancelCapture());
+    _voice.dispose();
     client.disconnect();
     profileController.dispose();
     sessionController.dispose();
@@ -188,8 +194,14 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   bool get safetyReady => safetyCentered && safetyClear && safetyEstop;
 
+  void _onVoiceUpdate() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
   void _onSnapshotUpdate() {
     final snapshot = client.snapshot.value;
+    unawaited(_voice.setSafetyWarningActive(_hasSafetyWarning(snapshot)));
     final status = snapshot.status;
     if (status != null) {
       final lastAt = status.lastCalibrationAtNs.toInt();
@@ -218,6 +230,32 @@ class _DashboardHomeState extends State<DashboardHome> {
     }
 
     _appendSpeedSample(snapshot);
+  }
+
+  bool _hasSafetyWarning(DashboardSnapshot snapshot) {
+    final status = snapshot.status;
+    return snapshot.error != null ||
+        status?.state == Status_State.STATE_FAULT ||
+        status?.estopActive == true ||
+        ((snapshot.telemetry?.latencyMs ?? 0) > 25);
+  }
+
+  Future<void> _startPushToTalk(DashboardSnapshot snapshot) async {
+    if (_voicePointerDown) {
+      return;
+    }
+    _voicePointerDown = true;
+    await _voice.setSafetyWarningActive(_hasSafetyWarning(snapshot));
+    await _voice.pushToTalkStart();
+  }
+
+  Future<void> _stopPushToTalk(DashboardSnapshot snapshot) async {
+    if (!_voicePointerDown) {
+      return;
+    }
+    _voicePointerDown = false;
+    await _voice.setSafetyWarningActive(_hasSafetyWarning(snapshot));
+    await _voice.pushToTalkStop();
   }
 
   void _trackSessionTransition(Status status) {
@@ -425,17 +463,20 @@ class _DashboardHomeState extends State<DashboardHome> {
     } catch (_) {
       if (!mounted ||
           !_reviewMode ||
-          _reviewSession?.sessionId != session.sessionId) return;
+          _reviewSession?.sessionId != session.sessionId) {
+        return;
+      }
       setState(() {
         _reviewNotice = 'Telemetry fetch failed. Using fallback data.';
       });
     } finally {
-      if (!mounted ||
-          !_reviewMode ||
-          _reviewSession?.sessionId != session.sessionId) return;
-      setState(() {
-        _reviewFetching = false;
-      });
+      if (mounted &&
+          _reviewMode &&
+          _reviewSession?.sessionId == session.sessionId) {
+        setState(() {
+          _reviewFetching = false;
+        });
+      }
     }
   }
 
@@ -712,6 +753,8 @@ class _DashboardHomeState extends State<DashboardHome> {
               ],
             ),
           const SizedBox(height: 16),
+          _buildVoiceInterface(snapshot),
+          const SizedBox(height: 16),
           _buildSessionControl(snapshot),
         ],
       ),
@@ -840,7 +883,7 @@ class _DashboardHomeState extends State<DashboardHome> {
               Text(
                 'POST-SESSION REVIEW READY',
                 style: TextStyle(
-                    color: _kAccent.withOpacity(0.8),
+                    color: _kAccent.withValues(alpha: 0.8),
                     fontWeight: FontWeight.w600),
               ),
           ],
@@ -868,7 +911,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                 Text(
                   'SIMULATED REPLAY',
                   style: TextStyle(
-                      color: _kWarning.withOpacity(0.9),
+                      color: _kWarning.withValues(alpha: 0.9),
                       fontWeight: FontWeight.w700),
                 ),
               FilledButton(
@@ -1055,9 +1098,186 @@ class _DashboardHomeState extends State<DashboardHome> {
     );
   }
 
+  Widget _buildVoiceInterface(DashboardSnapshot snapshot) {
+    final voice = _voice.state;
+    final warningActive = _hasSafetyWarning(snapshot);
+    final recording = voice.recording;
+    final processing = voice.processing;
+    final primaryLabel = recording
+        ? 'Listening... release to submit'
+        : (processing ? 'Processing...' : 'Hold to Talk');
+    final buttonColor =
+        recording ? _kDanger : (processing ? _kWarning : _kAccentAlt);
+
+    return _HudCard(
+      key: const Key('voice-console'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SectionHeader(
+            title: 'Voice Interface',
+            subtitle: 'FLT-028~033 · PTT, STT buffer, TTS, playback, ducking',
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  voice.status,
+                  style: TextStyle(
+                    color: warningActive && voice.duckingEnabled
+                        ? _kWarning
+                        : _kMuted,
+                  ),
+                ),
+              ),
+              if (processing)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Listener(
+            onPointerDown: (_) => _startPushToTalk(snapshot),
+            onPointerUp: (_) => _stopPushToTalk(snapshot),
+            onPointerCancel: (_) => _stopPushToTalk(snapshot),
+            child: AnimatedContainer(
+              key: const Key('voice-ptt-button'),
+              duration: const Duration(milliseconds: 160),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
+              decoration: BoxDecoration(
+                color: buttonColor.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: buttonColor),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    recording ? Icons.mic_rounded : Icons.mic_none_rounded,
+                    color: buttonColor,
+                    size: 26,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      primaryLabel,
+                      style: TextStyle(
+                        color: buttonColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${(voice.bufferedBytes / 1024).toStringAsFixed(1)}KB',
+                    style: const TextStyle(color: _kMuted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Text('Audio Ducking', style: TextStyle(color: _kMuted)),
+              const SizedBox(width: 8),
+              Switch(
+                key: const Key('voice-ducking-switch'),
+                value: voice.duckingEnabled,
+                onChanged: _voice.setDuckingEnabled,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  warningActive
+                      ? 'Safety warning active: AI audio suppressed'
+                      : 'No safety warning',
+                  style: TextStyle(
+                    color: warningActive ? _kWarning : _kMuted,
+                    fontSize: 12,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Text('Verbosity', style: TextStyle(color: _kMuted)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Slider(
+                  key: const Key('voice-verbosity-slider'),
+                  min: 0,
+                  max: 2,
+                  divisions: 2,
+                  value: _verbosityToSlider(voice.verbosity),
+                  label: voiceVerbosityLabel(voice.verbosity),
+                  onChanged: (value) {
+                    _voice.setVerbosity(_sliderToVerbosity(value));
+                  },
+                ),
+              ),
+              Text(
+                voiceVerbosityLabel(voice.verbosity),
+                style: const TextStyle(color: _kAccentAlt),
+              ),
+            ],
+          ),
+          if (voice.lastTranscript.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'STT: ${voice.lastTranscript}',
+              key: const Key('voice-last-transcript'),
+              style: const TextStyle(color: _kMuted, fontSize: 12),
+            ),
+          ],
+          if (voice.lastResponseText.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              'AI: ${voice.lastResponseText}',
+              key: const Key('voice-last-response'),
+              style: TextStyle(
+                color: voice.lastResponseSuppressed ? _kWarning : _kAccent,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   double _maxSpeed(List<_SpeedSample> samples) {
     if (samples.isEmpty) return 0;
     return samples.map((e) => e.speedKmh).reduce(max);
+  }
+
+  double _verbosityToSlider(VoiceVerbosity verbosity) {
+    switch (verbosity) {
+      case VoiceVerbosity.low:
+        return 0;
+      case VoiceVerbosity.medium:
+        return 1;
+      case VoiceVerbosity.high:
+        return 2;
+    }
+  }
+
+  VoiceVerbosity _sliderToVerbosity(double value) {
+    final step = value.round().clamp(0, 2);
+    switch (step) {
+      case 0:
+        return VoiceVerbosity.low;
+      case 1:
+        return VoiceVerbosity.medium;
+      default:
+        return VoiceVerbosity.high;
+    }
   }
 
   List<SessionMetadata> _filteredSessions() {
@@ -1219,7 +1439,7 @@ class _DashboardHomeState extends State<DashboardHome> {
               Text(
                 '$syncedCount cloud synced',
                 style: TextStyle(
-                    color: _kAccentAlt.withOpacity(0.85), fontSize: 12),
+                    color: _kAccentAlt.withValues(alpha: 0.85), fontSize: 12),
               ),
               const Spacer(),
               if (_sessionsLoading)
@@ -1324,7 +1544,7 @@ class _DashboardHomeState extends State<DashboardHome> {
               'Selected: ${visibleSelected.sessionId}',
               key: const Key('session-selected-label'),
               style: TextStyle(
-                  color: _kAccent.withOpacity(0.9),
+                  color: _kAccent.withValues(alpha: 0.9),
                   fontSize: 12,
                   fontWeight: FontWeight.w600),
             ),
@@ -1438,14 +1658,15 @@ class _DashboardHomeState extends State<DashboardHome> {
             Text(
               'FAULT ACTIVE',
               style: TextStyle(
-                  color: _kDanger.withOpacity(0.9),
+                  color: _kDanger.withValues(alpha: 0.9),
                   fontWeight: FontWeight.w700),
             )
           else
             Text(
               'SYSTEM NOMINAL',
               style: TextStyle(
-                  color: _kOk.withOpacity(0.9), fontWeight: FontWeight.w700),
+                  color: _kOk.withValues(alpha: 0.9),
+                  fontWeight: FontWeight.w700),
             ),
         ],
       ),
@@ -1858,7 +2079,7 @@ class _HudCard extends StatelessWidget {
         border: Border.all(color: _kSurfaceGlow),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 14,
             offset: const Offset(0, 6),
           ),
@@ -1906,9 +2127,9 @@ class _HudMetric extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow.withOpacity(0.35),
+        color: _kSurfaceGlow.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: glow.withOpacity(0.6)),
+        border: Border.all(color: glow.withValues(alpha: 0.6)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1966,7 +2187,7 @@ class _StatusPill extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kSurfaceGlow,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.6)),
+        border: Border.all(color: color.withValues(alpha: 0.6)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -2002,9 +2223,9 @@ class _StatusTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: _kSurfaceGlow.withOpacity(0.45),
+          color: _kSurfaceGlow.withValues(alpha: 0.45),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.5)),
+          border: Border.all(color: color.withValues(alpha: 0.5)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2040,7 +2261,7 @@ class _SessionBrowserState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow.withOpacity(0.24),
+        color: _kSurfaceGlow.withValues(alpha: 0.24),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _kSurfaceGlow),
       ),
@@ -2092,9 +2313,9 @@ class _CloudSyncBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow.withOpacity(0.5),
+        color: _kSurfaceGlow.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.55)),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -2151,10 +2372,10 @@ class _SessionRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: selected
-                ? _kSurfaceGlow.withOpacity(0.75)
+                ? _kSurfaceGlow.withValues(alpha: 0.75)
                 : (active
-                    ? _kSurfaceGlow.withOpacity(0.55)
-                    : _kSurfaceGlow.withOpacity(0.28)),
+                    ? _kSurfaceGlow.withValues(alpha: 0.55)
+                    : _kSurfaceGlow.withValues(alpha: 0.28)),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: accent),
           ),
@@ -2227,9 +2448,9 @@ class _FaultCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow.withOpacity(0.4),
+        color: _kSurfaceGlow.withValues(alpha: 0.4),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: fault.color.withOpacity(0.6)),
+        border: Border.all(color: fault.color.withValues(alpha: 0.6)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2331,7 +2552,7 @@ class _TrackMapPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final glowPaint = Paint()
-      ..color = trackColor.withOpacity(0.35)
+      ..color = trackColor.withValues(alpha: 0.35)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 10
       ..strokeCap = StrokeCap.round;
@@ -2346,8 +2567,8 @@ class _TrackMapPainter extends CustomPainter {
       final tangent = metric.getTangentForOffset(distance);
       if (tangent != null) {
         final dotPaint = Paint()..color = dotColor;
-        canvas.drawCircle(
-            tangent.position, 6.5, Paint()..color = dotColor.withOpacity(0.3));
+        canvas.drawCircle(tangent.position, 6.5,
+            Paint()..color = dotColor.withValues(alpha: 0.3));
         canvas.drawCircle(tangent.position, 3.5, dotPaint);
       }
     }
@@ -2377,7 +2598,7 @@ class _SpeedGraphPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     final paintGrid = Paint()
-      ..color = accentColor.withOpacity(0.4)
+      ..color = accentColor.withValues(alpha: 0.4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
@@ -2430,7 +2651,7 @@ class _SpeedGraphPainter extends CustomPainter {
           Offset(cx, rect.top),
           Offset(cx, rect.bottom),
           Paint()
-            ..color = lineColor.withOpacity(0.6)
+            ..color = lineColor.withValues(alpha: 0.6)
             ..strokeWidth = 1.5);
     }
   }
@@ -2466,8 +2687,9 @@ class _SafetyZonePainter extends CustomPainter {
     final estopRect = Rect.fromLTWH(
         0, size.height * 0.55, size.width * 0.6, size.height * 0.4);
 
-    zonePaint.color =
-        operatorClear ? _kOk.withOpacity(0.4) : _kWarning.withOpacity(0.4);
+    zonePaint.color = operatorClear
+        ? _kOk.withValues(alpha: 0.4)
+        : _kWarning.withValues(alpha: 0.4);
     canvas.drawRRect(
         RRect.fromRectAndRadius(operatorRect, const Radius.circular(12)),
         zonePaint);
@@ -2475,8 +2697,9 @@ class _SafetyZonePainter extends CustomPainter {
         RRect.fromRectAndRadius(operatorRect, const Radius.circular(12)),
         borderPaint);
 
-    zonePaint.color =
-        trackClear ? _kOk.withOpacity(0.4) : _kDanger.withOpacity(0.4);
+    zonePaint.color = trackClear
+        ? _kOk.withValues(alpha: 0.4)
+        : _kDanger.withValues(alpha: 0.4);
     canvas.drawRRect(
         RRect.fromRectAndRadius(trackRect, const Radius.circular(12)),
         zonePaint);
@@ -2484,8 +2707,9 @@ class _SafetyZonePainter extends CustomPainter {
         RRect.fromRectAndRadius(trackRect, const Radius.circular(12)),
         borderPaint);
 
-    zonePaint.color =
-        estopReady ? _kOk.withOpacity(0.4) : _kWarning.withOpacity(0.4);
+    zonePaint.color = estopReady
+        ? _kOk.withValues(alpha: 0.4)
+        : _kWarning.withValues(alpha: 0.4);
     canvas.drawRRect(
         RRect.fromRectAndRadius(estopRect, const Radius.circular(12)),
         zonePaint);
