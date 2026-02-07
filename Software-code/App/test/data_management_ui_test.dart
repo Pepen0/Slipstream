@@ -150,13 +150,22 @@ void main() {
     expect(find.byKey(const Key('export-image-button')), findsOneWidget);
     expect(find.byKey(const Key('export-video-button')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('share-card-generate')));
+    final shareCardButton = find.byKey(const Key('share-card-generate'));
+    await tester.ensureVisible(shareCardButton);
+    await tester.pumpAndSettle();
+    await tester.tap(shareCardButton);
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('share-card-preview')), findsOneWidget);
 
-    await tester.tap(find.byKey(const Key('export-image-button')));
+    final exportImageButton = find.byKey(const Key('export-image-button'));
+    await tester.ensureVisible(exportImageButton);
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('export-video-button')));
+    await tester.tap(exportImageButton);
+    await tester.pumpAndSettle();
+    final exportVideoButton = find.byKey(const Key('export-video-button'));
+    await tester.ensureVisible(exportVideoButton);
+    await tester.pumpAndSettle();
+    await tester.tap(exportVideoButton);
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('export-history')), findsOneWidget);
     expect(

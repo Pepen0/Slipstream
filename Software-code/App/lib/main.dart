@@ -24,6 +24,41 @@ const Color _kOk = Color(0xFF74C77A);
 const Color _kMuted = Color(0xFFB3B3B3);
 const double _kPanelRadius = 8;
 const double _kControlRadius = 4;
+const EdgeInsets _kDataPagePadding = EdgeInsets.all(24);
+const EdgeInsets _kDataPanelPadding = EdgeInsets.all(20);
+
+const TextStyle _kDataHeaderStyle = TextStyle(
+  color: Color(0xFFFFFFFF),
+  fontSize: 24,
+  fontWeight: FontWeight.w800,
+  letterSpacing: 2.4,
+  height: 1.2,
+);
+
+const TextStyle _kDataSubheaderStyle = TextStyle(
+  color: Color(0xFFB3B3B3),
+  fontSize: 12,
+  fontWeight: FontWeight.w600,
+  letterSpacing: 1.0,
+  height: 1.35,
+);
+
+const TextStyle _kDataBodyStyle = TextStyle(
+  color: Color(0xFFB3B3B3),
+  fontSize: 14,
+  fontWeight: FontWeight.w400,
+  letterSpacing: 0.05,
+  height: 1.6,
+);
+
+const TextStyle _kDataMonoValueStyle = TextStyle(
+  color: Color(0xFFFFFFFF),
+  fontSize: 16,
+  fontWeight: FontWeight.w500,
+  letterSpacing: 0.2,
+  height: 1.35,
+  fontFamily: 'RobotoMono',
+);
 
 void main() {
   runApp(const DashboardApp());
@@ -1434,11 +1469,11 @@ class _DashboardHomeState extends State<DashboardHome> {
 
     return SingleChildScrollView(
       key: const Key('data-management-screen'),
-      padding: const EdgeInsets.all(16),
+      padding: _kDataPagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildSessionList(snapshot),
+          _buildSessionList(snapshot, engineeredCalm: true),
           const SizedBox(height: 16),
           if (isWide)
             Row(
@@ -1492,34 +1527,34 @@ class _DashboardHomeState extends State<DashboardHome> {
   }) {
     final recentExports = _exportArtifacts.take(5).toList(growable: false);
 
-    return _HudCard(
+    return _InteractiveDataCard(
       key: const Key('share-export-card'),
+      padding: _kDataPanelPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeader(
-            title: 'Sharing & Export',
+          const _DataSectionHeader(
+            title: 'SHARING & EXPORT',
             subtitle: 'FLT-053~055 · Delete cascade + highlight + media export',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
           if (selectedSession == null)
-            const Text(
+            Text(
               'Select an archived session to generate share cards and exports.',
-              style: TextStyle(color: _kMuted),
+              style: _kDataBodyStyle,
             )
           else ...[
             Text(
               'Selected: ${selectedSession.sessionId}',
               key: const Key('sharing-selected-session'),
-              style: const TextStyle(
-                color: _kAccentAlt,
-                fontWeight: FontWeight.w700,
-              ),
+              style: _kDataBodyStyle.copyWith(color: Colors.white),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 16),
             Wrap(
-              spacing: 10,
-              runSpacing: 10,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 FilledButton.icon(
                   key: const Key('share-card-generate'),
@@ -1528,6 +1563,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                       : () => _generateShareCardFor(selectedSession),
                   icon: const Icon(Icons.share_rounded, size: 18),
                   label: const Text('Generate Share Card'),
+                  style: _dataPrimaryButtonStyle(),
                 ),
                 OutlinedButton.icon(
                   key: const Key('export-image-button'),
@@ -1537,6 +1573,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                           selectedSession, TelemetryExportKind.imageSvg),
                   icon: const Icon(Icons.image_outlined, size: 18),
                   label: const Text('Export Image'),
+                  style: _dataSecondaryButtonStyle(),
                 ),
                 OutlinedButton.icon(
                   key: const Key('export-video-button'),
@@ -1546,6 +1583,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                           selectedSession, TelemetryExportKind.videoManifest),
                   icon: const Icon(Icons.movie_creation_outlined, size: 18),
                   label: const Text('Export Video'),
+                  style: _dataSecondaryButtonStyle(),
                 ),
                 OutlinedButton.icon(
                   key: Key('archive-delete-${selectedSession.sessionId}'),
@@ -1554,11 +1592,14 @@ class _DashboardHomeState extends State<DashboardHome> {
                       : () => _deleteSessionCascade(selectedSession),
                   icon: const Icon(Icons.delete_outline, size: 18),
                   label: const Text('Delete Session'),
+                  style: _dataSecondaryButtonStyle(),
                 ),
               ],
             ),
           ],
           if (_dataNotice != null) ...[
+            const SizedBox(height: 16),
+            _dataDivider(),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -1572,90 +1613,105 @@ class _DashboardHomeState extends State<DashboardHome> {
                   child: Text(
                     _dataNotice!,
                     key: const Key('data-management-notice'),
-                    style: const TextStyle(color: _kMuted),
+                    style: _kDataBodyStyle,
                   ),
                 ),
               ],
             ),
           ],
           if (_latestShareCard != null) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
+            _dataDivider(),
+            const SizedBox(height: 12),
             Container(
               key: const Key('share-card-preview'),
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: _kSurfaceGlow.withValues(alpha: 0.34),
+                color: _kSurfaceRaised,
                 borderRadius: BorderRadius.circular(_kPanelRadius),
-                border: Border.all(color: _kAccentAlt.withValues(alpha: 0.5)),
+                border: Border.all(color: _kSurfaceGlow),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     _latestShareCard!.headline,
-                    style: const TextStyle(
+                    style: _kDataBodyStyle.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   Text(
                     _latestShareCard!.summary,
-                    style: const TextStyle(color: _kMuted),
+                    style: _kDataBodyStyle,
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
                     'Share code: ${_latestShareCard!.shareCode}',
-                    style: const TextStyle(
-                      color: _kAccent,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: _kDataMonoValueStyle,
                   ),
                 ],
               ),
             ),
           ],
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 12),
           Container(
             key: const Key('export-history'),
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(left: 16),
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
             decoration: BoxDecoration(
-              color: _kSurfaceGlow.withValues(alpha: 0.24),
+              color: _kSurface,
               borderRadius: BorderRadius.circular(_kPanelRadius),
-              border: Border.all(color: _kSurfaceGlow),
+              border: Border(
+                left: BorderSide(color: _kSurfaceGlow, width: 2),
+                top: BorderSide(color: _kSurfaceGlow),
+                right: BorderSide(color: _kSurfaceGlow),
+                bottom: BorderSide(color: _kSurfaceGlow),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Export History',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+                Text(
+                  'EXPORT HISTORY',
+                  style: _kDataSubheaderStyle.copyWith(color: Colors.white),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 if (_exportArtifacts.isEmpty)
-                  const Text(
+                  Text(
                     'No exports generated yet.',
-                    style: TextStyle(color: _kMuted),
+                    style: _kDataBodyStyle,
                   )
                 else
                   for (var i = 0; i < recentExports.length; i++) ...[
                     Text(
                       '${recentExports[i].fileName} · ${(recentExports[i].sizeBytes / 1024).toStringAsFixed(1)} KB',
-                      style: const TextStyle(color: _kMuted, fontSize: 12),
+                      style: _kDataBodyStyle,
                     ),
                     if (i < recentExports.length - 1) const SizedBox(height: 4),
                   ],
               ],
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            'Usage ${(usageMb / 1024).toStringAsFixed(2)} GB / ${(limitMb / 1024).toStringAsFixed(2)} GB',
-            style: TextStyle(
-              color: overLimit ? _kWarning : _kMuted,
-              fontWeight: overLimit ? FontWeight.w700 : FontWeight.w500,
+          const SizedBox(height: 12),
+          RichText(
+            text: TextSpan(
+              text: 'Usage ',
+              style: _kDataBodyStyle,
+              children: [
+                TextSpan(
+                  text:
+                      '${(usageMb / 1024).toStringAsFixed(2)} GB / ${(limitMb / 1024).toStringAsFixed(2)} GB',
+                  style: _kDataMonoValueStyle.copyWith(
+                    color: overLimit ? _kWarning : Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1668,19 +1724,26 @@ class _DashboardHomeState extends State<DashboardHome> {
     required double limitMb,
     required bool overLimit,
   }) {
-    return _HudCard(
+    final storageValue =
+        _dataPreferences.storageLimitGb.clamp(1.0, 24.0).toDouble();
+    return _InteractiveDataCard(
       key: const Key('user-preferences-card'),
+      padding: _kDataPanelPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _SectionHeader(
-            title: 'User Preferences',
+          const _DataSectionHeader(
+            title: 'USER PREFERENCES',
             subtitle: 'FLT-056~057 · Units, storage budget, auto-delete policy',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
           DropdownButtonFormField<UnitSystem>(
             key: const Key('preferences-units-dropdown'),
             value: _dataPreferences.units,
+            style: _kDataBodyStyle,
+            dropdownColor: _kSurface,
             items: const [
               DropdownMenuItem(
                 value: UnitSystem.metric,
@@ -1697,91 +1760,134 @@ class _DashboardHomeState extends State<DashboardHome> {
                 _dataPreferences = _dataPreferences.copyWith(units: value);
               });
             },
-            decoration: const InputDecoration(
-              labelText: 'Display Units',
-              isDense: true,
+            decoration: _dataSelectDecoration(
+              'DISPLAY UNITS',
+              selected: true,
             ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'STORAGE LIMIT',
+            style: _kDataSubheaderStyle,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text(
+                '${storageValue.toStringAsFixed(1)} GB',
+                style: _kDataMonoValueStyle,
+              ),
+            ],
+          ),
+          SliderTheme(
+            data: _storageSliderTheme(context),
+            child: Slider(
+              key: const Key('preferences-storage-slider'),
+              min: 1.0,
+              max: 24.0,
+              divisions: 46,
+              value: storageValue,
+              onChanged: (value) {
+                setState(() {
+                  _dataPreferences =
+                      _dataPreferences.copyWith(storageLimitGb: value);
+                });
+              },
+            ),
+          ),
+          _StorageTickMarks(
+            min: 2,
+            max: 24,
+            step: 2,
+          ),
+          const SizedBox(height: 12),
+          _dataDivider(),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'AUTO-DELETE OLD SESSIONS',
+                      style: _kDataSubheaderStyle,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _dataPreferences.autoDeleteEnabled
+                          ? 'Enabled: keep ${_dataPreferences.autoDeleteRetentionDays} days'
+                          : 'Disabled',
+                      style: _kDataBodyStyle,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              _PrecisionToggle(
+                key: const Key('preferences-autodelete-switch'),
+                value: _dataPreferences.autoDeleteEnabled,
+                onChanged: (value) {
+                  setState(() {
+                    _dataPreferences =
+                        _dataPreferences.copyWith(autoDeleteEnabled: value);
+                  });
+                  if (value) {
+                    _applyAutoDeletePolicy();
+                  }
+                },
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           Text(
-            'Storage Limit (${_dataPreferences.storageLimitGb.toStringAsFixed(1)} GB)',
-            style: const TextStyle(color: _kMuted),
+            'RETENTION (${_dataPreferences.autoDeleteRetentionDays} DAYS)',
+            style: _kDataSubheaderStyle,
           ),
-          Slider(
-            key: const Key('preferences-storage-slider'),
-            min: 1.0,
-            max: 24.0,
-            divisions: 46,
-            value: _dataPreferences.storageLimitGb.clamp(1.0, 24.0).toDouble(),
-            onChanged: (value) {
-              setState(() {
-                _dataPreferences =
-                    _dataPreferences.copyWith(storageLimitGb: value);
-              });
-            },
-          ),
-          const SizedBox(height: 4),
-          SwitchListTile(
-            key: const Key('preferences-autodelete-switch'),
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Auto-delete old sessions'),
-            subtitle: Text(
-              _dataPreferences.autoDeleteEnabled
-                  ? 'Enabled: keep ${_dataPreferences.autoDeleteRetentionDays} days'
-                  : 'Disabled',
-              style: const TextStyle(color: _kMuted, fontSize: 12),
+          SliderTheme(
+            data: _storageSliderTheme(context),
+            child: Slider(
+              key: const Key('preferences-retention-slider'),
+              min: 1,
+              max: 120,
+              divisions: 119,
+              value: _dataPreferences.autoDeleteRetentionDays
+                  .clamp(1, 120)
+                  .toDouble(),
+              onChanged: _dataPreferences.autoDeleteEnabled
+                  ? (value) {
+                      setState(() {
+                        _dataPreferences = _dataPreferences.copyWith(
+                          autoDeleteRetentionDays: value.round().clamp(1, 120),
+                        );
+                      });
+                      _applyAutoDeletePolicy();
+                    }
+                  : null,
             ),
-            value: _dataPreferences.autoDeleteEnabled,
-            onChanged: (value) {
-              setState(() {
-                _dataPreferences =
-                    _dataPreferences.copyWith(autoDeleteEnabled: value);
-              });
-              if (value) {
-                _applyAutoDeletePolicy();
-              }
-            },
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Retention (${_dataPreferences.autoDeleteRetentionDays} days)',
-            style: const TextStyle(color: _kMuted),
-          ),
-          Slider(
-            key: const Key('preferences-retention-slider'),
-            min: 1,
-            max: 120,
-            divisions: 119,
-            value: _dataPreferences.autoDeleteRetentionDays
-                .clamp(1, 120)
-                .toDouble(),
-            onChanged: _dataPreferences.autoDeleteEnabled
-                ? (value) {
-                    setState(() {
-                      _dataPreferences = _dataPreferences.copyWith(
-                        autoDeleteRetentionDays: value.round().clamp(1, 120),
-                      );
-                    });
-                    _applyAutoDeletePolicy();
-                  }
-                : null,
           ),
           const SizedBox(height: 8),
           LinearProgressIndicator(
             value: limitMb <= 0 ? 0.0 : (usageMb / limitMb).clamp(0.0, 1.0),
             minHeight: 8,
-            backgroundColor: _kSurfaceGlow,
-            valueColor: AlwaysStoppedAnimation(
-              overLimit ? _kWarning : _kAccentAlt,
-            ),
+            backgroundColor: _kMuted,
+            valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Estimated archive usage ${(usageMb / 1024).toStringAsFixed(2)} GB / ${(limitMb / 1024).toStringAsFixed(2)} GB',
+          RichText(
             key: const Key('storage-usage-label'),
-            style: TextStyle(
-              color: overLimit ? _kWarning : _kMuted,
-              fontWeight: overLimit ? FontWeight.w700 : FontWeight.w500,
+            text: TextSpan(
+              text: 'Estimated archive usage ',
+              style: _kDataBodyStyle,
+              children: [
+                TextSpan(
+                  text:
+                      '${(usageMb / 1024).toStringAsFixed(2)} GB / ${(limitMb / 1024).toStringAsFixed(2)} GB',
+                  style: _kDataMonoValueStyle.copyWith(
+                    color: overLimit ? _kWarning : Colors.white,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -3066,7 +3172,10 @@ class _DashboardHomeState extends State<DashboardHome> {
     }
   }
 
-  Widget _buildSessionList(DashboardSnapshot snapshot) {
+  Widget _buildSessionList(
+    DashboardSnapshot snapshot, {
+    bool engineeredCalm = false,
+  }) {
     final sessionActive = snapshot.status?.sessionActive ?? false;
     final activeId = snapshot.status?.sessionId ?? '';
     final connected = client.isConnected && snapshot.connected;
@@ -3086,25 +3195,33 @@ class _DashboardHomeState extends State<DashboardHome> {
       body = _SessionBrowserState(
         key: const Key('session-loading-state'),
         icon: Icons.hourglass_top_rounded,
-        message: 'Loading session history…',
+        message: 'Loading archived sessions…',
+        helperText: engineeredCalm
+            ? 'Select filters to browse archived sessions'
+            : null,
+        engineeredCalm: engineeredCalm,
       );
     } else if (_sessionsError != null && _sessions.isEmpty) {
       body = _SessionBrowserState(
         key: const Key('session-error-state'),
         icon: Icons.cloud_off_rounded,
         message: _sessionsError!,
+        helperText: engineeredCalm
+            ? 'Select filters to browse archived sessions'
+            : null,
         actionLabel: 'Retry',
         onAction: () => _refreshSessions(),
+        engineeredCalm: engineeredCalm,
       );
     } else if (filtered.isEmpty) {
       body = _SessionBrowserState(
         key: const Key('session-empty-state'),
-        icon: _sessions.isEmpty
-            ? Icons.route_rounded
-            : Icons.filter_alt_off_rounded,
+        icon: Icons.cloud_outlined,
         message: _sessions.isEmpty
-            ? 'No sessions recorded yet.'
-            : 'No sessions match the active filters.',
+            ? 'No archived sessions available.'
+            : 'No archived sessions found.',
+        helperText: 'Select filters to browse archived sessions',
+        engineeredCalm: engineeredCalm,
       );
     } else {
       final rows = filtered.map((session) {
@@ -3125,6 +3242,7 @@ class _DashboardHomeState extends State<DashboardHome> {
             syncState: syncState,
             typeLabel: sessionTypeLabel(type),
             startedAtLabel: startedLabel,
+            engineeredCalm: engineeredCalm,
             onSelect: () {
               setState(() {
                 _selectedSessionId = session.sessionId;
@@ -3151,58 +3269,171 @@ class _DashboardHomeState extends State<DashboardHome> {
           : Column(children: rows);
     }
 
-    return _HudCard(
-      key: const Key('session-list'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _SectionHeader(
-                  title: 'Session Archive Browser',
-                  subtitle: 'FLT-052 · Date/track/car filters and replay',
-                ),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: selectedSession == null
+    final titleWidget = engineeredCalm
+        ? const _DataSectionHeader(
+            title: 'SESSION ARCHIVE BROWSER',
+            subtitle: 'FLT-052 · Date/track/car filters and replay',
+          )
+        : _SectionHeader(
+            title: 'Session Archive Browser',
+            subtitle: 'FLT-052 · Date/track/car filters and replay',
+          );
+
+    final reviewDisabled = selectedSession == null;
+    final reviewAction = engineeredCalm
+        ? MouseRegion(
+            cursor: reviewDisabled
+                ? SystemMouseCursors.forbidden
+                : SystemMouseCursors.click,
+            child: Opacity(
+              opacity: reviewDisabled ? 0.5 : 1.0,
+              child: OutlinedButton.icon(
+                onPressed: reviewDisabled
                     ? null
-                    : () => _enterReview(selectedSession),
+                    : () => _enterReview(selectedSession!),
                 icon: const Icon(Icons.play_circle_outline, size: 18),
                 label: const Text('Review Selected'),
+                style: _dataSecondaryButtonStyle(),
               ),
-              const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: _refreshSessions,
-                icon: const Icon(Icons.sync, size: 18),
-                label: const Text('Refresh'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Text(
-                '${filtered.length} shown · ${_sessions.length} total',
-                style: const TextStyle(color: _kMuted, fontSize: 12),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '$syncedCount cloud synced',
-                style: TextStyle(
-                    color: _kAccentAlt.withValues(alpha: 0.85), fontSize: 12),
-              ),
-              const Spacer(),
-              if (_sessionsLoading)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          )
+        : FilledButton.tonalIcon(
+            onPressed: selectedSession == null
+                ? null
+                : () => _enterReview(selectedSession!),
+            icon: const Icon(Icons.play_circle_outline, size: 18),
+            label: const Text('Review Selected'),
+          );
+
+    final refreshAction = engineeredCalm
+        ? IconButton(
+            key: const Key('session-refresh-icon-button'),
+            onPressed: _refreshSessions,
+            splashRadius: 16,
+            tooltip: 'Refresh',
+            constraints: const BoxConstraints.tightFor(width: 32, height: 32),
+            style: ButtonStyle(
+              backgroundColor:
+                  const WidgetStatePropertyAll<Color>(Colors.transparent),
+              overlayColor:
+                  const WidgetStatePropertyAll<Color>(Colors.transparent),
+              foregroundColor: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.hovered) ||
+                    states.contains(WidgetState.focused)) {
+                  return Colors.white;
+                }
+                return _kMuted;
+              }),
+              shape: const WidgetStatePropertyAll<OutlinedBorder>(
+                RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(4)),
                 ),
+              ),
+              side: WidgetStateProperty.resolveWith((states) {
+                if (states.contains(WidgetState.focused)) {
+                  return const BorderSide(color: _kDanger);
+                }
+                return const BorderSide(color: Colors.transparent);
+              }),
+            ),
+            icon: const Icon(Icons.sync, size: 18),
+          )
+        : TextButton.icon(
+            onPressed: _refreshSessions,
+            icon: const Icon(Icons.sync, size: 18),
+            label: const Text('Refresh'),
+          );
+
+    final filters = engineeredCalm
+        ? Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _DataFilterField<SessionDateFilter>(
+                width: 168,
+                fieldKey: const Key('session-filter-date'),
+                label: 'DATE',
+                value: _sessionDateFilter,
+                selected: _sessionDateFilter != SessionDateFilter.all,
+                items: SessionDateFilter.values
+                    .map((filter) => DropdownMenuItem(
+                          value: filter,
+                          child: Text(_dateFilterLabel(filter)),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _sessionDateFilter = value;
+                  });
+                },
+              ),
+              _DataFilterField<String>(
+                width: 184,
+                fieldKey: const Key('session-filter-track'),
+                label: 'TRACK',
+                value: tracks.contains(_sessionTrackFilter)
+                    ? _sessionTrackFilter
+                    : kAllTracksFilter,
+                selected: _sessionTrackFilter != kAllTracksFilter,
+                items: tracks
+                    .map((track) => DropdownMenuItem(
+                          value: track,
+                          child: Text(
+                              track == kAllTracksFilter ? 'All tracks' : track),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _sessionTrackFilter = value;
+                  });
+                },
+              ),
+              _DataFilterField<String>(
+                width: 184,
+                fieldKey: const Key('session-filter-car'),
+                label: 'CAR',
+                value: cars.contains(_sessionCarFilter)
+                    ? _sessionCarFilter
+                    : kAllCarsFilter,
+                selected: _sessionCarFilter != kAllCarsFilter,
+                items: cars
+                    .map((car) => DropdownMenuItem(
+                          value: car,
+                          child: Text(car == kAllCarsFilter ? 'All cars' : car),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _sessionCarFilter = value;
+                  });
+                },
+              ),
+              _DataFilterField<SessionTypeFilter>(
+                width: 184,
+                fieldKey: const Key('session-filter-type'),
+                label: 'TYPE',
+                value: _sessionTypeFilter,
+                selected: _sessionTypeFilter != SessionTypeFilter.all,
+                items: SessionTypeFilter.values
+                    .map((type) => DropdownMenuItem(
+                          value: type,
+                          child: Text(sessionTypeLabel(type)),
+                        ))
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _sessionTypeFilter = value;
+                  });
+                },
+              ),
             ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
+          )
+        : Wrap(
             spacing: 10,
             runSpacing: 10,
             children: [
@@ -3310,26 +3541,87 @@ class _DashboardHomeState extends State<DashboardHome> {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 200),
-            child: body,
-          ),
-          if (visibleSelected != null) ...[
-            const SizedBox(height: 10),
-            Text(
-              'Selected: ${visibleSelected.sessionId}',
-              key: const Key('session-selected-label'),
-              style: TextStyle(
-                  color: _kAccent.withValues(alpha: 0.9),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600),
-            ),
+          );
+
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: titleWidget),
+            const SizedBox(width: 12),
+            reviewAction,
+            const SizedBox(width: 8),
+            refreshAction,
           ],
+        ),
+        const SizedBox(height: 8),
+        if (engineeredCalm) _dataDivider(),
+        if (engineeredCalm) const SizedBox(height: 12),
+        Row(
+          children: [
+            Text(
+              '${filtered.length} shown · ${_sessions.length} total',
+              style: engineeredCalm
+                  ? _kDataBodyStyle.copyWith(fontSize: 14)
+                  : const TextStyle(color: _kMuted, fontSize: 12),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$syncedCount cloud synced',
+              style: engineeredCalm
+                  ? _kDataBodyStyle.copyWith(color: Colors.white)
+                  : TextStyle(
+                      color: _kAccentAlt.withValues(alpha: 0.85),
+                      fontSize: 12,
+                    ),
+            ),
+            const Spacer(),
+            if (_sessionsLoading)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        filters,
+        const SizedBox(height: 12),
+        if (engineeredCalm) _dataDivider(),
+        if (engineeredCalm) const SizedBox(height: 12),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: body,
+        ),
+        if (visibleSelected != null) ...[
+          const SizedBox(height: 10),
+          Text(
+            'Selected: ${visibleSelected.sessionId}',
+            key: const Key('session-selected-label'),
+            style: engineeredCalm
+                ? _kDataBodyStyle.copyWith(color: Colors.white)
+                : TextStyle(
+                    color: _kAccent.withValues(alpha: 0.9),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+          ),
         ],
-      ),
+      ],
     );
+
+    return engineeredCalm
+        ? _InteractiveDataCard(
+            key: const Key('session-list'),
+            padding: _kDataPanelPadding,
+            child: content,
+          )
+        : _HudCard(
+            key: const Key('session-list'),
+            child: content,
+          );
   }
 
   Widget _buildSessionControl(DashboardSnapshot snapshot) {
@@ -3861,6 +4153,357 @@ class _HudCard extends StatelessWidget {
   }
 }
 
+Widget _dataDivider() {
+  return Container(
+    width: double.infinity,
+    height: 1,
+    color: _kSurfaceGlow,
+  );
+}
+
+InputDecoration _dataSelectDecoration(
+  String label, {
+  required bool selected,
+}) {
+  return InputDecoration(
+    labelText: label,
+    isDense: true,
+    filled: true,
+    fillColor: selected ? _kSurfaceGlow.withValues(alpha: 0.42) : _kSurface,
+    labelStyle: _kDataSubheaderStyle.copyWith(fontSize: 11),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(_kControlRadius),
+      borderSide: const BorderSide(color: _kSurfaceGlow),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(_kControlRadius),
+      borderSide: const BorderSide(color: _kSurfaceGlow),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(_kControlRadius),
+      borderSide: const BorderSide(color: _kDanger),
+    ),
+  );
+}
+
+SliderThemeData _storageSliderTheme(BuildContext context) {
+  return SliderTheme.of(context).copyWith(
+    trackHeight: 4,
+    activeTrackColor: Colors.white,
+    inactiveTrackColor: _kMuted,
+    thumbColor: Colors.white,
+    overlayColor: Colors.transparent,
+    tickMarkShape: const RoundSliderTickMarkShape(tickMarkRadius: 1),
+    activeTickMarkColor: _kSurfaceGlow,
+    inactiveTickMarkColor: _kSurfaceGlow,
+  );
+}
+
+ButtonStyle _dataPrimaryButtonStyle({
+  EdgeInsetsGeometry padding =
+      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+}) {
+  return FilledButton.styleFrom(
+    backgroundColor: _kDanger,
+    foregroundColor: Colors.white,
+    padding: padding,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_kControlRadius),
+      side: const BorderSide(color: _kDanger),
+    ),
+    textStyle: const TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.4,
+    ),
+    elevation: 0,
+    shadowColor: Colors.transparent,
+  ).copyWith(
+    side: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.focused)) {
+        return const BorderSide(color: _kDanger);
+      }
+      return const BorderSide(color: _kDanger);
+    }),
+    overlayColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
+  );
+}
+
+ButtonStyle _dataSecondaryButtonStyle({
+  EdgeInsetsGeometry padding =
+      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+}) {
+  return OutlinedButton.styleFrom(
+    backgroundColor: Colors.transparent,
+    foregroundColor: Colors.white,
+    side: const BorderSide(color: _kSurfaceGlow),
+    padding: padding,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(_kControlRadius),
+    ),
+    textStyle: const TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0.4,
+    ),
+  ).copyWith(
+    side: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.focused)) {
+        return const BorderSide(color: _kDanger);
+      }
+      return const BorderSide(color: _kSurfaceGlow);
+    }),
+    overlayColor: const WidgetStatePropertyAll<Color>(Colors.transparent),
+  );
+}
+
+class _InteractiveDataCard extends StatefulWidget {
+  const _InteractiveDataCard({
+    super.key,
+    required this.child,
+    this.padding = _kDataPanelPadding,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  State<_InteractiveDataCard> createState() => _InteractiveDataCardState();
+}
+
+class _InteractiveDataCardState extends State<_InteractiveDataCard> {
+  bool _hovered = false;
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.basic,
+      onEnter: (_) {
+        if (_hovered) return;
+        setState(() {
+          _hovered = true;
+        });
+      },
+      onExit: (_) {
+        if (!_hovered) return;
+        setState(() {
+          _hovered = false;
+        });
+      },
+      child: Focus(
+        onFocusChange: (value) {
+          if (_focused == value) return;
+          setState(() {
+            _focused = value;
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_kPanelRadius + 2),
+            border: Border.all(color: _focused ? _kDanger : Colors.transparent),
+          ),
+          child: Stack(
+            children: [
+              Container(
+                padding: widget.padding,
+                decoration: BoxDecoration(
+                  color: _kSurface,
+                  borderRadius: BorderRadius.circular(_kPanelRadius),
+                  border: Border.all(color: _kSurfaceGlow),
+                ),
+                child: widget.child,
+              ),
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: IgnorePointer(
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 120),
+                    opacity: _hovered ? 1 : 0,
+                    child: Container(
+                      width: 2,
+                      decoration: BoxDecoration(
+                        color: _kDanger,
+                        borderRadius: BorderRadius.circular(_kPanelRadius),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DataSectionHeader extends StatelessWidget {
+  const _DataSectionHeader({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title.toUpperCase(), style: _kDataHeaderStyle),
+        const SizedBox(height: 4),
+        Text(subtitle.toUpperCase(), style: _kDataSubheaderStyle),
+      ],
+    );
+  }
+}
+
+class _DataFilterField<T> extends StatelessWidget {
+  const _DataFilterField({
+    required this.width,
+    required this.fieldKey,
+    required this.label,
+    required this.value,
+    required this.selected,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final double width;
+  final Key fieldKey;
+  final String label;
+  final T value;
+  final bool selected;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: width,
+      child: DropdownButtonFormField<T>(
+        key: fieldKey,
+        isExpanded: true,
+        value: value,
+        items: items,
+        onChanged: onChanged,
+        style: _kDataBodyStyle,
+        dropdownColor: _kSurface,
+        iconEnabledColor: _kMuted,
+        decoration: _dataSelectDecoration(label, selected: selected),
+      ),
+    );
+  }
+}
+
+class _StorageTickMarks extends StatelessWidget {
+  const _StorageTickMarks({
+    required this.min,
+    required this.max,
+    required this.step,
+  });
+
+  final int min;
+  final int max;
+  final int step;
+
+  @override
+  Widget build(BuildContext context) {
+    final marks = <int>[];
+    for (var value = min; value <= max; value += step) {
+      marks.add(value);
+    }
+
+    return Row(
+      children: [
+        for (var i = 0; i < marks.length; i++) ...[
+          if (i != 0) const Spacer(),
+          Column(
+            children: [
+              Container(
+                width: 1,
+                height: 6,
+                color: _kSurfaceGlow,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${marks[i]}',
+                style: _kDataSubheaderStyle.copyWith(fontSize: 10),
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PrecisionToggle extends StatefulWidget {
+  const _PrecisionToggle({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  State<_PrecisionToggle> createState() => _PrecisionToggleState();
+}
+
+class _PrecisionToggleState extends State<_PrecisionToggle> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.onChanged != null;
+    return FocusableActionDetector(
+      onShowFocusHighlight: (value) {
+        if (_focused == value) return;
+        setState(() {
+          _focused = value;
+        });
+      },
+      child: GestureDetector(
+        onTap: enabled ? () => widget.onChanged!.call(!widget.value) : null,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          width: 32,
+          height: 16,
+          padding: const EdgeInsets.all(1),
+          decoration: BoxDecoration(
+            color: widget.value ? _kSurface : _kSurfaceGlow,
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: _focused ? _kDanger : _kSurfaceGlow),
+          ),
+          child: Align(
+            alignment:
+                widget.value ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(99),
+                border: Border.all(color: _kSurfaceGlow),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SectionHeader extends StatelessWidget {
   const _SectionHeader({required this.title, required this.subtitle});
 
@@ -4041,17 +4684,70 @@ class _SessionBrowserState extends StatelessWidget {
     super.key,
     required this.icon,
     required this.message,
+    this.helperText,
     this.actionLabel,
     this.onAction,
+    this.engineeredCalm = false,
   });
 
   final IconData icon;
   final String message;
+  final String? helperText;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final bool engineeredCalm;
 
   @override
   Widget build(BuildContext context) {
+    if (engineeredCalm) {
+      return Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 320),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        decoration: BoxDecoration(
+          color: _kSurfaceRaised,
+          borderRadius: BorderRadius.circular(_kPanelRadius),
+          border: Border.all(color: _kSurfaceGlow),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: _kSurfaceGlow, size: 48, weight: 1.5),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.1,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                helperText ?? 'Select filters to browse archived sessions',
+                textAlign: TextAlign.center,
+                style: _kDataBodyStyle,
+              ),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: 16),
+                OutlinedButton(
+                  onPressed: onAction,
+                  style: _dataSecondaryButtonStyle(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 16),
+                  ),
+                  child: Text(actionLabel!),
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
@@ -4069,6 +4765,14 @@ class _SessionBrowserState extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(color: _kMuted),
           ),
+          if (helperText != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              helperText!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _kMuted, fontSize: 12),
+            ),
+          ],
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 10),
             TextButton(
@@ -4136,6 +4840,7 @@ class _SessionRow extends StatelessWidget {
     required this.syncState,
     required this.typeLabel,
     required this.startedAtLabel,
+    required this.engineeredCalm,
     required this.onSelect,
     required this.onReview,
     required this.onDelete,
@@ -4147,6 +4852,7 @@ class _SessionRow extends StatelessWidget {
   final CloudSyncState syncState;
   final String typeLabel;
   final String startedAtLabel;
+  final bool engineeredCalm;
   final VoidCallback onSelect;
   final VoidCallback onReview;
   final VoidCallback onDelete;
@@ -4185,17 +4891,26 @@ class _SessionRow extends StatelessWidget {
                   children: [
                     Text(
                       session.sessionId.isEmpty ? 'Session' : session.sessionId,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                      style: engineeredCalm
+                          ? _kDataBodyStyle.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            )
+                          : const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Track: ${trackLabelForSession(session)} · Car: ${carLabelForSession(session)} · $typeLabel',
-                      style: const TextStyle(color: _kMuted, fontSize: 12),
+                      style: engineeredCalm
+                          ? _kDataBodyStyle
+                          : const TextStyle(color: _kMuted, fontSize: 12),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Started: $startedAtLabel',
-                      style: const TextStyle(color: _kMuted, fontSize: 11),
+                      style: engineeredCalm
+                          ? _kDataBodyStyle
+                          : const TextStyle(color: _kMuted, fontSize: 11),
                     ),
                   ],
                 ),
@@ -4204,15 +4919,20 @@ class _SessionRow extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(durationLabel,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(
+                    durationLabel,
+                    style: engineeredCalm
+                        ? _kDataMonoValueStyle.copyWith(fontSize: 14)
+                        : const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     active ? 'LIVE' : (selected ? 'SELECTED' : 'COMPLETE'),
                     style: TextStyle(
                       color:
                           active ? _kDanger : (selected ? _kAccent : _kMuted),
-                      fontSize: 11,
+                      fontSize: engineeredCalm ? 12 : 11,
+                      letterSpacing: engineeredCalm ? 0.6 : 0.2,
                     ),
                   ),
                   const SizedBox(height: 8),
