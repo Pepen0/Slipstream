@@ -18,7 +18,7 @@ void main() {
     expect(find.text('Live Dashboard'), findsOneWidget);
     expect(find.text('Data & Sharing'), findsOneWidget);
     expect(find.byKey(const Key('race-phase-indicator')), findsOneWidget);
-    expect(find.textContaining('Broadcast Phase: Pre-Race'), findsOneWidget);
+    expect(find.textContaining('BROADCAST PHASE: PRE-RACE'), findsOneWidget);
     expect(find.byKey(const Key('telemetry-hud')), findsOneWidget);
     expect(find.byKey(const Key('track-map')), findsOneWidget);
     expect(find.byKey(const Key('session-list')), findsOneWidget);

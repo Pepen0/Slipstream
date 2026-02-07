@@ -393,10 +393,12 @@ class _DashboardHomeState extends State<DashboardHome> {
   final List<TelemetryExportArtifact> _exportArtifacts = [];
   bool _dataTaskRunning = false;
   String? _dataNotice;
-  double _smoothedTrackProgress = 0.0;
-  double _lastTrackProgressRaw = 0.0;
-  bool _trackProgressInitialized = false;
+  int _trackMapInterpolationMs = 120;
+  int? _lastTrackMapSampleTimestampNs;
   int _selectedTabIndex = 0;
+  bool _sessionControlExpanded = false;
+  bool _showPostSessionReviewBanner = false;
+  String? _postSessionReviewSessionId;
 
   @override
   void initState() {
@@ -439,7 +441,7 @@ class _DashboardHomeState extends State<DashboardHome> {
   void _onSnapshotUpdate() {
     final snapshot = client.snapshot.value;
     final liveDerived = _deriveTelemetry(snapshot, forceLive: true);
-    _updateTrackSmoothing(liveDerived.trackProgress);
+    _updateTrackMapInterpolation(liveDerived.sampleTimestampNs);
     _updateBroadcastPhase(snapshot, liveDerived);
     unawaited(_voice.setSafetyWarningActive(_hasSafetyWarning(snapshot)));
     final status = snapshot.status;
@@ -529,9 +531,28 @@ class _DashboardHomeState extends State<DashboardHome> {
         _activeSessionId = sessionId;
         _liveHistory = _sessionHistory.putIfAbsent(sessionId, () => []);
       }
+      if (_showPostSessionReviewBanner && mounted) {
+        setState(() {
+          _showPostSessionReviewBanner = false;
+          _postSessionReviewSessionId = sessionId;
+        });
+      } else {
+        _postSessionReviewSessionId = sessionId;
+      }
     }
     if (_lastSessionActive && !active) {
       _refreshSessions();
+      final endedSessionId = _activeSessionId;
+      if (mounted) {
+        setState(() {
+          if (endedSessionId != null && endedSessionId.isNotEmpty) {
+            _postSessionReviewSessionId = endedSessionId;
+          }
+          _showPostSessionReviewBanner = true;
+        });
+      } else {
+        _showPostSessionReviewBanner = true;
+      }
     }
     _lastSessionActive = active;
   }
@@ -566,24 +587,18 @@ class _DashboardHomeState extends State<DashboardHome> {
     return 0.0;
   }
 
-  void _updateTrackSmoothing(double rawProgress) {
-    final progress = rawProgress.clamp(0.0, 1.0);
-    if (!_trackProgressInitialized) {
-      _trackProgressInitialized = true;
-      _lastTrackProgressRaw = progress;
-      _smoothedTrackProgress = progress;
+  void _updateTrackMapInterpolation(int sampleTimestampNs) {
+    if (sampleTimestampNs <= 0) {
       return;
     }
-    var delta = progress - _lastTrackProgressRaw;
-    if (delta > 0.5) {
-      delta -= 1.0;
-    } else if (delta < -0.5) {
-      delta += 1.0;
+    final previous = _lastTrackMapSampleTimestampNs;
+    _lastTrackMapSampleTimestampNs = sampleTimestampNs;
+    if (previous == null || sampleTimestampNs <= previous) {
+      return;
     }
-    final target = _smoothedTrackProgress + delta;
-    _smoothedTrackProgress =
-        _smoothedTrackProgress + (target - _smoothedTrackProgress) * 0.38;
-    _lastTrackProgressRaw = progress;
+    final deltaMs =
+        ((sampleTimestampNs - previous) / 1000000).round().clamp(16, 250);
+    _trackMapInterpolationMs = deltaMs;
   }
 
   void _appendSpeedSample(
@@ -1147,6 +1162,7 @@ class _DashboardHomeState extends State<DashboardHome> {
         rpm: rpm,
         latencyMs: snapshot.telemetry?.latencyMs ?? 0,
         trackProgress: sample.trackProgress,
+        sampleTimestampNs: sample.timestamp.microsecondsSinceEpoch * 1000,
       );
     }
 
@@ -1182,6 +1198,9 @@ class _DashboardHomeState extends State<DashboardHome> {
       rpm: derivedRpm,
       latencyMs: telemetry.latencyMs,
       trackProgress: trackProgress,
+      sampleTimestampNs: telemetry.timestampNs.toInt() > 0
+          ? telemetry.timestampNs.toInt()
+          : DateTime.now().microsecondsSinceEpoch * 1000,
     );
   }
 
@@ -1208,6 +1227,7 @@ class _DashboardHomeState extends State<DashboardHome> {
       rpm: rpm,
       latencyMs: telemetry?.latencyMs ?? 0,
       trackProgress: progress,
+      sampleTimestampNs: nowNs,
     );
   }
 
@@ -1334,6 +1354,9 @@ class _DashboardHomeState extends State<DashboardHome> {
   }
 
   Widget _buildLiveDashboard(DashboardSnapshot snapshot, bool isWide) {
+    const railWidth = 48.0;
+    const railGap = 16.0;
+    const contentLeftPadding = 24.0 + railWidth + railGap;
     final derived = _deriveTelemetry(snapshot);
     final samples = _reviewMode ? _reviewSamples : _liveHistory;
     final phase =
@@ -1355,17 +1378,6 @@ class _DashboardHomeState extends State<DashboardHome> {
     final showSummary =
         _composition.shouldShow(BroadcastWidgetSlot.summaryCard, phase: phase);
 
-    final topPanels = <Widget>[];
-    if (showTelemetry) {
-      topPanels.add(_buildTelemetryHud(derived));
-    }
-    if (showTrackMap) {
-      topPanels.add(_buildTrackMap(derived));
-    }
-    if (showSummary) {
-      topPanels.add(_buildSummaryModeCard(snapshot, derived, samples));
-    }
-
     final middlePanels = <Widget>[];
     if (showSpeedGraph) {
       middlePanels.add(_buildSpeedGraph(samples, derived));
@@ -1382,31 +1394,315 @@ class _DashboardHomeState extends State<DashboardHome> {
     if (showVoice) {
       lowerPanels.add(_buildVoiceInterface(snapshot));
     }
-    if (showSessionControl) {
-      lowerPanels.add(_buildSessionControl(snapshot));
+    final overlaySessionControl = showSessionControl;
+
+    final controlExpandedPadding = _sessionControlExpanded ? 376.0 : 104.0;
+    final bottomPadding = overlaySessionControl ? controlExpandedPadding : 24.0;
+
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              contentLeftPadding,
+              24,
+              24,
+              bottomPadding,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 150),
+                  switchInCurve: Curves.linear,
+                  switchOutCurve: Curves.linear,
+                  transitionBuilder: (child, animation) {
+                    final slide = Tween<Offset>(
+                      begin: const Offset(0, -0.18),
+                      end: Offset.zero,
+                    ).animate(animation);
+                    return ClipRect(
+                      child: SlideTransition(
+                        position: slide,
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: _showPostSessionReviewBanner && !_reviewMode
+                      ? _buildPostSessionReviewBanner()
+                      : const SizedBox.shrink(
+                          key: ValueKey('post-session-review-banner-hidden'),
+                        ),
+                ),
+                if (_showPostSessionReviewBanner && !_reviewMode)
+                  const SizedBox(height: 16),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 150),
+                  switchInCurve: Curves.linear,
+                  switchOutCurve: Curves.linear,
+                  child: KeyedSubtree(
+                    key: ValueKey<String>('live-phase-${phase.name}'),
+                    child: _buildRacePhaseIndicator(phase),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _buildOverviewStrip(snapshot, derived),
+                const SizedBox(height: 16),
+                _buildLiveOperationsCanvas(
+                  derived: derived,
+                  isWide: isWide,
+                  showTelemetry: showTelemetry,
+                  showTrackMap: showTrackMap,
+                ),
+                if (showSummary) const SizedBox(height: 16),
+                if (showSummary)
+                  _buildSummaryModeCard(snapshot, derived, samples),
+                if (middlePanels.isNotEmpty) const SizedBox(height: 16),
+                _buildPanelStack(middlePanels, isWide: isWide),
+                if (showAnalysis) const SizedBox(height: 16),
+                if (showAnalysis) _buildTelemetryAnalysisPanel(samples),
+                if (showAnalysis) const SizedBox(height: 16),
+                if (showAnalysis) _buildCausalityFeedbackSpine(),
+                if (lowerPanels.isNotEmpty) const SizedBox(height: 16),
+                _buildPanelStack(lowerPanels, isWide: isWide),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          left: 24,
+          top: 24,
+          bottom: 24,
+          child: _buildFeedbackRail(),
+        ),
+        if (overlaySessionControl)
+          Positioned(
+            left: contentLeftPadding,
+            right: 24,
+            bottom: 24,
+            child: _buildSessionControl(snapshot),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildLiveOperationsCanvas({
+    required _DerivedTelemetry derived,
+    required bool isWide,
+    required bool showTelemetry,
+    required bool showTrackMap,
+  }) {
+    if (!showTelemetry && !showTrackMap) {
+      return const SizedBox.shrink();
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    if (isWide) {
+      return SizedBox(
+        height: 360,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (showTelemetry)
+              Expanded(
+                flex: 4,
+                child: Align(
+                  alignment: Alignment.bottomLeft,
+                  child: _buildTelemetryHud(derived),
+                ),
+              ),
+            if (showTelemetry && showTrackMap) const SizedBox(width: 16),
+            if (showTrackMap)
+              Expanded(
+                flex: 6,
+                child: _buildTrackMap(derived),
+              ),
+          ],
+        ),
+      );
+    }
+
+    if (showTelemetry && showTrackMap) {
+      return Column(
         children: [
-          _buildReviewBanner(snapshot.status?.sessionActive ?? false,
-              snapshot.status?.sessionId ?? ''),
-          const SizedBox(height: 16),
-          _buildRacePhaseIndicator(phase),
-          const SizedBox(height: 16),
-          _buildOverviewStrip(snapshot, derived),
-          const SizedBox(height: 16),
-          _buildPanelStack(topPanels, isWide: isWide),
-          if (middlePanels.isNotEmpty) const SizedBox(height: 16),
-          _buildPanelStack(middlePanels, isWide: isWide),
-          if (showAnalysis) const SizedBox(height: 16),
-          if (showAnalysis) _buildTelemetryAnalysisPanel(samples),
-          if (showAnalysis) const SizedBox(height: 16),
-          if (showAnalysis) _buildCausalityFeedbackSpine(),
-          if (lowerPanels.isNotEmpty) const SizedBox(height: 16),
-          _buildPanelStack(lowerPanels, isWide: isWide),
+          SizedBox(
+            height: 220,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(child: _buildTelemetryHud(derived)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 260,
+            child: _buildTrackMap(derived),
+          ),
+        ],
+      );
+    }
+
+    return SizedBox(
+      height: showTrackMap ? 260 : 220,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: showTrackMap
+                ? _buildTrackMap(derived)
+                : _buildTelemetryHud(derived),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeedbackRail({double? height}) {
+    final trigger = _feedbackSpine.isEmpty ? null : _feedbackSpine.first;
+    final confidence = trigger?.insight.confidenceScore ?? 0.0;
+    final confidenceColor = confidence >= 0.75 ? Colors.white : _kMutedSoft;
+    final critical = trigger != null && _isSafetyCriticalFeedback(trigger);
+
+    final rail = Container(
+      key: const Key('feedback-rail'),
+      width: 48,
+      height: height,
+      decoration: BoxDecoration(
+        color: critical ? _kDanger : Colors.transparent,
+        border: Border(
+          left: BorderSide(
+            color: trigger == null ? Colors.transparent : confidenceColor,
+            width: 2,
+          ),
+          right: const BorderSide(color: _kSurfaceGlow),
+        ),
+      ),
+      child: trigger == null
+          ? const SizedBox.expand()
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(6, 10, 6, 10),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _feedbackSignalIcon(trigger.insight.signal),
+                    size: 24,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    causalitySignalLabel(trigger.insight.signal).toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: critical ? Colors.white : _kMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    trigger.insight.effect,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: critical
+                          ? Colors.white.withValues(alpha: 0.9)
+                          : _kMuted,
+                      fontSize: 10,
+                      height: 1.3,
+                    ),
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+    );
+    return rail;
+  }
+
+  bool _isSafetyCriticalFeedback(CausalityFeedbackTrigger trigger) {
+    final metrics = trigger.insight.metrics;
+    final explicitCritical = (metrics['safetyCritical'] ?? 0) >= 0.5 ||
+        (metrics['critical'] ?? 0) >= 0.5 ||
+        (metrics['fault'] ?? 0) >= 0.5;
+    if (explicitCritical) {
+      return true;
+    }
+    return trigger.insight.severityScore >= 0.92 &&
+        trigger.insight.confidenceScore >= 0.75;
+  }
+
+  IconData _feedbackSignalIcon(CausalitySignal signal) {
+    switch (signal) {
+      case CausalitySignal.understeer:
+        return Icons.turn_right_rounded;
+      case CausalitySignal.oversteer:
+        return Icons.sync_problem_rounded;
+    }
+  }
+
+  Widget _buildPostSessionReviewBanner() {
+    final endedSessionId = _postSessionReviewSessionId;
+    return Container(
+      key: const ValueKey('post-session-review-banner'),
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        border: Border.all(color: _kSurfaceGlow),
+        borderRadius: BorderRadius.circular(_kControlRadius),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.check_circle_outline, color: _kSystemOk, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text(
+                  'POST-SESSION REVIEW READY',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.0,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _sessionControlExpanded = true;
+                      if (endedSessionId != null && endedSessionId.isNotEmpty) {
+                        _selectedSessionId = endedSessionId;
+                      }
+                    });
+                  },
+                  child: Text(
+                    'Select a run to review',
+                    style: _kDataBodyStyle.copyWith(
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Tooltip(
+            message: 'Dismiss',
+            child: IconButton(
+              onPressed: () {
+                setState(() {
+                  _showPostSessionReviewBanner = false;
+                });
+              },
+              icon: const Icon(Icons.close, size: 24, color: _kMutedSoft),
+            ),
+          ),
         ],
       ),
     );
@@ -1907,44 +2203,33 @@ class _DashboardHomeState extends State<DashboardHome> {
     final latency = derived.latencyMs.toStringAsFixed(1);
     final connected = client.isConnected && snapshot.connected;
 
-    return _HudCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            children: [
-              _StatusPill(
-                label: 'USB LINK',
-                value: connected ? 'ONLINE' : 'OFFLINE',
-                color: connected ? _kOk : _kDanger,
-              ),
-              _StatusPill(
-                label: 'PROFILE',
-                value: activeProfile.isEmpty ? 'UNSET' : activeProfile,
-                color: activeProfile.isEmpty ? _kWarning : _kAccent,
-              ),
-              _StatusPill(
-                label: 'LATENCY',
-                value: '${latency}ms',
-                color: derived.latencyMs > 20 ? _kWarning : _kAccentAlt,
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              _reviewMode ? 'REVIEW MODE' : 'LIVE FEED',
-              style: TextStyle(
-                color: _reviewMode ? _kWarning : _kAccent,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
-              ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            _LiveStatusPill(
+              label: 'USB LINK',
+              value: connected ? 'ONLINE' : 'OFFLINE',
+              dotColor: connected ? _kSystemOk : _kDanger,
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            _LiveStatusPill(
+              label: 'PROFILE',
+              value: activeProfile.isEmpty ? 'UNSET' : activeProfile,
+              dotColor: _kSystemOk,
+            ),
+            const SizedBox(width: 8),
+            _LiveStatusPill(
+              label: 'LATENCY',
+              value: '${latency}ms',
+              dotColor: derived.latencyMs > 20 ? _kWarning : _kSystemOk,
+              monoValue: true,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1997,40 +2282,57 @@ class _DashboardHomeState extends State<DashboardHome> {
       BroadcastRacePhase.summary =>
         'Car stopped. Auto-switched to summary mode.',
     };
-    final phaseColor = switch (phase) {
-      BroadcastRacePhase.preRace => _kAccentAlt,
-      BroadcastRacePhase.live => _kAccent,
-      BroadcastRacePhase.postRace => _kWarning,
-      BroadcastRacePhase.summary => _kOk,
-    };
-
-    return _HudCard(
+    return Container(
       key: const Key('race-phase-indicator'),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(24, 14, 24, 14),
+      decoration: const BoxDecoration(
+        color: _kSurface,
+        border: Border(
+          bottom: BorderSide(color: _kSurfaceGlow),
+        ),
+      ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Icon(Icons.video_settings_rounded, color: phaseColor),
+          const Icon(Icons.wifi_tethering_rounded, color: _kMuted, size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Broadcast Phase: $phaseLabel',
+                  'BROADCAST PHASE: ${phaseLabel.toUpperCase()}',
                   key: const Key('race-phase-label'),
-                  style:
-                      TextStyle(color: phaseColor, fontWeight: FontWeight.w700),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.2,
+                    height: 1.2,
+                  ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
                   _reviewMode ? 'Review mode override active.' : subtitle,
-                  style: const TextStyle(color: _kMuted),
+                  style: const TextStyle(
+                    color: _kMuted,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
                 ),
               ],
             ),
           ),
           Text(
             'since $changedAt',
-            style: const TextStyle(color: _kMuted, fontSize: 11),
+            style: const TextStyle(
+              color: _kMutedSoft,
+              fontSize: 12,
+              fontFamily: 'RobotoMono',
+              letterSpacing: 0.2,
+              height: 1.2,
+            ),
           ),
         ],
       ),
@@ -2220,145 +2522,74 @@ class _DashboardHomeState extends State<DashboardHome> {
     return wrapped < 0 ? wrapped + 1.0 : wrapped;
   }
 
-  Widget _buildReviewBanner(bool sessionActive, String sessionId) {
-    if (!_reviewMode) {
-      return _HudCard(
-        child: Wrap(
-          spacing: 12,
-          runSpacing: 8,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            const Icon(Icons.hub, color: _kAccentAlt),
-            Text(
-              sessionActive
-                  ? 'Session $sessionId live telemetry streaming.'
-                  : 'Session idle. Select a run to review.',
-              style: const TextStyle(color: _kMuted),
-            ),
-            if (!sessionActive)
-              Text(
-                'POST-SESSION REVIEW READY',
-                style: TextStyle(
-                    color: _kAccent.withValues(alpha: 0.8),
-                    fontWeight: FontWeight.w600),
-              ),
-          ],
-        ),
-      );
-    }
-
-    return _HudCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              const Icon(Icons.play_circle_fill, color: _kWarning),
-              Text(
-                _reviewSession == null
-                    ? 'Reviewing latest session capture.'
-                    : 'Reviewing ${_reviewSession!.sessionId}',
-                style: const TextStyle(color: Colors.white),
-              ),
-              if (_reviewSimulated)
-                Text(
-                  'SIMULATED REPLAY',
-                  style: TextStyle(
-                      color: _kWarning.withValues(alpha: 0.9),
-                      fontWeight: FontWeight.w700),
-                ),
-              FilledButton(
-                onPressed: _exitReview,
-                child: const Text('Exit Review'),
-              ),
-            ],
-          ),
-          if (_reviewNotice != null) ...[
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  _reviewFetching ? Icons.hourglass_top : Icons.info_outline,
-                  color: _reviewFetching ? _kAccentAlt : _kWarning,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _reviewNotice!,
-                    style: const TextStyle(color: _kMuted),
-                  ),
-                ),
-                TextButton(
-                  onPressed: _reviewFetching || _reviewSession == null
-                      ? null
-                      : () => _fetchSessionTelemetry(_reviewSession!),
-                  child: const Text('Retry'),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Widget _buildTelemetryHud(_DerivedTelemetry derived) {
-    return _HudCard(
+    final rpmRatio = (derived.rpm / 8000).clamp(0.0, 1.0).toDouble();
+
+    return Container(
       key: const Key('telemetry-hud'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(
-              title: 'Telemetry HUD', subtitle: 'FLT-012 · Speed, Gear, RPM'),
-          const SizedBox(height: 16),
+          const Text(
+            'TELEMETRY HUD',
+            style: TextStyle(
+              color: _kMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
-                child: _HudMetric(
+                child: _LiveHudMetricBlock(
                   label: 'SPEED',
                   value: _displaySpeed(derived.speedKmh).toStringAsFixed(0),
-                  unit: _speedUnitLabel(),
-                  glow: _kAccentAlt,
+                  unit: _speedUnitLabel().toLowerCase(),
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _HudMetric(
-                  label: 'GEAR',
-                  value: derived.gear == 0 ? 'N' : derived.gear.toString(),
-                  unit: '',
-                  glow: _kAccent,
-                ),
+              const SizedBox(width: 16),
+              _GearHudBlock(
+                value: derived.gear == 0 ? 'N' : derived.gear.toString(),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Expanded(
-                child: _HudMetric(
+                child: _LiveHudMetricBlock(
                   label: 'RPM',
                   value: derived.rpm.toStringAsFixed(0),
                   unit: 'rpm',
-                  glow: _kWarning,
+                  barFill: rpmRatio,
+                  showBar: true,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          Row(
+          Wrap(
+            spacing: 24,
+            runSpacing: 8,
             children: [
-              _MiniStat(
-                  label: 'Track Progress',
-                  value:
-                      '${(derived.trackProgress * 100).toStringAsFixed(1)}%'),
-              const SizedBox(width: 16),
-              _MiniStat(
-                  label: 'Stream', value: _reviewMode ? 'Playback' : 'Live'),
-              const SizedBox(width: 16),
-              _MiniStat(
-                  label: 'Latency',
-                  value: '${derived.latencyMs.toStringAsFixed(1)}ms'),
+              _HudMetaReadout(
+                label: 'TRACK PROGRESS',
+                value: '${(derived.trackProgress * 100).toStringAsFixed(1)}%',
+              ),
+              _HudMetaReadout(
+                label: 'STREAM',
+                value: _reviewMode ? 'PLAYBACK' : 'LIVE',
+              ),
+              _HudMetaReadout(
+                label: 'LATENCY',
+                value: '${derived.latencyMs.toStringAsFixed(1)}ms',
+              ),
             ],
           ),
         ],
@@ -2368,39 +2599,72 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Widget _buildTrackMap(_DerivedTelemetry derived) {
     final displayProgress = derived.trackProgress;
-    return _HudCard(
+    final interpolationMs = _reviewMode ? 16 : _trackMapInterpolationMs;
+    return Container(
       key: const Key('track-map'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: _kBackground,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Stack(
         children: [
-          _SectionHeader(
-              title: 'Track Map',
-              subtitle: 'FLT-013 · Driver position overlay'),
-          const SizedBox(height: 12),
-          AspectRatio(
-            aspectRatio: 1.4,
-            child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(end: displayProgress),
-              duration: const Duration(milliseconds: 150),
-              curve: Curves.linear,
-              builder: (context, value, _) {
-                return CustomPaint(
-                  painter: _TrackMapPainter(
-                    progress: value,
-                    trackColor: _kSurfaceGlow,
-                    dotColor: _reviewMode ? _kWarning : _kAccentAlt,
-                  ),
-                );
-              },
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 42, 24, 24),
+              child: _TrackMapInterpolator(
+                progress: displayProgress,
+                durationMs: interpolationMs,
+                builder: (value) {
+                  return CustomPaint(
+                    painter: _TrackMapPainter(
+                      progress: value,
+                      trackColor: _kSurfaceGlow,
+                      dotColor: Colors.white,
+                      showSectorMarkers: true,
+                    ),
+                  );
+                },
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            _reviewMode
-                ? 'Review scrub active'
-                : 'Live position smoothing enabled',
-            style: const TextStyle(color: _kMuted),
+          const Positioned(
+            left: 24,
+            top: 16,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'TRACK MAP',
+                  style: TextStyle(
+                    color: _kMutedSoft,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'FLT-013 — Driver position overlay',
+                  style: TextStyle(
+                    color: _kMutedSoft,
+                    fontSize: 10,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
           ),
+          if (_reviewMode)
+            const Positioned(
+              left: 24,
+              bottom: 8,
+              child: Text(
+                'Review scrub active',
+                style: TextStyle(color: _kMuted, fontSize: 12),
+              ),
+            ),
         ],
       ),
     );
@@ -3629,91 +3893,175 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Widget _buildSessionControl(DashboardSnapshot snapshot) {
     final sessionActive = snapshot.status?.sessionActive ?? false;
+    final expanded = _sessionControlExpanded;
+    final panelHeight = expanded ? 320.0 : 48.0;
+    final sessionId =
+        snapshot.status?.sessionId ?? sessionController.text.trim();
 
-    return _HudCard(
+    return AnimatedContainer(
       key: const Key('session-control'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionHeader(
-              title: 'Session Control',
-              subtitle: 'FLT-017 · Run control & post-session review'),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              SizedBox(
-                width: 220,
-                child: TextField(
-                  controller: sessionController,
-                  decoration: const InputDecoration(labelText: 'Session ID'),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.linear,
+      height: panelHeight,
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: const Border(
+          top: BorderSide(color: _kSurfaceGlow),
+        ),
+      ),
+      child: ClipRect(
+        child: Column(
+          children: [
+            InkWell(
+              onTap: () {
+                setState(() {
+                  _sessionControlExpanded = !_sessionControlExpanded;
+                });
+              },
+              child: SizedBox(
+                height: 46,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'SESSION CONTROL',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (sessionActive)
+                        Text(
+                          'LIVE: $sessionId',
+                          style: const TextStyle(
+                            color: _kSystemOk,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'RobotoMono',
+                          ),
+                        ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        expanded
+                            ? Icons.expand_less_rounded
+                            : Icons.expand_more_rounded,
+                        color: _kMuted,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              SizedBox(
-                width: 220,
-                child: TextField(
-                  controller: trackController,
-                  decoration: const InputDecoration(labelText: 'Track'),
-                ),
-              ),
-              SizedBox(
-                width: 180,
-                child: TextField(
-                  controller: carController,
-                  decoration: const InputDecoration(labelText: 'Car'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              FilledButton.icon(
-                onPressed: sessionActive
-                    ? null
-                    : () async {
-                        await client.startSession(
-                          sessionController.text.trim(),
-                          track: trackController.text.trim(),
-                          car: carController.text.trim(),
-                        );
-                      },
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: const Text('Start Session'),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: sessionActive
-                    ? () async {
-                        await client.endSession(sessionController.text.trim());
-                      }
-                    : null,
-                icon: const Icon(Icons.stop_rounded),
-                label: const Text('End Session'),
-              ),
-              const SizedBox(width: 12),
+            ),
+            if (expanded)
               Expanded(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: _reviewMode
-                      ? Text(
-                          "Reviewing ${_reviewSession?.sessionId ?? 'Session'}",
-                          style: const TextStyle(color: _kWarning),
-                          textAlign: TextAlign.right,
-                        )
-                      : sessionActive
-                          ? Text(
-                              "Live: ${snapshot.status?.sessionId ?? 'Session'}",
-                              style: const TextStyle(color: _kAccent),
-                              textAlign: TextAlign.right,
-                            )
-                          : const SizedBox.shrink(),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 760;
+                          if (compact) {
+                            return Column(
+                              children: [
+                                _SessionControlField(
+                                  label: 'SESSION ID',
+                                  controller: sessionController,
+                                ),
+                                const SizedBox(height: 12),
+                                _SessionControlField(
+                                  label: 'TRACK',
+                                  controller: trackController,
+                                ),
+                                const SizedBox(height: 12),
+                                _SessionControlField(
+                                  label: 'CAR',
+                                  controller: carController,
+                                ),
+                              ],
+                            );
+                          }
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: _SessionControlField(
+                                  label: 'SESSION ID',
+                                  controller: sessionController,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _SessionControlField(
+                                  label: 'TRACK',
+                                  controller: trackController,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: _SessionControlField(
+                                  label: 'CAR',
+                                  controller: carController,
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: FilledButton.icon(
+                          onPressed: sessionActive
+                              ? null
+                              : () async {
+                                  setState(() {
+                                    _sessionControlExpanded = true;
+                                  });
+                                  await client.startSession(
+                                    sessionController.text.trim(),
+                                    track: trackController.text.trim(),
+                                    car: carController.text.trim(),
+                                  );
+                                },
+                          style: _dataPrimaryButtonStyle(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                          ),
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          label: const Text('Start Session'),
+                        ),
+                      ),
+                      if (sessionActive) ...[
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              await client
+                                  .endSession(sessionController.text.trim());
+                            },
+                            style: _dataSecondaryButtonStyle(),
+                            icon: const Icon(Icons.stop_rounded),
+                            label: const Text('End Session'),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -5281,61 +5629,6 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _HudMetric extends StatelessWidget {
-  const _HudMetric(
-      {required this.label,
-      required this.value,
-      required this.unit,
-      required this.glow});
-
-  final String label;
-  final String value;
-  final String unit;
-  final Color glow;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: _kSurfaceRaised,
-        borderRadius: BorderRadius.circular(_kPanelRadius),
-        border: Border.all(color: glow.withValues(alpha: 0.42)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: const TextStyle(
-                color: _kMuted,
-                fontSize: 11,
-                letterSpacing: 0.9,
-                fontWeight: FontWeight.w600,
-              )),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 30,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              fontFamily: 'RobotoMono',
-              letterSpacing: 0.3,
-            ),
-          ),
-          if (unit.isNotEmpty)
-            Text(unit,
-                style: const TextStyle(
-                  color: _kMuted,
-                  fontSize: 11,
-                  letterSpacing: 0.8,
-                )),
-        ],
-      ),
-    );
-  }
-}
-
 class _MiniStat extends StatelessWidget {
   const _MiniStat({required this.label, required this.value});
 
@@ -5392,6 +5685,284 @@ class _StatusPill extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _LiveStatusPill extends StatelessWidget {
+  const _LiveStatusPill({
+    required this.label,
+    required this.value,
+    required this.dotColor,
+    this.monoValue = false,
+  });
+
+  final String label;
+  final String value;
+  final Color dotColor;
+  final bool monoValue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(
+              color: dotColor,
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text.rich(
+            TextSpan(
+              text: '${label.toUpperCase()}: ',
+              children: [
+                TextSpan(
+                  text: value,
+                  style: TextStyle(
+                    fontFamily: monoValue ? 'RobotoMono' : null,
+                    letterSpacing: monoValue ? 0.2 : 0.8,
+                  ),
+                ),
+              ],
+            ),
+            style: const TextStyle(
+              color: _kMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.9,
+              height: 1.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveHudMetricBlock extends StatelessWidget {
+  const _LiveHudMetricBlock({
+    required this.label,
+    required this.value,
+    required this.unit,
+    this.showBar = false,
+    this.barFill = 0,
+  });
+
+  final String label;
+  final String value;
+  final String unit;
+  final bool showBar;
+  final double barFill;
+
+  @override
+  Widget build(BuildContext context) {
+    final fill = barFill.clamp(0.0, 1.0).toDouble();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: _kMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.1,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 32,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'RobotoMono',
+                height: 1,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(
+                unit.toLowerCase(),
+                style: const TextStyle(
+                  color: _kMutedSoft,
+                  fontSize: 12,
+                  height: 1.1,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (showBar) ...[
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: SizedBox(
+              height: 2,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  return Stack(
+                    children: [
+                      Container(
+                        width: width,
+                        height: 2,
+                        color: _kSurfaceGlow,
+                      ),
+                      Container(
+                        width: width * fill,
+                        height: 2,
+                        color: Colors.white,
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _GearHudBlock extends StatelessWidget {
+  const _GearHudBlock({required this.value});
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'GEAR',
+          style: TextStyle(
+            color: _kMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.1,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          width: 64,
+          height: 64,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Colors.transparent,
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: _kSurfaceGlow, width: 2),
+          ),
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 48,
+              fontWeight: FontWeight.w700,
+              height: 1,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HudMetaReadout extends StatelessWidget {
+  const _HudMetaReadout({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      '$label $value',
+      style: const TextStyle(
+        color: _kMutedSoft,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.9,
+        height: 1.2,
+      ),
+    );
+  }
+}
+
+class _SessionControlField extends StatelessWidget {
+  const _SessionControlField({
+    required this.label,
+    required this.controller,
+  });
+
+  final String label;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            color: _kMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.0,
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontFamily: 'RobotoMono',
+            letterSpacing: 0.2,
+          ),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: true,
+            fillColor: _kBackground,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(_kControlRadius),
+              borderSide: const BorderSide(color: _kSurfaceGlow),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(_kControlRadius),
+              borderSide: const BorderSide(color: _kSurfaceGlow),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(_kControlRadius),
+              borderSide: const BorderSide(color: _kDanger),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -5988,15 +6559,92 @@ class _ConnectionPill extends StatelessWidget {
   }
 }
 
+class _TrackMapInterpolator extends StatefulWidget {
+  const _TrackMapInterpolator({
+    required this.progress,
+    required this.durationMs,
+    required this.builder,
+  });
+
+  final double progress;
+  final int durationMs;
+  final Widget Function(double progress) builder;
+
+  @override
+  State<_TrackMapInterpolator> createState() => _TrackMapInterpolatorState();
+}
+
+class _TrackMapInterpolatorState extends State<_TrackMapInterpolator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 120),
+    value: 1,
+  )..addListener(() {
+      if (!mounted) return;
+      setState(() {});
+    });
+
+  late double _from = _wrapUnit(widget.progress);
+  late double _to = _from;
+
+  @override
+  void didUpdateWidget(covariant _TrackMapInterpolator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final next = _wrapUnit(widget.progress);
+    final current = _controller.isAnimating ? _currentValue() : _to;
+    var delta = next - _wrapUnit(current);
+    if (delta > 0.5) {
+      delta -= 1.0;
+    } else if (delta < -0.5) {
+      delta += 1.0;
+    }
+    if (delta.abs() < 1e-6) {
+      _to = current;
+      return;
+    }
+    _from = current;
+    _to = current + delta;
+    final duration = Duration(milliseconds: widget.durationMs.clamp(16, 250));
+    _controller
+      ..duration = duration
+      ..reset()
+      ..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  double _currentValue() {
+    return _from + (_to - _from) * _controller.value;
+  }
+
+  double _wrapUnit(double value) {
+    final wrapped = value % 1.0;
+    return wrapped < 0 ? wrapped + 1.0 : wrapped;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = _controller.isAnimating ? _currentValue() : _to;
+    return widget.builder(_wrapUnit(current));
+  }
+}
+
 class _TrackMapPainter extends CustomPainter {
   _TrackMapPainter(
       {required this.progress,
       required this.trackColor,
-      required this.dotColor});
+      required this.dotColor,
+      this.showSectorMarkers = false});
 
   final double progress;
   final Color trackColor;
   final Color dotColor;
+  final bool showSectorMarkers;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -6031,7 +6679,7 @@ class _TrackMapPainter extends CustomPainter {
     final trackPaint = Paint()
       ..color = trackColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.2
+      ..strokeWidth = 1
       ..strokeCap = StrokeCap.round;
 
     canvas.drawPath(path, trackPaint);
@@ -6039,9 +6687,36 @@ class _TrackMapPainter extends CustomPainter {
     final metric =
         path.computeMetrics().isEmpty ? null : path.computeMetrics().first;
     if (metric != null) {
+      if (showSectorMarkers) {
+        for (final marker in const [0.2, 0.45, 0.7, 0.9]) {
+          final tangent = metric.getTangentForOffset(metric.length * marker);
+          if (tangent == null) {
+            continue;
+          }
+          final vector = tangent.vector;
+          final magnitude = vector.distance;
+          if (magnitude <= 1e-6) {
+            continue;
+          }
+          final normal = Offset(-vector.dy / magnitude, vector.dx / magnitude);
+          final center = tangent.position;
+          canvas.drawLine(
+            center - normal * 2,
+            center + normal * 2,
+            Paint()
+              ..color = trackColor
+              ..strokeWidth = 1,
+          );
+        }
+      }
       final distance = metric.length * progress.clamp(0.0, 1.0).toDouble();
       final tangent = metric.getTangentForOffset(distance);
       if (tangent != null) {
+        canvas.drawCircle(
+          tangent.position,
+          6,
+          Paint()..color = _kBackground,
+        );
         canvas.drawCircle(
           tangent.position,
           4,
@@ -6055,7 +6730,8 @@ class _TrackMapPainter extends CustomPainter {
   bool shouldRepaint(covariant _TrackMapPainter oldDelegate) {
     return oldDelegate.progress != progress ||
         oldDelegate.trackColor != trackColor ||
-        oldDelegate.dotColor != dotColor;
+        oldDelegate.dotColor != dotColor ||
+        oldDelegate.showSectorMarkers != showSectorMarkers;
   }
 }
 
@@ -6351,6 +7027,7 @@ class _DerivedTelemetry {
     required this.rpm,
     required this.latencyMs,
     required this.trackProgress,
+    required this.sampleTimestampNs,
   });
 
   final double speedKmh;
@@ -6358,6 +7035,7 @@ class _DerivedTelemetry {
   final double rpm;
   final double latencyMs;
   final double trackProgress;
+  final int sampleTimestampNs;
 }
 
 class _CausalityFeedbackSnapshot {
