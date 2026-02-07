@@ -58,11 +58,92 @@ message TelemetryFrame {
 }
 
 message StreamAck {
+  enum AckStatus {
+    ACK_STATUS_UNSPECIFIED = 0;
+    ACK_OK = 1;
+    ACK_INVALID = 2;
+    ACK_BACKPRESSURE = 3;
+    ACK_DROPPED = 4;
+    ACK_ERROR = 5;
+  }
   // latest timestamp acknowledged by server
   uint64 last_monotonic_ns = 1;
+  AckStatus status = 2;
+  string message = 3;
+  uint32 buffered_frames = 4;
+}
+
+message SessionInfo {
+  string session_id = 1;
+  string driver_id = 2;
+  string track_id = 3;
+  string car_id = 4;
+  uint64 started_at_ns = 5;
+  uint64 closed_at_ns = 6;
+  bool active = 7;
+  map<string, string> tags = 8;
+}
+
+message CreateSessionRequest {
+  string session_id = 1;
+  string driver_id = 2;
+  string track_id = 3;
+  string car_id = 4;
+  uint64 started_at_ns = 5;
+  map<string, string> tags = 6;
+}
+
+message CreateSessionResponse {
+  bool ok = 1;
+  string message = 2;
+  SessionInfo session = 3;
+}
+
+message CloseSessionRequest {
+  string session_id = 1;
+  uint64 closed_at_ns = 2;
+}
+
+message CloseSessionResponse {
+  bool ok = 1;
+  string message = 2;
+  SessionInfo session = 3;
+}
+
+message QuerySessionTelemetryRequest {
+  string session_id = 1;
+  uint64 start_monotonic_ns = 2;
+  uint64 end_monotonic_ns = 3;
+  uint32 target_hz = 4;             // clamped to 10-20Hz
+  bool normalize_distance_axis = 5; // 0..1 distance axis normalization
+}
+
+message QueryPoint {
+  string session_id = 1;
+  uint64 monotonic_ns = 2;
+  uint64 timestamp_ns = 3;
+  int32 lap = 4;
+  float distance_norm = 5;
+  float speed_kmh = 6;
+  float throttle = 7;
+  float brake = 8;
+  float steer = 9;
+  int32 gear = 10;
+  float engine_rpm = 11;
+  float wheel_speed_delta_kmh = 12;
+  float lateral_g = 13;
+}
+
+message QuerySessionTelemetryResponse {
+  repeated QueryPoint points = 1;
+  uint32 source_count = 2;
+  uint32 returned_count = 3;
 }
 
 service TelemetryIngest {
+  rpc CreateSession(CreateSessionRequest) returns (CreateSessionResponse);
+  rpc CloseSession(CloseSessionRequest) returns (CloseSessionResponse);
+  rpc QuerySessionTelemetry(QuerySessionTelemetryRequest) returns (QuerySessionTelemetryResponse);
   // Bidirectional stream; server may send acks or control hints
   rpc StreamFrames(stream TelemetryFrame) returns (stream StreamAck);
 }

@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:2.17.2-pg16
+    container_name: slipstream-timescaledb
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: slipstream
+      POSTGRES_PASSWORD: slipstream
+      POSTGRES_DB: telemetry
+      TIMESCALEDB_TELEMETRY: "off"
+    volumes:
+      - timescale-data:/var/lib/postgresql/data
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U slipstream -d telemetry"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  timescale-data:
