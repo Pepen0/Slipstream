@@ -6,8 +6,8 @@
 namespace slipstream::physics {
 
 CloudTelemetryStreamer::RingBuffer::RingBuffer(std::size_t capacity_in) {
-  if (capacity_in < 4) {
-    capacity_in = 4;
+  if (capacity_in == 0) {
+    capacity_in = 1;
   }
   capacity = capacity_in + 1;
   buffer.resize(capacity);
