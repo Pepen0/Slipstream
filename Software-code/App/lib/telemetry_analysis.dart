@@ -10,6 +10,8 @@ class TelemetryFrame {
     required this.speedKmh,
     required this.gear,
     required this.rpm,
+    this.wheelSpeedDeltaKmh,
+    this.lateralG,
   });
 
   final DateTime timestamp;
@@ -17,6 +19,8 @@ class TelemetryFrame {
   final double speedKmh;
   final int gear;
   final double rpm;
+  final double? wheelSpeedDeltaKmh;
+  final double? lateralG;
 }
 
 @immutable
