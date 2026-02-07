@@ -35,7 +35,8 @@ void main() {
     expect(find.byKey(const Key('estop-control')), findsOneWidget);
 
     await tester.tap(find.text('System Status'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.byKey(const Key('system-status')), findsOneWidget);
     expect(find.byKey(const Key('fault-panel')), findsOneWidget);
     expect(find.byKey(const Key('safety-zones')), findsOneWidget);

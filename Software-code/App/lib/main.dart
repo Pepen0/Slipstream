@@ -22,6 +22,8 @@ const Color _kWarning = Color(0xFFE1B866);
 const Color _kDanger = Color(0xFFE6392F);
 const Color _kOk = Color(0xFF74C77A);
 const Color _kMuted = Color(0xFFB3B3B3);
+const Color _kSystemOk = Color(0xFF4ADE80);
+const Color _kMutedSoft = Color(0xFF6B6B6B);
 const double _kPanelRadius = 8;
 const double _kControlRadius = 4;
 const EdgeInsets _kDataPagePadding = EdgeInsets.all(24);
@@ -1309,6 +1311,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                 valueListenable: client.snapshot,
                 builder: (context, snapshot, _) => _buildEStopFab(snapshot),
               ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         body: ValueListenableBuilder<DashboardSnapshot>(
           valueListenable: client.snapshot,
           builder: (context, snapshot, _) {
@@ -3716,29 +3719,34 @@ class _DashboardHomeState extends State<DashboardHome> {
   }
 
   Widget _buildSystemHeader(DashboardSnapshot snapshot) {
-    return _HudCard(
+    final faultPresent = snapshot.status?.state == Status_State.STATE_FAULT;
+    return _SystemPanel(
+      accentLeft: faultPresent,
       child: Row(
         children: [
-          const Icon(Icons.security, color: _kAccentAlt),
-          const SizedBox(width: 12),
           const Expanded(
-            child: Text('System Status & Safety',
-                style: TextStyle(fontWeight: FontWeight.w700)),
-          ),
-          if (snapshot.status?.state == Status_State.STATE_FAULT)
-            Text(
-              'FAULT ACTIVE',
+            child: Text(
+              'SYSTEM STATUS',
               style: TextStyle(
-                  color: _kDanger.withValues(alpha: 0.9),
-                  fontWeight: FontWeight.w700),
-            )
-          else
-            Text(
-              'SYSTEM NOMINAL',
-              style: TextStyle(
-                  color: _kOk.withValues(alpha: 0.9),
-                  fontWeight: FontWeight.w700),
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2.2,
+                height: 1.2,
+              ),
             ),
+          ),
+          Text(
+            faultPresent ? 'SYSTEM FAULT' : 'SYSTEM NOMINAL',
+            style: TextStyle(
+              color: faultPresent ? _kDanger : _kSystemOk,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
+              fontFamily: 'RobotoMono',
+              height: 1.2,
+            ),
+          ),
         ],
       ),
     );
@@ -3746,73 +3754,111 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Widget _buildSystemStatusCard(DashboardSnapshot snapshot) {
     final status = snapshot.status;
-    final state = status?.state.name.replaceAll('STATE_', '') ?? 'UNKNOWN';
+    final state = (status?.state.name.replaceAll('STATE_', '') ?? 'UNKNOWN')
+        .toUpperCase();
     final connected = client.isConnected && snapshot.connected;
+    final usbState = connected ? 'ONLINE' : 'OFFLINE';
+    final sessionState = status?.sessionActive == true ? 'ACTIVE' : 'IDLE';
     final updatedAt = status?.updatedAtNs.toInt() ?? 0;
     final updatedText = updatedAt == 0
         ? '--'
         : _formatTimestamp(
             DateTime.fromMillisecondsSinceEpoch(updatedAt ~/ 1000000));
 
-    return _HudCard(
+    return _SystemPanel(
       key: const Key('system-status'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(
-              title: 'System Status',
-              subtitle: 'FLT-019 · MCU state, faults, USB'),
-          const SizedBox(height: 12),
+          const _SystemPanelHeader(
+            title: 'SYSTEM OVERVIEW',
+            subtitle: 'FLT-019 — MCU STATE, FAULTS, USB',
+          ),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StatusTile(
-                label: 'MCU State',
+              _SystemStatusCell(
+                label: 'MCU STATE',
                 value: state,
-                color: status?.state == Status_State.STATE_FAULT
-                    ? _kDanger
-                    : _kAccent,
+                timestamp: updatedText,
+                critical: status?.state == Status_State.STATE_FAULT,
               ),
-              const SizedBox(width: 12),
-              _StatusTile(
-                label: 'USB Link',
-                value: connected ? 'Online' : 'Offline',
-                color: connected ? _kOk : _kDanger,
+              const SizedBox(width: 8),
+              _SystemStatusCell(
+                label: 'USB LINK',
+                value: usbState,
+                timestamp: updatedText,
+                critical: !connected,
               ),
-              const SizedBox(width: 12),
-              _StatusTile(
-                label: 'Session',
-                value: status?.sessionActive == true ? 'Active' : 'Idle',
-                color: status?.sessionActive == true ? _kAccentAlt : _kMuted,
+              const SizedBox(width: 8),
+              _SystemStatusCell(
+                label: 'SESSION',
+                value: sessionState,
+                timestamp: updatedText,
+                critical: false,
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text('Last update: $updatedText',
-              style: const TextStyle(color: _kMuted)),
         ],
       ),
     );
   }
 
   Widget _buildFaultPanel(List<_Fault> faults) {
-    return _HudCard(
+    final activeCount = faults.length;
+    return _SystemPanel(
       key: const Key('fault-panel'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(
-              title: 'Faults & Recovery',
-              subtitle: 'FLT-020 · Actionable recovery steps'),
-          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Expanded(
+                child: _SystemPanelHeader(
+                  title: 'FAULTS & RECOVERY',
+                  subtitle: 'FLT-020 — ACTIONABLE RECOVERY STEPS',
+                ),
+              ),
+              Container(
+                height: 20,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color:
+                      _kDanger.withValues(alpha: activeCount > 0 ? 0.18 : 0.0),
+                  border: Border.all(
+                      color: activeCount > 0 ? _kDanger : _kSurfaceGlow),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '${activeCount.toString()} ACTIVE',
+                  style: TextStyle(
+                    color: activeCount > 0 ? _kDanger : _kMutedSoft,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
           if (faults.isEmpty)
-            const Text('No active faults detected.',
-                style: TextStyle(color: _kOk))
+            Text(
+              'No active faults detected.',
+              style: _kDataBodyStyle.copyWith(color: _kSystemOk),
+            )
           else
             Column(
               children: faults.map((fault) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _FaultCard(fault: fault),
+                  child: _SystemFaultCard(fault: fault),
                 );
               }).toList(),
             ),
@@ -3890,15 +3936,18 @@ class _DashboardHomeState extends State<DashboardHome> {
   Widget _buildSafetyZones(DashboardSnapshot snapshot) {
     final estopActive = snapshot.status?.estopActive ?? estopEngaged;
 
-    return _HudCard(
+    return _SystemPanel(
       key: const Key('safety-zones'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(
-              title: 'Safety Zones',
-              subtitle: 'FLT-021 · Visual safety coverage'),
-          const SizedBox(height: 12),
+          const _SystemPanelHeader(
+            title: 'SAFETY ZONES',
+            subtitle: 'FLT-021 — VISUAL SAFETY COVERAGE',
+          ),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
           SizedBox(
             height: 180,
             child: CustomPaint(
@@ -3909,36 +3958,44 @@ class _DashboardHomeState extends State<DashboardHome> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          CheckboxListTile(
-            value: safetyCentered,
-            onChanged: (value) {
-              setState(() {
-                safetyCentered = value ?? false;
-              });
-            },
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Operator zone clear'),
-          ),
-          CheckboxListTile(
-            value: safetyClear,
-            onChanged: (value) {
-              setState(() {
-                safetyClear = value ?? false;
-              });
-            },
-            contentPadding: EdgeInsets.zero,
-            title: const Text('Track perimeter clear'),
-          ),
-          CheckboxListTile(
-            value: safetyEstop,
-            onChanged: (value) {
-              setState(() {
-                safetyEstop = value ?? false;
-              });
-            },
-            contentPadding: EdgeInsets.zero,
-            title: const Text('E-Stop accessible'),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Column(
+              children: [
+                _SafetyChecklistRow(
+                  label: 'OPERATOR ZONE CLEAR',
+                  value: safetyCentered,
+                  onChanged: (value) {
+                    setState(() {
+                      safetyCentered = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                _SafetyChecklistRow(
+                  label: 'TRACK PERIMETER CLEAR',
+                  value: safetyClear,
+                  onChanged: (value) {
+                    setState(() {
+                      safetyClear = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                _SafetyChecklistRow(
+                  label: 'E-STOP ACCESSIBLE',
+                  value: safetyEstop,
+                  onChanged: (value) {
+                    setState(() {
+                      safetyEstop = value;
+                    });
+                  },
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -3947,57 +4004,90 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Widget _buildFirmwareManager(DashboardSnapshot snapshot) {
     final connected = client.isConnected && snapshot.connected;
-    final firmwareStatus = _dfuActive ? 'DFU ACTIVE' : 'Ready';
+    final firmwareStatus = (_dfuActive ? 'DFU ACTIVE' : 'READY').toUpperCase();
 
-    return _HudCard(
+    return _SystemPanel(
       key: const Key('firmware-manager'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(
-              title: 'Firmware Manager', subtitle: 'FLT-023 · DFU operations'),
-          const SizedBox(height: 12),
+          const _SystemPanelHeader(
+            title: 'FIRMWARE MANAGER',
+            subtitle: 'FLT-023 — DFU OPERATIONS',
+          ),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _StatusTile(
-                label: 'MCU Firmware',
-                value: 'v1.3.2',
-                color: _kAccentAlt,
+              Expanded(
+                child: _SystemInfoTile(
+                  label: 'MCU FIRMWARE',
+                  value: 'v1.3.2',
+                  mono: true,
+                  valueColor: Colors.white,
+                ),
               ),
-              const SizedBox(width: 12),
-              _StatusTile(
-                label: 'DFU Mode',
-                value: firmwareStatus,
-                color: _dfuActive ? _kWarning : _kOk,
+              const SizedBox(width: 8),
+              Expanded(
+                child: _SystemInfoTile(
+                  label: 'DFU MODE',
+                  value: firmwareStatus,
+                  mono: false,
+                  dotColor: _dfuActive ? _kDanger : _kSystemOk,
+                  valueColor: _dfuActive ? _kDanger : _kSystemOk,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           LinearProgressIndicator(
             value: _dfuActive ? _dfuProgress : 0.0,
             minHeight: 6,
             backgroundColor: _kSurfaceGlow,
-            valueColor:
-                AlwaysStoppedAnimation(_dfuActive ? _kWarning : _kAccentAlt),
+            valueColor: AlwaysStoppedAnimation(
+              _dfuActive ? _kDanger : _kSystemOk,
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             children: [
-              FilledButton.icon(
+              FilledButton(
                 onPressed: connected && !_dfuActive ? _startDfu : null,
-                icon: const Icon(Icons.usb_rounded),
-                label: const Text('Enter DFU'),
+                style: _dataPrimaryButtonStyle(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                ),
+                child: const Text('Enter DFU'),
               ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
+              const SizedBox(width: 8),
+              OutlinedButton(
                 onPressed: _dfuActive ? _cancelDfu : null,
-                icon: const Icon(Icons.cancel),
-                label: const Text('Cancel'),
+                style: _dataSecondaryButtonStyle(),
+                child: const Text('Cancel'),
               ),
               const Spacer(),
-              Text(
-                connected ? 'USB connected' : 'USB offline',
-                style: TextStyle(color: connected ? _kOk : _kDanger),
+              Row(
+                children: [
+                  Icon(
+                    connected
+                        ? Icons.usb_rounded
+                        : Icons.portable_wifi_off_rounded,
+                    size: 14,
+                    color: connected ? _kMuted : _kDanger,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    connected ? 'USB CONNECTED' : 'USB OFFLINE',
+                    style: TextStyle(
+                      color: connected ? _kMutedSoft : _kDanger,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -4016,27 +4106,55 @@ class _DashboardHomeState extends State<DashboardHome> {
         status?.calibrationMessage ?? 'Awaiting calibration.';
     final attempts = status?.calibrationAttempts ?? calibrationHistory.length;
 
-    return _HudCard(
+    return _SystemPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionHeader(
-              title: 'Calibration Console',
-              subtitle: 'Profile + sensor zeroing'),
-          const SizedBox(height: 12),
+          const _SystemPanelHeader(
+            title: 'CALIBRATION CONSOLE',
+            subtitle: 'PROFILE + SENSOR ZEROING',
+          ),
+          const SizedBox(height: 16),
+          _dataDivider(),
+          const SizedBox(height: 16),
           Wrap(
             spacing: 12,
             runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               SizedBox(
-                width: 220,
+                width: 240,
                 child: TextField(
                   controller: profileController,
-                  decoration: const InputDecoration(labelText: 'Profile ID'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'RobotoMono',
+                    fontSize: 14,
+                    letterSpacing: 0.2,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: 'PROFILE ID',
+                    labelStyle: _kDataSubheaderStyle.copyWith(fontSize: 11),
+                    filled: true,
+                    fillColor: _kSurface,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(_kControlRadius),
+                      borderSide: const BorderSide(color: _kSurfaceGlow),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(_kControlRadius),
+                      borderSide: const BorderSide(color: _kSurfaceGlow),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(_kControlRadius),
+                      borderSide: const BorderSide(color: _kDanger),
+                    ),
+                  ),
                 ),
               ),
-              FilledButton(
+              OutlinedButton(
                 onPressed: _handleSetProfile,
+                style: _dataSecondaryButtonStyle(),
                 child: const Text('Set Profile'),
               ),
               if (profileReady)
@@ -4059,30 +4177,47 @@ class _DashboardHomeState extends State<DashboardHome> {
             ),
           ),
           const SizedBox(height: 8),
-          Text(calibrationMessage, style: const TextStyle(color: _kMuted)),
+          _AnimatedStatusLine(
+            text: calibrationMessage,
+            animate: calibrationMessage.trim().toLowerCase() ==
+                'awaiting calibration.',
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: FilledButton.icon(
+                    onPressed: _startCalibration,
+                    style: _dataPrimaryButtonStyle(),
+                    icon: const Icon(Icons.tune),
+                    label: const Text('Start Calibration'),
+                  ),
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           Row(
             children: [
-              FilledButton.icon(
-                onPressed: _startCalibration,
-                icon: const Icon(Icons.tune),
-                label: const Text('Start Calibration'),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
+              _HoverUnderlineTextButton(
                 onPressed: _cancelCalibration,
-                icon: const Icon(Icons.close),
-                label: const Text('Cancel'),
+                label: 'Cancel',
               ),
               const Spacer(),
-              Text('Attempts: $attempts',
-                  style: const TextStyle(color: _kMuted)),
+              Text(
+                'Attempts: $attempts',
+                style: _kDataBodyStyle,
+              ),
             ],
           ),
           if (calibrationHistory.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Text('Recent Events',
-                style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'RECENT EVENTS',
+              style: _kDataSubheaderStyle.copyWith(color: Colors.white),
+            ),
             const SizedBox(height: 8),
             Column(
               children: calibrationHistory.take(3).map((entry) {
@@ -4094,13 +4229,16 @@ class _DashboardHomeState extends State<DashboardHome> {
                         entry.success
                             ? Icons.check_circle
                             : Icons.error_outline,
-                        color: entry.success ? _kOk : _kWarning,
+                        color: entry.success ? _kSystemOk : _kDanger,
                         size: 18,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                          child: Text(
-                              '${_formatTimestamp(entry.timestamp)} — ${entry.message}')),
+                        child: Text(
+                          '${_formatTimestamp(entry.timestamp)} — ${entry.message}',
+                          style: _kDataBodyStyle,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -4114,22 +4252,20 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Widget _buildEStopFab(DashboardSnapshot snapshot) {
     final engaged = snapshot.status?.estopActive ?? estopEngaged;
-    final background = engaged ? _kDanger : _kSurfaceRaised;
-    final foreground = engaged ? Colors.white : _kAccent;
 
-    return FloatingActionButton.extended(
-      key: const Key('estop-control'),
-      onPressed: () async {
-        final next = !engaged;
-        setState(() {
-          estopEngaged = next;
-        });
-        await client.setEStop(next, reason: next ? 'UI' : 'UI clear');
-      },
-      backgroundColor: background,
-      foregroundColor: foreground,
-      icon: const Icon(Icons.warning_amber_rounded),
-      label: Text(engaged ? 'E-STOP ENGAGED' : 'E-STOP READY'),
+    return Padding(
+      padding: const EdgeInsets.only(right: 8, bottom: 8),
+      child: _EStopIndicator(
+        key: const Key('estop-control'),
+        engaged: engaged,
+        onPressed: () async {
+          final next = !engaged;
+          setState(() {
+            estopEngaged = next;
+          });
+          await client.setEStop(next, reason: next ? 'UI' : 'UI clear');
+        },
+      ),
     );
   }
 }
@@ -4151,6 +4287,619 @@ class _HudCard extends StatelessWidget {
       child: child,
     );
   }
+}
+
+class _SystemPanel extends StatefulWidget {
+  const _SystemPanel({
+    super.key,
+    required this.child,
+    this.padding = const EdgeInsets.all(16),
+    this.accentLeft = false,
+  });
+
+  final Widget child;
+  final EdgeInsetsGeometry padding;
+  final bool accentLeft;
+
+  @override
+  State<_SystemPanel> createState() => _SystemPanelState();
+}
+
+class _SystemPanelState extends State<_SystemPanel> {
+  bool _hovered = false;
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseBorder = widget.accentLeft ? 4.0 : 1.0;
+    return MouseRegion(
+      cursor: SystemMouseCursors.basic,
+      onEnter: (_) {
+        if (_hovered) return;
+        setState(() {
+          _hovered = true;
+        });
+      },
+      onExit: (_) {
+        if (!_hovered) return;
+        setState(() {
+          _hovered = false;
+        });
+      },
+      child: Focus(
+        onFocusChange: (value) {
+          if (_focused == value) return;
+          setState(() {
+            _focused = value;
+          });
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(_kControlRadius + 2),
+            border: Border.all(color: _focused ? _kDanger : Colors.transparent),
+          ),
+          child: Stack(
+            children: [
+              Container(
+                padding: widget.padding,
+                decoration: BoxDecoration(
+                  color: _kSurface,
+                  borderRadius: BorderRadius.circular(_kControlRadius),
+                  border: Border(
+                    left: BorderSide(
+                      color: widget.accentLeft ? _kDanger : _kSurfaceGlow,
+                      width: baseBorder,
+                    ),
+                    top: const BorderSide(color: _kSurfaceGlow),
+                    right: const BorderSide(color: _kSurfaceGlow),
+                    bottom: const BorderSide(color: _kSurfaceGlow),
+                  ),
+                ),
+                child: widget.child,
+              ),
+              Positioned(
+                left: widget.accentLeft ? 4 : 0,
+                top: 0,
+                bottom: 0,
+                child: IgnorePointer(
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 120),
+                    opacity: _hovered ? 1 : 0,
+                    child: Container(
+                      width: 2,
+                      decoration: BoxDecoration(
+                        color: _kDanger,
+                        borderRadius: BorderRadius.circular(_kControlRadius),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SystemPanelHeader extends StatelessWidget {
+  const _SystemPanelHeader({
+    required this.title,
+    required this.subtitle,
+  });
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2.0,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: _kMuted,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.0,
+            height: 1.3,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SystemStatusCell extends StatelessWidget {
+  const _SystemStatusCell({
+    required this.label,
+    required this.value,
+    required this.timestamp,
+    required this.critical,
+  });
+
+  final String label;
+  final String value;
+  final String timestamp;
+  final bool critical;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        height: 116,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: critical ? _kDanger.withValues(alpha: 0.10) : _kSurface,
+          borderRadius: BorderRadius.circular(_kControlRadius),
+          border: Border.all(color: critical ? _kDanger : _kSurfaceGlow),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: _kMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.0,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.4,
+                fontFamily: 'RobotoMono',
+              ),
+            ),
+            const Spacer(),
+            Align(
+              alignment: Alignment.bottomRight,
+              child: Text(
+                timestamp,
+                style: const TextStyle(
+                  color: _kMutedSoft,
+                  fontSize: 12,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SystemFaultCard extends StatelessWidget {
+  const _SystemFaultCard({required this.fault});
+
+  final _Fault fault;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = _faultCodeFromTitle(fault.title);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border(
+          left: const BorderSide(color: _kDanger, width: 4),
+          top: BorderSide(color: _kSurfaceGlow),
+          right: BorderSide(color: _kSurfaceGlow),
+          bottom: BorderSide(color: _kSurfaceGlow),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            fault.title,
+            style: const TextStyle(
+              color: _kDanger,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'CODE: $code',
+            style: const TextStyle(
+              color: _kMutedSoft,
+              fontSize: 12,
+              fontFamily: 'RobotoMono',
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 65 * 8.0),
+            child: Text(
+              fault.detail,
+              style: const TextStyle(
+                color: _kMuted,
+                fontSize: 14,
+                height: 1.6,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (final step in fault.steps) ...[
+            Text(
+              '— $step',
+              style: const TextStyle(
+                color: _kMuted,
+                fontSize: 14,
+                height: 1.6,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SafetyChecklistRow extends StatelessWidget {
+  const _SafetyChecklistRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onChanged(!value),
+      child: Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: _kSurface,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: _kSurfaceGlow),
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: value ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(1),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: const TextStyle(
+              color: _kMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SystemInfoTile extends StatelessWidget {
+  const _SystemInfoTile({
+    required this.label,
+    required this.value,
+    required this.mono,
+    required this.valueColor,
+    this.dotColor,
+  });
+
+  final String label;
+  final String value;
+  final bool mono;
+  final Color valueColor;
+  final Color? dotColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: _kMuted,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.0,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              if (dotColor != null) ...[
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: dotColor!,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Text(
+                value,
+                style: TextStyle(
+                  color: valueColor,
+                  fontSize: mono ? 16 : 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: mono ? 0.8 : 0.5,
+                  fontFamily: mono ? 'RobotoMono' : null,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnimatedStatusLine extends StatefulWidget {
+  const _AnimatedStatusLine({
+    required this.text,
+    required this.animate,
+  });
+
+  final String text;
+  final bool animate;
+
+  @override
+  State<_AnimatedStatusLine> createState() => _AnimatedStatusLineState();
+}
+
+class _AnimatedStatusLineState extends State<_AnimatedStatusLine>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 1),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.animate) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedStatusLine oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.animate && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if (!widget.animate && _controller.isAnimating) {
+      _controller.stop();
+      _controller.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.animate) {
+      return Text(
+        widget.text,
+        style: const TextStyle(
+          color: _kMuted,
+          fontSize: 14,
+          fontStyle: FontStyle.italic,
+          height: 1.4,
+        ),
+      );
+    }
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final dots = ((_controller.value * 4).floor() % 4);
+        final suffix = '.' * dots;
+        return Text(
+          '${widget.text}$suffix',
+          style: const TextStyle(
+            color: _kMuted,
+            fontSize: 14,
+            fontStyle: FontStyle.italic,
+            height: 1.4,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _HoverUnderlineTextButton extends StatefulWidget {
+  const _HoverUnderlineTextButton({
+    required this.onPressed,
+    required this.label,
+  });
+
+  final VoidCallback? onPressed;
+  final String label;
+
+  @override
+  State<_HoverUnderlineTextButton> createState() =>
+      _HoverUnderlineTextButtonState();
+}
+
+class _HoverUnderlineTextButtonState extends State<_HoverUnderlineTextButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: TextButton(
+        onPressed: widget.onPressed,
+        style: TextButton.styleFrom(
+          foregroundColor: _kMuted,
+          textStyle: TextStyle(
+            fontSize: 14,
+            decoration:
+                _hovered ? TextDecoration.underline : TextDecoration.none,
+          ),
+        ),
+        child: Text(widget.label),
+      ),
+    );
+  }
+}
+
+class _EStopIndicator extends StatefulWidget {
+  const _EStopIndicator({
+    super.key,
+    required this.engaged,
+    required this.onPressed,
+  });
+
+  final bool engaged;
+  final VoidCallback onPressed;
+
+  @override
+  State<_EStopIndicator> createState() => _EStopIndicatorState();
+}
+
+class _EStopIndicatorState extends State<_EStopIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 800),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.engaged) {
+      _pulse.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _EStopIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.engaged && !_pulse.isAnimating) {
+      _pulse.repeat(reverse: true);
+    } else if (!widget.engaged && _pulse.isAnimating) {
+      _pulse.stop();
+      _pulse.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final background = widget.engaged ? _kDanger : _kSurface;
+    final iconColor = widget.engaged ? Colors.white : _kDanger;
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (context, _) {
+        final scale = widget.engaged ? 1.0 + (_pulse.value * 0.04) : 1.0;
+        return Transform.scale(
+          scale: scale,
+          child: GestureDetector(
+            onTap: widget.onPressed,
+            behavior: HitTestBehavior.opaque,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: _kSurfaceGlow),
+                  ),
+                  child: Icon(
+                    Icons.warning_amber_rounded,
+                    size: 20,
+                    color: iconColor,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  widget.engaged ? 'E-STOP ENGAGED' : 'E-STOP READY',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: widget.engaged ? Colors.white : _kMuted,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+String _faultCodeFromTitle(String title) {
+  final normalized = title
+      .toUpperCase()
+      .replaceAll(RegExp(r'[^A-Z0-9]+'), '_')
+      .replaceAll(RegExp(r'_+'), '_')
+      .replaceAll(RegExp(r'^_|_$'), '');
+  return normalized.isEmpty ? 'UNKNOWN' : normalized;
 }
 
 Widget _dataDivider() {
