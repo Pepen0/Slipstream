@@ -11,16 +11,18 @@ import 'services/dashboard_client.dart';
 import 'services/voice_pipeline.dart';
 import 'telemetry_analysis.dart';
 
-const Color _kBackground = Color(0xFF0A0F14);
-const Color _kSurface = Color(0xFF121923);
-const Color _kSurfaceRaised = Color(0xFF1A2431);
-const Color _kSurfaceGlow = Color(0xFF243344);
-const Color _kAccent = Color(0xFF35F4C7);
-const Color _kAccentAlt = Color(0xFF44D9FF);
-const Color _kWarning = Color(0xFFFFC857);
-const Color _kDanger = Color(0xFFFF4D5A);
-const Color _kOk = Color(0xFF4CE4A3);
-const Color _kMuted = Color(0xFF9FB3C8);
+const Color _kBackground = Color(0xFF0B0B0B);
+const Color _kSurface = Color(0xFF141414);
+const Color _kSurfaceRaised = Color(0xFF1B1B1B);
+const Color _kSurfaceGlow = Color(0xFF2A2A2A);
+const Color _kAccent = Color(0xFFFFFFFF);
+const Color _kAccentAlt = Color(0xFFCDCDCD);
+const Color _kWarning = Color(0xFFE1B866);
+const Color _kDanger = Color(0xFFE6392F);
+const Color _kOk = Color(0xFF74C77A);
+const Color _kMuted = Color(0xFFB3B3B3);
+const double _kPanelRadius = 8;
+const double _kControlRadius = 4;
 
 void main() {
   runApp(const DashboardApp());
@@ -42,7 +44,7 @@ class DashboardApp extends StatelessWidget {
 
   ThemeData _buildTheme() {
     final scheme = const ColorScheme.dark(
-      primary: _kAccent,
+      primary: _kDanger,
       secondary: _kAccentAlt,
       surface: _kSurface,
       error: _kDanger,
@@ -53,58 +55,207 @@ class DashboardApp extends StatelessWidget {
       colorScheme: scheme,
       scaffoldBackgroundColor: _kBackground,
       useMaterial3: true,
-      fontFamily: 'SpaceGrotesk',
+      fontFamily: 'Inter',
+      fontFamilyFallback: const [
+        'SF Pro Text',
+        'SF Pro Display',
+        'Roboto',
+        'Arial',
+        'sans-serif',
+      ],
       textTheme: const TextTheme(
         displayLarge: TextStyle(
-            fontSize: 32, fontWeight: FontWeight.w700, letterSpacing: 1.2),
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 2.4,
+          height: 1.2,
+        ),
         displayMedium: TextStyle(
-            fontSize: 24, fontWeight: FontWeight.w700, letterSpacing: 0.8),
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 1.2,
+          height: 1.25,
+        ),
         titleLarge: TextStyle(
-            fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 0.4),
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
+          height: 1.4,
+        ),
         titleMedium: TextStyle(
-            fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.2),
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.1,
+          height: 1.4,
+        ),
         bodyLarge: TextStyle(
-            fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
-        bodyMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          fontSize: 14,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.05,
+          height: 1.35,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w400,
+          letterSpacing: 0.05,
+          height: 1.35,
+        ),
+        labelLarge: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.0,
+          height: 1.2,
+        ),
       ),
       cardTheme: CardTheme(
         color: _kSurface,
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_kPanelRadius),
+        ),
       ),
       appBarTheme: const AppBarTheme(
         elevation: 0,
         centerTitle: false,
         backgroundColor: _kBackground,
+        surfaceTintColor: Colors.transparent,
         titleTextStyle: TextStyle(
           color: Colors.white,
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          letterSpacing: 0.4,
+          letterSpacing: 0.8,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: _kSurfaceRaised,
+        labelStyle: const TextStyle(
+          color: _kMuted,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.4,
+        ),
         hintStyle: TextStyle(color: _kMuted.withValues(alpha: 0.7)),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(_kControlRadius),
           borderSide: const BorderSide(color: _kSurfaceGlow),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(_kControlRadius),
           borderSide: const BorderSide(color: _kSurfaceGlow),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: _kAccent, width: 1.2),
+          borderRadius: BorderRadius.circular(_kControlRadius),
+          borderSide: const BorderSide(color: _kDanger, width: 1.2),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: _kDanger,
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_kControlRadius),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: const BorderSide(color: _kSurfaceGlow),
+          textStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_kControlRadius),
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: Colors.white,
+          textStyle: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(_kControlRadius),
+          ),
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: _kSurfaceRaised,
+        selectedColor: _kSurfaceRaised,
+        disabledColor: _kSurface,
+        side: const BorderSide(color: _kSurfaceGlow),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_kControlRadius),
+        ),
+        labelStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
         ),
       ),
       dividerTheme: const DividerThemeData(color: _kSurfaceGlow, thickness: 1),
       sliderTheme: const SliderThemeData(
-        thumbColor: _kAccent,
-        activeTrackColor: _kAccentAlt,
+        thumbColor: _kDanger,
+        activeTrackColor: _kDanger,
         inactiveTrackColor: _kSurfaceGlow,
+      ),
+      tabBarTheme: const TabBarThemeData(
+        dividerColor: _kSurfaceGlow,
+        indicatorColor: _kDanger,
+        labelColor: Colors.white,
+        unselectedLabelColor: _kMuted,
+        labelStyle: TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.4),
+        unselectedLabelStyle:
+            TextStyle(fontWeight: FontWeight.w500, letterSpacing: 0.2),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: _kDanger,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_kControlRadius),
+        ),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: _kDanger,
+        linearTrackColor: _kSurfaceGlow,
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return _kDanger;
+          }
+          return _kMuted;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return _kDanger.withValues(alpha: 0.35);
+          }
+          return _kSurfaceGlow;
+        }),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(_kControlRadius),
+        ),
+        side: const BorderSide(color: _kSurfaceGlow),
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return _kDanger;
+          }
+          return Colors.transparent;
+        }),
       ),
     );
 
@@ -201,6 +352,7 @@ class _DashboardHomeState extends State<DashboardHome> {
   double _smoothedTrackProgress = 0.0;
   double _lastTrackProgressRaw = 0.0;
   bool _trackProgressInitialized = false;
+  int _selectedTabIndex = 0;
 
   @override
   void initState() {
@@ -1056,7 +1208,12 @@ class _DashboardHomeState extends State<DashboardHome> {
               icon: const Icon(Icons.refresh),
             ),
           ],
-          bottom: const TabBar(
+          bottom: TabBar(
+            onTap: (index) {
+              setState(() {
+                _selectedTabIndex = index;
+              });
+            },
             tabs: [
               Tab(text: 'Live Dashboard'),
               Tab(text: 'System Status'),
@@ -1064,10 +1221,12 @@ class _DashboardHomeState extends State<DashboardHome> {
             ],
           ),
         ),
-        floatingActionButton: ValueListenableBuilder<DashboardSnapshot>(
-          valueListenable: client.snapshot,
-          builder: (context, snapshot, _) => _buildEStopFab(snapshot),
-        ),
+        floatingActionButton: _selectedTabIndex == 2
+            ? null
+            : ValueListenableBuilder<DashboardSnapshot>(
+                valueListenable: client.snapshot,
+                builder: (context, snapshot, _) => _buildEStopFab(snapshot),
+              ),
         body: ValueListenableBuilder<DashboardSnapshot>(
           valueListenable: client.snapshot,
           builder: (context, snapshot, _) {
@@ -1378,7 +1537,7 @@ class _DashboardHomeState extends State<DashboardHome> {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: _kSurfaceGlow.withValues(alpha: 0.34),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(_kPanelRadius),
                 border: Border.all(color: _kAccentAlt.withValues(alpha: 0.5)),
               ),
               child: Column(
@@ -1415,7 +1574,7 @@ class _DashboardHomeState extends State<DashboardHome> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: _kSurfaceGlow.withValues(alpha: 0.24),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(_kPanelRadius),
               border: Border.all(color: _kSurfaceGlow),
             ),
             child: Column(
@@ -1867,7 +2026,7 @@ class _DashboardHomeState extends State<DashboardHome> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: _kSurfaceGlow.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(_kPanelRadius),
         border: Border.all(color: entry.color.withValues(alpha: 0.75)),
       ),
       child: Row(
@@ -2050,8 +2209,7 @@ class _DashboardHomeState extends State<DashboardHome> {
   }
 
   Widget _buildTrackMap(_DerivedTelemetry derived) {
-    final displayProgress =
-        _reviewMode ? derived.trackProgress : _smoothedTrackProgress;
+    final displayProgress = derived.trackProgress;
     return _HudCard(
       key: const Key('track-map'),
       child: Column(
@@ -2065,8 +2223,8 @@ class _DashboardHomeState extends State<DashboardHome> {
             aspectRatio: 1.4,
             child: TweenAnimationBuilder<double>(
               tween: Tween<double>(end: displayProgress),
-              duration: const Duration(milliseconds: 280),
-              curve: Curves.easeOutQuart,
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.linear,
               builder: (context, value, _) {
                 return CustomPaint(
                   painter: _TrackMapPainter(
@@ -2417,7 +2575,7 @@ class _DashboardHomeState extends State<DashboardHome> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: _kSurfaceGlow.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(_kPanelRadius),
         border: Border.all(color: _kSurfaceGlow),
       ),
       child: Column(
@@ -2561,7 +2719,7 @@ class _DashboardHomeState extends State<DashboardHome> {
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
               decoration: BoxDecoration(
                 color: buttonColor.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(_kControlRadius),
                 border: Border.all(color: buttonColor),
               ),
               child: Row(
@@ -3498,7 +3656,8 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Widget _buildEStopFab(DashboardSnapshot snapshot) {
     final engaged = snapshot.status?.estopActive ?? estopEngaged;
-    final color = engaged ? _kDanger : _kWarning;
+    final background = engaged ? _kDanger : _kSurfaceRaised;
+    final foreground = engaged ? Colors.white : _kAccent;
 
     return FloatingActionButton.extended(
       key: const Key('estop-control'),
@@ -3509,7 +3668,8 @@ class _DashboardHomeState extends State<DashboardHome> {
         });
         await client.setEStop(next, reason: next ? 'UI' : 'UI clear');
       },
-      backgroundColor: color,
+      backgroundColor: background,
+      foregroundColor: foreground,
       icon: const Icon(Icons.warning_amber_rounded),
       label: Text(engaged ? 'E-STOP ENGAGED' : 'E-STOP READY'),
     );
@@ -3525,20 +3685,9 @@ class _HudCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_kSurface, _kSurfaceRaised],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
+        color: _kSurface,
+        borderRadius: BorderRadius.circular(_kPanelRadius),
         border: Border.all(color: _kSurfaceGlow),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
       ),
       padding: const EdgeInsets.all(16),
       child: child,
@@ -3554,12 +3703,21 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final titleStyle =
+        Theme.of(context).textTheme.titleLarge?.copyWith(letterSpacing: 0.4);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        Text(title, style: titleStyle),
         const SizedBox(height: 4),
-        Text(subtitle, style: const TextStyle(color: _kMuted, fontSize: 12)),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: _kMuted,
+            fontSize: 12,
+            height: 1.5,
+          ),
+        ),
       ],
     );
   }
@@ -3582,26 +3740,38 @@ class _HudMetric extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: glow.withValues(alpha: 0.6)),
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kPanelRadius),
+        border: Border.all(color: glow.withValues(alpha: 0.42)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
               style: const TextStyle(
-                  color: _kMuted, fontSize: 11, letterSpacing: 1.4)),
+                color: _kMuted,
+                fontSize: 11,
+                letterSpacing: 0.9,
+                fontWeight: FontWeight.w600,
+              )),
           const SizedBox(height: 8),
           Text(
             value,
             style: TextStyle(
-                fontSize: 30, fontWeight: FontWeight.w700, color: glow),
+              fontSize: 30,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              fontFamily: 'RobotoMono',
+              letterSpacing: 0.3,
+            ),
           ),
           if (unit.isNotEmpty)
             Text(unit,
                 style: const TextStyle(
-                    color: _kMuted, fontSize: 11, letterSpacing: 1.2)),
+                  color: _kMuted,
+                  fontSize: 11,
+                  letterSpacing: 0.8,
+                )),
         ],
       ),
     );
@@ -3640,9 +3810,9 @@ class _StatusPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.6)),
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -3656,7 +3826,11 @@ class _StatusPill extends StatelessWidget {
           Text(
             '$label: $value',
             style: TextStyle(
-                color: color, fontWeight: FontWeight.w600, fontSize: 12),
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+              letterSpacing: 0.4,
+            ),
           ),
         ],
       ),
@@ -3678,8 +3852,8 @@ class _StatusTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: _kSurfaceGlow.withValues(alpha: 0.45),
-          borderRadius: BorderRadius.circular(12),
+          color: _kSurfaceRaised,
+          borderRadius: BorderRadius.circular(_kPanelRadius),
           border: Border.all(color: color.withValues(alpha: 0.5)),
         ),
         child: Column(
@@ -3716,8 +3890,8 @@ class _SessionBrowserState extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 20),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow.withValues(alpha: 0.24),
-        borderRadius: BorderRadius.circular(12),
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kPanelRadius),
         border: Border.all(color: _kSurfaceGlow),
       ),
       child: Column(
@@ -3768,8 +3942,8 @@ class _CloudSyncBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kControlRadius),
         border: Border.all(color: color.withValues(alpha: 0.55)),
       ),
       child: Row(
@@ -3822,18 +3996,18 @@ class _SessionRow extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(_kPanelRadius),
         onTap: onSelect,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: selected
-                ? _kSurfaceGlow.withValues(alpha: 0.75)
+                ? _kSurfaceRaised
                 : (active
-                    ? _kSurfaceGlow.withValues(alpha: 0.55)
-                    : _kSurfaceGlow.withValues(alpha: 0.28)),
-            borderRadius: BorderRadius.circular(12),
+                    ? _kSurfaceRaised.withValues(alpha: 0.85)
+                    : _kSurface.withValues(alpha: 0.95)),
+            borderRadius: BorderRadius.circular(_kPanelRadius),
             border: Border.all(color: accent),
           ),
           child: Row(
@@ -3870,10 +4044,10 @@ class _SessionRow extends StatelessWidget {
                   Text(
                     active ? 'LIVE' : (selected ? 'SELECTED' : 'COMPLETE'),
                     style: TextStyle(
-                        color: active
-                            ? _kAccent
-                            : (selected ? _kAccentAlt : _kMuted),
-                        fontSize: 11),
+                      color:
+                          active ? _kDanger : (selected ? _kAccent : _kMuted),
+                      fontSize: 11,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   _CloudSyncBadge(
@@ -3969,8 +4143,8 @@ class _SectorBreakdownRow extends StatelessWidget {
                   Container(
                     height: 8,
                     decoration: BoxDecoration(
-                      color: _kSurface.withValues(alpha: 0.7),
-                      borderRadius: BorderRadius.circular(99),
+                      color: _kSurfaceRaised,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                   FractionallySizedBox(
@@ -3979,7 +4153,7 @@ class _SectorBreakdownRow extends StatelessWidget {
                       height: 8,
                       decoration: BoxDecoration(
                         color: Colors.white24,
-                        borderRadius: BorderRadius.circular(99),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
@@ -3989,7 +4163,7 @@ class _SectorBreakdownRow extends StatelessWidget {
                       height: 8,
                       decoration: BoxDecoration(
                         color: _kAccentAlt.withValues(alpha: 0.8),
-                        borderRadius: BorderRadius.circular(99),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
                   ),
@@ -4028,8 +4202,8 @@ class _FaultCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow.withValues(alpha: 0.4),
-        borderRadius: BorderRadius.circular(12),
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kPanelRadius),
         border: Border.all(color: fault.color.withValues(alpha: 0.6)),
       ),
       child: Column(
@@ -4061,8 +4235,8 @@ class _ConnectionPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: _kSurfaceGlow,
-        borderRadius: BorderRadius.circular(20),
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kControlRadius),
         border: Border.all(color: connected ? _kOk : _kDanger),
       ),
       child: Row(
@@ -4128,42 +4302,24 @@ class _TrackMapPainter extends CustomPainter {
     final trackPaint = Paint()
       ..color = trackColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 4
+      ..strokeWidth = 2.2
       ..strokeCap = StrokeCap.round;
 
-    final glowPaint = Paint()
-      ..color = trackColor.withValues(alpha: 0.35)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawPath(path, glowPaint);
     canvas.drawPath(path, trackPaint);
 
     final metric =
         path.computeMetrics().isEmpty ? null : path.computeMetrics().first;
     if (metric != null) {
-      for (var i = 2; i >= 0; i--) {
-        final tailProgress = _wrapProgress(progress - i * 0.012);
-        final distance = metric.length * tailProgress;
-        final tangent = metric.getTangentForOffset(distance);
-        if (tangent == null) {
-          continue;
-        }
-        final alpha = (0.18 + (2 - i) * 0.18).clamp(0.0, 0.95);
-        final radius = 3.5 + (2 - i) * 1.5;
+      final distance = metric.length * progress.clamp(0.0, 1.0).toDouble();
+      final tangent = metric.getTangentForOffset(distance);
+      if (tangent != null) {
         canvas.drawCircle(
           tangent.position,
-          radius,
-          Paint()..color = dotColor.withValues(alpha: alpha),
+          4,
+          Paint()..color = dotColor,
         );
       }
     }
-  }
-
-  double _wrapProgress(double value) {
-    final wrapped = value % 1.0;
-    return wrapped < 0 ? wrapped + 1.0 : wrapped;
   }
 
   @override
@@ -4401,30 +4557,36 @@ class _SafetyZonePainter extends CustomPainter {
         ? _kOk.withValues(alpha: 0.4)
         : _kWarning.withValues(alpha: 0.4);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(operatorRect, const Radius.circular(12)),
+        RRect.fromRectAndRadius(
+            operatorRect, const Radius.circular(_kControlRadius)),
         zonePaint);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(operatorRect, const Radius.circular(12)),
+        RRect.fromRectAndRadius(
+            operatorRect, const Radius.circular(_kControlRadius)),
         borderPaint);
 
     zonePaint.color = trackClear
         ? _kOk.withValues(alpha: 0.4)
         : _kDanger.withValues(alpha: 0.4);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(trackRect, const Radius.circular(12)),
+        RRect.fromRectAndRadius(
+            trackRect, const Radius.circular(_kControlRadius)),
         zonePaint);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(trackRect, const Radius.circular(12)),
+        RRect.fromRectAndRadius(
+            trackRect, const Radius.circular(_kControlRadius)),
         borderPaint);
 
     zonePaint.color = estopReady
         ? _kOk.withValues(alpha: 0.4)
         : _kWarning.withValues(alpha: 0.4);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(estopRect, const Radius.circular(12)),
+        RRect.fromRectAndRadius(
+            estopRect, const Radius.circular(_kControlRadius)),
         zonePaint);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(estopRect, const Radius.circular(12)),
+        RRect.fromRectAndRadius(
+            estopRect, const Radius.circular(_kControlRadius)),
         borderPaint);
 
     _drawZoneLabel(canvas, operatorRect, 'Operator');
