@@ -25,6 +25,8 @@ struct CloudTelemetryConfig {
   int target_hz = 60;
   std::size_t queue_capacity = 256;
   DropStrategy drop_strategy = DropStrategy::DropNewest;
+  bool log_metrics = false;
+  uint32_t log_interval_ms = 1000;
 };
 
 struct CloudTelemetryStats {

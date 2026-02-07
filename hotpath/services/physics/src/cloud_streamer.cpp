@@ -1,6 +1,7 @@
 #include "cloud_streamer.h"
 
 #include <chrono>
+#include <cstdio>
 
 namespace slipstream::physics {
 
@@ -144,9 +145,27 @@ CloudTelemetryStats CloudTelemetryStreamer::stats() const {
 
 void CloudTelemetryStreamer::worker_loop() {
   using namespace std::chrono_literals;
+  auto last_log = std::chrono::steady_clock::now();
+  auto log_interval = std::chrono::milliseconds(
+    config_.log_interval_ms == 0 ? 1000u : config_.log_interval_ms);
   while (running_.load(std::memory_order_relaxed)) {
     if (drain() == 0) {
       std::this_thread::sleep_for(2ms);
+    }
+    if (config_.log_metrics) {
+      auto now = std::chrono::steady_clock::now();
+      if (now - last_log >= log_interval) {
+        auto stats_snapshot = stats();
+        std::size_t queued = ring_.size();
+        std::fprintf(stderr,
+                     "[cloud] ingested=%llu downsampled=%llu dropped=%llu sent=%llu queued=%zu\n",
+                     static_cast<unsigned long long>(stats_snapshot.ingested),
+                     static_cast<unsigned long long>(stats_snapshot.downsampled),
+                     static_cast<unsigned long long>(stats_snapshot.dropped),
+                     static_cast<unsigned long long>(stats_snapshot.sent),
+                     queued);
+        last_log = now;
+      }
     }
   }
   drain();

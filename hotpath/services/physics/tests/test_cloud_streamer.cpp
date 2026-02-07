@@ -53,7 +53,7 @@ int main() {
 
   {
     CloudTelemetryConfig config;
-    config.target_hz = 1000;
+    config.target_hz = 0;
     config.queue_capacity = 3;
     config.drop_strategy = DropStrategy::DropNewest;
     CloudTelemetryStreamer streamer(config);
@@ -74,7 +74,7 @@ int main() {
 
   {
     CloudTelemetryConfig config;
-    config.target_hz = 1000;
+    config.target_hz = 0;
     config.queue_capacity = 3;
     config.drop_strategy = DropStrategy::DropOldest;
     CloudTelemetryStreamer streamer(config);
