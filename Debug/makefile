@@ -52,6 +52,9 @@ default.size.stdout \
 OBJDUMP_LIST += \
 CubeMX.list \
 
+OBJCOPY_HEX += \
+CubeMX.hex \
+
 
 # All Target
 all: main-build
@@ -60,8 +63,8 @@ all: main-build
 main-build: CubeMX.elf secondary-outputs
 
 # Tool invocations
-CubeMX.elf CubeMX.map: $(OBJS) $(USER_OBJS) D:\ConU\CAPSTONE\STM32\CubeMX\STM32C071RBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "CubeMX.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0plus -T"D:\ConU\CAPSTONE\STM32\CubeMX\STM32C071RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="CubeMX.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+CubeMX.elf CubeMX.map: $(OBJS) $(USER_OBJS) C:\Users\rpate\OneDrive\Desktop\Desktop\ Cleanup\ DO\ NOT\ DELETE\ConU\Capstone\CubeMX\CubeMX\STM32C071RBTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "CubeMX.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m0plus -T"C:\Users\rpate\OneDrive\Desktop\Desktop Cleanup DO NOT DELETE\ConU\Capstone\CubeMX\CubeMX\STM32C071RBTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="CubeMX.map" -Wl,--gc-sections -static --specs=nano.specs -mfloat-abi=soft -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -75,12 +78,17 @@ CubeMX.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
+CubeMX.hex: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objcopy  -O ihex $(EXECUTABLES) "CubeMX.hex"
+	@echo 'Finished building: $@'
+	@echo ' '
+
 # Other Targets
 clean:
-	-$(RM) CubeMX.elf CubeMX.list CubeMX.map default.size.stdout
+	-$(RM) CubeMX.elf CubeMX.hex CubeMX.list CubeMX.map default.size.stdout
 	-@echo ' '
 
-secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)
+secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST) $(OBJCOPY_HEX)
 
 fail-specified-linker-script-missing:
 	@echo 'Error: Cannot find the specified linker script. Check the linker settings in the build configuration.'
