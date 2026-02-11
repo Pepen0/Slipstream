@@ -30,7 +30,7 @@
 #define MAX_ANGLE_DEG  90
 #define CALIB_SAMPLES  64
 #define THR_DEADBAND   10
-#define THR_INVERT     0    // set to 1 if your pot direction is reversed
+#define THR_INVERT     1    // inverted: T=4095 -> 0%, T=0 -> 100%
 #define LOOP_DELAY_MS  20   // ~50 Hz (safe at 115200 with verbose line)
 /* USER CODE END PD */
 
