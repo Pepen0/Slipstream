@@ -30,6 +30,7 @@
 #define MAX_ANGLE_DEG  90
 #define CALIB_SAMPLES  64
 #define THR_DEADBAND   10
+#define THR_INVERT     0    // set to 1 if your pot direction is reversed
 #define LOOP_DELAY_MS  20   // ~50 Hz (safe at 115200 with verbose line)
 /* USER CODE END PD */
 
@@ -155,8 +156,9 @@ int main(void)
     if (rawS < leftS)  leftS  = rawS;
     if (rawS > rightS) rightS = rawS;
 
-    // Learn throttle max over time (turn pot to max once)
-    if (rawT > thr_max) thr_max = rawT;
+    // Track observed throttle range for diagnostics
+    if (rawT < thr_rest) thr_rest = rawT;
+    if (rawT > thr_max)  thr_max  = rawT;
 
     // --- Steering mapping (-100..+100 with deadzone) ---
     int32_t ds = (int32_t)rawS - (int32_t)centerS;
@@ -178,21 +180,18 @@ int main(void)
     steer_pct = clamp_i32(steer_pct, -100, 100);
     angle_deg = (steer_pct * MAX_ANGLE_DEG) / 100;
 
-    // --- Throttle mapping (0..100 from rest->max) ---
-    int32_t dt = (int32_t)rawT - (int32_t)thr_rest;
-    if (dt < THR_DEADBAND) dt = 0;
-
-    int32_t thr_span = (int32_t)thr_max - (int32_t)thr_rest;
-    if (thr_span < 1) thr_span = 1;
-
-    thr_pct = (dt * 100) / thr_span;
+    // --- Throttle mapping (direct ADC 0..4095 -> 0..100) ---
+    int32_t t = (int32_t)rawT;
+    if (THR_INVERT) t = 4095 - t;
+    if (t < THR_DEADBAND) t = 0;
+    thr_pct = (t * 100) / 4095;
     thr_pct = clamp_i32(thr_pct, 0, 100);
 
     // Verbose output (same style as before)
     char msg[220];
     int len = snprintf(msg, sizeof(msg),
       "S=%4lu (L=%4lu C=%4lu R=%4lu) | steer=%4ld%% angle=%4lddeg || "
-      "T=%4lu (rest=%4lu max=%4lu) | thr=%3ld%%\r\n",
+      "T=%4lu (min=%4lu max=%4lu) | thr=%3ld%%\r\n",
       (unsigned long)rawS,
       (unsigned long)leftS, (unsigned long)centerS, (unsigned long)rightS,
       (long)steer_pct, (long)angle_deg,
