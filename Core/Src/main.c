@@ -2,11 +2,12 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Steering Joystick (PA0/A0) + Throttle Pot (PC4/A3) over UART
+  * @brief          : Steering Joystick (PA0/A0) + Throttle Pot (PC4/A4) over UART
   *
   * NUCLEO-C071RB wiring:
   *   Steering joystick VRx -> A0  (PA0 / ADC1_IN0  / ADC_CHANNEL_0)
-  *   Throttle potentiometer wiper -> A3 (PC4 / ADC1_IN11 / ADC_CHANNEL_11)
+  *   Throttle potentiometer wiper -> A4 (PC4 / ADC1_IN11 / ADC_CHANNEL_11)
+  *   (If wiring to Arduino A3, use PB0 / ADC channel for PB0 instead.)
   *   Pot outer pins -> 3.3V and GND
   *
   * UART:
@@ -70,7 +71,8 @@ static uint32_t adc_read_channel(uint32_t channel)
 {
   ADC_ChannelConfTypeDef sConfig = {0};
   sConfig.Channel = channel;
-  sConfig.Rank    = ADC_RANK_CHANNEL_NUMBER;
+  sConfig.Rank    = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLINGTIME_COMMON_1;
 
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
@@ -127,7 +129,7 @@ int main(void)
   uint32_t sumT = 0;
   for (int i = 0; i < CALIB_SAMPLES; i++)
   {
-    sumT += adc_read_channel(ADC_CHANNEL_11);  // PC4 (A3) ✅ CHANGED
+    sumT += adc_read_channel(ADC_CHANNEL_11);  // PC4 (A4)
     HAL_Delay(2);
   }
   thr_rest = sumT / CALIB_SAMPLES;
@@ -243,7 +245,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV1;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.ScanConvMode = ADC_SCAN_SEQ_FIXED;
+  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
   hadc1.Init.LowPowerAutoPowerOff = DISABLE;
@@ -264,7 +266,8 @@ static void MX_ADC1_Init(void)
 
   // Base channel config; actual channel selected in adc_read_channel()
   sConfig.Channel = ADC_CHANNEL_0;
-  sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLINGTIME_COMMON_1;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
