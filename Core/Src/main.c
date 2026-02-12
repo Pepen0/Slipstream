@@ -2,15 +2,17 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Steering + Y-axis throttle button/brake over UART
+  * @brief          : Steering + pot throttle + Y-axis gear/brake over UART
   *
   * NUCLEO-C071RB wiring:
   *   Steering joystick VRx -> A0  (PA0 / ADC1_IN0  / ADC_CHANNEL_0)
+  *   Throttle potentiometer -> A4 (PC4 / ADC1_IN11 / ADC_CHANNEL_11)
   *   Joystick VRy -> A1 (PA1 / ADC1_IN1 / ADC_CHANNEL_1)
   *   Joystick VCC -> 3.3V, GND -> GND
   *
   * Behavior:
-  *   VRy UP    -> throttle button (0/1)
+  *   Pot       -> throttle percentage (0..100)
+  *   VRy UP    -> gear command (0/1)
   *   VRy DOWN  -> brake percentage (0..100)
   *
   * UART:
@@ -32,6 +34,8 @@
 #define DEADZONE_PCT   5
 #define MAX_ANGLE_DEG  90
 #define CALIB_SAMPLES  64
+#define THR_DEADBAND   10
+#define THR_INVERT     1    // inverted pot: T=4095 -> 0%, T=0 -> 100%
 #define Y_DEADZONE_PCT 8
 #define Y_UP_IS_HIGH   1    // 1: ADC above center means "up", 0: inverse
 #define LOOP_DELAY_MS  20   // ~50 Hz (safe at 115200 with verbose line)
@@ -43,11 +47,15 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 volatile uint32_t rawS = 0;      // steering raw (PA0 / CH0)
+volatile uint32_t rawT = 0;      // throttle raw (PC4 / CH11)
 volatile uint32_t rawY = 0;      // joystick Y raw (PA1 / CH1)
 
 volatile uint32_t centerS  = 2048;
 volatile uint32_t leftS    = 2048;
 volatile uint32_t rightS   = 2048;
+
+volatile uint32_t minT = 2048;
+volatile uint32_t maxT = 2048;
 
 volatile uint32_t centerY = 2048;
 volatile uint32_t minY    = 2048;
@@ -55,7 +63,8 @@ volatile uint32_t maxY    = 2048;
 
 volatile int32_t steer_pct    = 0;  // -100..+100
 volatile int32_t angle_deg    = 0;  // -90..+90
-volatile int32_t throttle_btn = 0;  // 0/1
+volatile int32_t thr_pct      = 0;  // 0..100
+volatile int32_t gear_cmd     = 0;  // 0/1
 volatile int32_t brake_pct    = 0;  // 0..100
 /* USER CODE END PV */
 
@@ -142,22 +151,32 @@ int main(void)
   minY = centerY;
   maxY = centerY;
 
+  // Initialize throttle diagnostics from pot input
+  rawT = adc_read_channel(ADC_CHANNEL_11);     // PC4 (A4)
+  minT = rawT;
+  maxT = rawT;
+
   char bootmsg[200];
   int bootlen = snprintf(bootmsg, sizeof(bootmsg),
-    "OK | steer CH0 center=%lu | Y CH1 center=%lu\r\n",
-    (unsigned long)centerS, (unsigned long)centerY);
+    "OK | steer CH0 center=%lu | pot CH11=%lu | Y CH1 center=%lu\r\n",
+    (unsigned long)centerS, (unsigned long)rawT, (unsigned long)centerY);
   HAL_UART_Transmit(&huart2, (uint8_t*)bootmsg, (uint16_t)bootlen, 100);
   /* USER CODE END 2 */
 
   while (1)
   {
-    // Read steering X and joystick Y
+    // Read steering X, throttle pot, and joystick Y
     rawS = adc_read_channel(ADC_CHANNEL_0);    // Steering joystick PA0
+    rawT = adc_read_channel(ADC_CHANNEL_11);   // Throttle pot PC4 (A4)
     rawY = adc_read_channel(ADC_CHANNEL_1);    // Joystick Y PA1
 
     // Learn steering min/max over time
     if (rawS < leftS)  leftS  = rawS;
     if (rawS > rightS) rightS = rawS;
+
+    // Track observed throttle range for diagnostics
+    if (rawT < minT) minT = rawT;
+    if (rawT > maxT) maxT = rawT;
 
     // Track observed Y range for diagnostics
     if (rawY < minY) minY = rawY;
@@ -183,7 +202,14 @@ int main(void)
     steer_pct = clamp_i32(steer_pct, -100, 100);
     angle_deg = (steer_pct * MAX_ANGLE_DEG) / 100;
 
-    // --- Y mapping: UP => throttle button, DOWN => brake percentage ---
+    // --- Throttle mapping from pot (0..4095 -> 0..100) ---
+    int32_t t = (int32_t)rawT;
+    if (THR_INVERT) t = 4095 - t;
+    if (t < THR_DEADBAND) t = 0;
+    thr_pct = (t * 100) / 4095;
+    thr_pct = clamp_i32(thr_pct, 0, 100);
+
+    // --- Y mapping: UP => gear command, DOWN => brake percentage ---
     int32_t dy = (int32_t)rawY - (int32_t)centerY;
     if (!Y_UP_IS_HIGH) dy = -dy;
 
@@ -191,12 +217,12 @@ int main(void)
 
     if (dy > y_deadzone_counts)
     {
-      throttle_btn = 1;
+      gear_cmd = 1;
       brake_pct = 0;
     }
     else if (dy < -y_deadzone_counts)
     {
-      throttle_btn = 0;
+      gear_cmd = 0;
       int32_t down_counts = (-dy) - y_deadzone_counts;
       int32_t down_span = (int32_t)centerY - y_deadzone_counts;
       if (down_span < 1) down_span = 1;
@@ -205,21 +231,24 @@ int main(void)
     }
     else
     {
-      throttle_btn = 0;
+      gear_cmd = 0;
       brake_pct = 0;
     }
 
     // Verbose output (same style as before)
-    char msg[260];
+    char msg[320];
     int len = snprintf(msg, sizeof(msg),
       "S=%4lu (L=%4lu C=%4lu R=%4lu) | steer=%4ld%% angle=%4lddeg || "
-      "Y=%4lu (min=%4lu C=%4lu max=%4lu) | thr_btn=%ld brake=%3ld%%\r\n",
+      "T=%4lu (min=%4lu max=%4lu) | thr=%3ld%% || "
+      "Y=%4lu (min=%4lu C=%4lu max=%4lu) | gear=%ld brake=%3ld%%\r\n",
       (unsigned long)rawS,
       (unsigned long)leftS, (unsigned long)centerS, (unsigned long)rightS,
       (long)steer_pct, (long)angle_deg,
+      (unsigned long)rawT,
+      (unsigned long)minT, (unsigned long)maxT, (long)thr_pct,
       (unsigned long)rawY,
       (unsigned long)minY, (unsigned long)centerY, (unsigned long)maxY,
-      (long)throttle_btn, (long)brake_pct);
+      (long)gear_cmd, (long)brake_pct);
 
     HAL_UART_Transmit(&huart2, (uint8_t*)msg, (uint16_t)len, 100);
 
