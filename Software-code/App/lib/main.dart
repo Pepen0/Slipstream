@@ -4676,7 +4676,6 @@ class _SystemPanelState extends State<_SystemPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final baseBorder = widget.accentLeft ? 4.0 : 1.0;
     return MouseRegion(
       cursor: SystemMouseCursors.basic,
       onEnter: (_) {
@@ -4712,18 +4711,25 @@ class _SystemPanelState extends State<_SystemPanel> {
                 decoration: BoxDecoration(
                   color: _kSurface,
                   borderRadius: BorderRadius.circular(_kPanelRadius),
-                  border: Border(
-                    left: BorderSide(
-                      color: widget.accentLeft ? _kDanger : _kSurfaceGlow,
-                      width: baseBorder,
-                    ),
-                    top: const BorderSide(color: _kSurfaceGlow),
-                    right: const BorderSide(color: _kSurfaceGlow),
-                    bottom: const BorderSide(color: _kSurfaceGlow),
-                  ),
+                  border: Border.all(color: _kSurfaceGlow),
                 ),
                 child: widget.child,
               ),
+              if (widget.accentLeft)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 4,
+                    decoration: BoxDecoration(
+                      color: _kDanger,
+                      borderRadius: const BorderRadius.horizontal(
+                        left: Radius.circular(_kPanelRadius),
+                      ),
+                    ),
+                  ),
+                ),
               Positioned(
                 left: widget.accentLeft ? 4 : 0,
                 top: 0,
@@ -4866,62 +4872,77 @@ class _SystemFaultCard extends StatelessWidget {
     final code = _faultCodeFromTitle(fault.title);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _kSurface,
         borderRadius: BorderRadius.circular(_kControlRadius),
-        border: Border(
-          left: const BorderSide(color: _kDanger, width: 4),
-          top: BorderSide(color: _kSurfaceGlow),
-          right: BorderSide(color: _kSurfaceGlow),
-          bottom: BorderSide(color: _kSurfaceGlow),
-        ),
+        border: Border.all(color: _kSurfaceGlow),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Text(
-            fault.title,
-            style: const TextStyle(
-              color: _kDanger,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'CODE: $code',
-            style: const TextStyle(
-              color: _kMutedSoft,
-              fontSize: 12,
-              fontFamily: 'RobotoMono',
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: 8),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 65 * 8.0),
-            child: Text(
-              fault.detail,
-              style: const TextStyle(
-                color: _kMuted,
-                fontSize: 14,
-                height: 1.6,
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: Container(
+              width: 4,
+              decoration: BoxDecoration(
+                color: _kDanger,
+                borderRadius: const BorderRadius.horizontal(
+                  left: Radius.circular(_kControlRadius),
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          for (final step in fault.steps) ...[
-            Text(
-              '— $step',
-              style: const TextStyle(
-                color: _kMuted,
-                fontSize: 14,
-                height: 1.6,
-              ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fault.title,
+                  style: const TextStyle(
+                    color: _kDanger,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'CODE: $code',
+                  style: const TextStyle(
+                    color: _kMutedSoft,
+                    fontSize: 12,
+                    fontFamily: 'RobotoMono',
+                    letterSpacing: 0.4,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 65 * 8.0),
+                  child: Text(
+                    fault.detail,
+                    style: const TextStyle(
+                      color: _kMuted,
+                      fontSize: 14,
+                      height: 1.6,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                for (final step in fault.steps) ...[
+                  Text(
+                    '— $step',
+                    style: const TextStyle(
+                      color: _kMuted,
+                      fontSize: 14,
+                      height: 1.6,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ],
             ),
-            const SizedBox(height: 8),
-          ],
+          ),
         ],
       ),
     );
