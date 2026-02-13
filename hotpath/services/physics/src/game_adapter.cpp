@@ -10,6 +10,8 @@ const char *game_id_name(GameId id) {
     return "assetto_corsa";
   case GameId::F1_23_24:
     return "f1_23_24";
+  case GameId::IRacing:
+    return "iracing";
   default:
     return "unknown";
   }

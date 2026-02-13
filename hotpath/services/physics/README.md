@@ -23,6 +23,10 @@ MotionLoop loop(200);
 loop.run(provider, engine, on_command, on_sample);
 ```
 
+`GameId::Auto` also supports runtime failover: if the active adapter stops producing
+samples, `UniversalGameAdapter` probes other registered adapters and switches to
+the first one that can read telemetry.
+
 ## Components
 
 - **IGameTelemetryProvider**: motion loop input interface.
@@ -31,11 +35,28 @@ loop.run(provider, engine, on_command, on_sample);
 - **UniversalGameAdapter**: explicit or auto game selection.
 - **AssettoCorsaAdapter**: AC shared‑memory reader (Windows only).
 - **F1UdpAdapter**: F1 23/24 UDP motion reader.
+- **IRacingAdapter**: optional scaffold (currently a stub unless replaced by plugin).
+- **GameAdapterPluginManager**: runtime loader for external adapter shared libraries.
 - **High‑pass washout**: removes sustained acceleration drift.
 - **Low‑pass filters**: smooth return‑to‑center.
 - **Coordinate normalization**: harmonizes source axes (Y‑up/Z‑up) into Z‑up.
 - **Coordinate transform**: maps normalized axes → rig axes.
 - **Motion engine**: produces pitch/roll + motor targets with latency tracking.
+
+## Adapter plugins
+
+`GameAdapterRegistry::create_default()` loads plugins from
+`SLIPSTREAM_GAME_ADAPTER_PLUGINS`.
+
+- Unix-like: separate paths with `:` (or `;`)
+- Windows: separate paths with `;`
+- Required symbol: `slipstream_register_game_adapters(GameAdapterRegistry*)`
+
+Example:
+
+```bash
+export SLIPSTREAM_GAME_ADAPTER_PLUGINS="/opt/slipstream/libmy_adapter.so"
+```
 
 ## Latency tracing
 
@@ -52,4 +73,6 @@ reduce small oscillations without delaying large corrections.
 ## Notes
 
 - On non‑Windows platforms, the Assetto Corsa adapter is stubbed (builds, but returns no data).
+- iRacing is registered as an optional stub adapter by default; use a plugin or
+  native implementation to enable live telemetry.
 - Configure axis mapping and gains in `MotionConfig` for your rig.

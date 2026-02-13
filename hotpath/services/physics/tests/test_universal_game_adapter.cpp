@@ -14,8 +14,10 @@ namespace {
 
 class FakeAdapter final : public IGameTelemetryAdapter {
 public:
-  FakeAdapter(GameId id, bool probe_ok, bool start_ok, float speed_mps)
-      : id_(id), probe_ok_(probe_ok), start_ok_(start_ok), speed_mps_(speed_mps) {}
+  FakeAdapter(GameId id, bool probe_ok, bool start_ok, float speed_mps,
+              int max_successful_reads = -1)
+      : id_(id), probe_ok_(probe_ok), start_ok_(start_ok), speed_mps_(speed_mps),
+        max_successful_reads_(max_successful_reads) {}
 
   GameId game_id() const override {
     return id_;
@@ -34,6 +36,10 @@ public:
     if (!started_) {
       return false;
     }
+    if (max_successful_reads_ >= 0 && successful_reads_ >= max_successful_reads_) {
+      return false;
+    }
+    successful_reads_ += 1;
     out_sample.speed_mps = speed_mps_;
     return true;
   }
@@ -44,6 +50,8 @@ private:
   bool start_ok_;
   bool started_ = false;
   float speed_mps_;
+  int max_successful_reads_ = -1;
+  int successful_reads_ = 0;
 };
 
 } // namespace
@@ -83,6 +91,31 @@ int main() {
     TelemetrySample sample{};
     assert(adapter.read(sample));
     assert(sample.speed_mps == 7.0f);
+  }
+
+  {
+    GameAdapterRegistry registry;
+    registry.register_adapter(
+      GameId::AssettoCorsa,
+      []() { return std::make_unique<FakeAdapter>(GameId::AssettoCorsa, true, true, 11.0f, 1); });
+    registry.register_adapter(
+      GameId::F1_23_24,
+      []() { return std::make_unique<FakeAdapter>(GameId::F1_23_24, true, true, 22.0f); });
+
+    UniversalGameAdapter adapter(GameId::Auto, std::move(registry), std::chrono::milliseconds(5));
+    assert(adapter.start());
+    assert(adapter.selected_game() == GameId::AssettoCorsa);
+
+    TelemetrySample sample{};
+    assert(adapter.read(sample));
+    assert(sample.speed_mps == 11.0f);
+
+    assert(adapter.read(sample));
+    assert(adapter.selected_game() == GameId::F1_23_24);
+    assert(sample.speed_mps == 22.0f);
+
+    assert(adapter.read(sample));
+    assert(sample.speed_mps == 22.0f);
   }
 
   return 0;

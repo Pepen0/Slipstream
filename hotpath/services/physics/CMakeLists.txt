@@ -19,7 +19,9 @@ target_sources(physics_core PRIVATE
   src/cloud_streamer.cpp
   src/coordinate_normalizer.cpp
   src/game_adapter.cpp
+  src/game_adapter_plugin.cpp
   src/game_adapter_registry.cpp
+  src/iracing_adapter_stub.cpp
   src/universal_game_adapter.cpp
   src/f1_udp_adapter.cpp
 )
@@ -30,6 +32,10 @@ if (WIN32)
   target_link_libraries(physics_core PRIVATE ws2_32)
 else()
   target_sources(physics_core PRIVATE src/assetto_corsa_adapter_stub.cpp)
+endif()
+
+if (UNIX AND NOT APPLE)
+  target_link_libraries(physics_core PRIVATE dl)
 endif()
 
 find_package(Protobuf CONFIG QUIET)
@@ -98,6 +104,7 @@ set(PHYSICS_TEST_SOURCES
   tests/test_cloud_streamer.cpp
   tests/test_coordinate_normalizer.cpp
   tests/test_f1_udp_adapter.cpp
+  tests/test_plugin_loader.cpp
   tests/test_universal_game_adapter.cpp
 )
 

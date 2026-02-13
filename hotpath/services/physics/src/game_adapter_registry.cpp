@@ -2,6 +2,8 @@
 
 #include "assetto_corsa_adapter.h"
 #include "f1_udp_adapter.h"
+#include "game_adapter_plugin.h"
+#include "iracing_adapter.h"
 
 #include <utility>
 
@@ -41,9 +43,13 @@ std::vector<GameId> GameAdapterRegistry::ordered_games() const {
 }
 
 GameAdapterRegistry GameAdapterRegistry::create_default() {
+  static GameAdapterPluginManager plugin_manager;
+
   GameAdapterRegistry registry;
   registry.register_adapter(GameId::AssettoCorsa, []() { return std::make_unique<AssettoCorsaAdapter>(); });
   registry.register_adapter(GameId::F1_23_24, []() { return std::make_unique<F1UdpAdapter>(); });
+  registry.register_adapter(GameId::IRacing, []() { return std::make_unique<IRacingAdapter>(); });
+  plugin_manager.load_from_env(registry);
   return registry;
 }
 

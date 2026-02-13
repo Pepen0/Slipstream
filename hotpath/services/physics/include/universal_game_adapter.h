@@ -19,6 +19,8 @@ public:
   GameId selected_game() const;
 
 private:
+  bool try_activate_game(GameId game, bool require_probe, TelemetrySample *first_sample = nullptr);
+  bool try_failover_read(TelemetrySample &out_sample);
   bool start_explicit();
   bool start_auto_detect();
 

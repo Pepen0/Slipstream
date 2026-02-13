@@ -9,7 +9,8 @@ namespace slipstream::physics {
 enum class GameId {
   Auto = 0,
   AssettoCorsa = 1,
-  F1_23_24 = 2
+  F1_23_24 = 2,
+  IRacing = 3
 };
 
 const char *game_id_name(GameId id);

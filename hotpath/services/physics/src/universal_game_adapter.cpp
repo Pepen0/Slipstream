@@ -23,7 +23,13 @@ bool UniversalGameAdapter::read(TelemetrySample &out_sample) {
   if (!active_ && !start()) {
     return false;
   }
-  return active_ ? active_->read(out_sample) : false;
+  if (active_ && active_->read(out_sample)) {
+    return true;
+  }
+  if (requested_game_ != GameId::Auto) {
+    return false;
+  }
+  return try_failover_read(out_sample);
 }
 
 GameId UniversalGameAdapter::selected_game() const {
@@ -31,8 +37,32 @@ GameId UniversalGameAdapter::selected_game() const {
 }
 
 bool UniversalGameAdapter::start_explicit() {
-  auto adapter = registry_.create(requested_game_);
-  if (!adapter || !adapter->start()) {
+  return try_activate_game(requested_game_, false);
+}
+
+bool UniversalGameAdapter::start_auto_detect() {
+  const auto games = registry_.ordered_games();
+  for (const auto game : games) {
+    if (try_activate_game(game, true)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool UniversalGameAdapter::try_activate_game(GameId game, bool require_probe,
+                                             TelemetrySample *first_sample) {
+  auto adapter = registry_.create(game);
+  if (!adapter) {
+    return false;
+  }
+  if (require_probe && !adapter->probe(detect_timeout_)) {
+    return false;
+  }
+  if (!adapter->start()) {
+    return false;
+  }
+  if (first_sample != nullptr && !adapter->read(*first_sample)) {
     return false;
   }
 
@@ -41,21 +71,17 @@ bool UniversalGameAdapter::start_explicit() {
   return true;
 }
 
-bool UniversalGameAdapter::start_auto_detect() {
+bool UniversalGameAdapter::try_failover_read(TelemetrySample &out_sample) {
   const auto games = registry_.ordered_games();
   for (const auto game : games) {
-    auto adapter = registry_.create(game);
-    if (!adapter) {
+    if (game == selected_game_) {
       continue;
     }
-    if (!adapter->probe(detect_timeout_)) {
+    TelemetrySample candidate_sample{};
+    if (!try_activate_game(game, true, &candidate_sample)) {
       continue;
     }
-    if (!adapter->start()) {
-      continue;
-    }
-    selected_game_ = adapter->game_id();
-    active_ = std::move(adapter);
+    out_sample = candidate_sample;
     return true;
   }
   return false;
