@@ -179,3 +179,13 @@ Software-code/App/macos/Pods/
 Software-code/App/macos/.symlinks/
 Software-code/App/macos/Flutter/ephemeral/
 Software-code/App/windows/flutter/ephemeral/
+
+
+####################################
+# Desktop packaging outputs
+####################################
+/dist/windows/
+/dist/macos/
+/tmp/windows-packaging-*/
+/tmp/macos-packaging-*/
+/tmp/fake/

@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PLIST_PATH="/Library/LaunchAgents/com.slipstream.dashboard.plist"
+CONSOLE_USER="$(stat -f%Su /dev/console || true)"
+
+# Ensure expected payload files are executable.
+chmod +x "/Library/Application Support/Slipstream/scripts/launch_dashboard_service.sh" 2>/dev/null || true
+chmod +x "/Applications/Slipstream Uninstall.command" 2>/dev/null || true
+
+if [[ -f "$PLIST_PATH" ]]; then
+  # Reload for the active console user when possible; otherwise it will load on next login.
+  if [[ -n "$CONSOLE_USER" && "$CONSOLE_USER" != "root" ]]; then
+    uid="$(id -u "$CONSOLE_USER" 2>/dev/null || true)"
+    if [[ -n "$uid" ]]; then
+      launchctl bootout "gui/${uid}" "$PLIST_PATH" >/dev/null 2>&1 || true
+      launchctl bootstrap "gui/${uid}" "$PLIST_PATH" >/dev/null 2>&1 || true
+      launchctl enable "gui/${uid}/com.slipstream.dashboard" >/dev/null 2>&1 || true
+      launchctl kickstart -k "gui/${uid}/com.slipstream.dashboard" >/dev/null 2>&1 || true
+    fi
+  fi
+fi
+
+exit 0

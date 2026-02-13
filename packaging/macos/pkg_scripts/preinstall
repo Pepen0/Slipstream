@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PLIST_PATH="/Library/LaunchAgents/com.slipstream.dashboard.plist"
+CONSOLE_USER="$(stat -f%Su /dev/console || true)"
+
+if [[ -f "$PLIST_PATH" && -n "$CONSOLE_USER" && "$CONSOLE_USER" != "root" ]]; then
+  uid="$(id -u "$CONSOLE_USER" 2>/dev/null || true)"
+  if [[ -n "$uid" ]]; then
+    launchctl bootout "gui/${uid}" "$PLIST_PATH" >/dev/null 2>&1 || true
+  fi
+fi
+
+exit 0

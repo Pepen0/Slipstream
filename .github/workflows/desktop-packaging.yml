@@ -1,0 +1,169 @@
+name: Desktop Packaging (Gold Master)
+
+on:
+  push:
+    paths:
+      - 'Software-code/App/**'
+      - 'hotpath/services/dashboard/**'
+      - 'packaging/**'
+      - 'scripts/package/**'
+      - 'docs/release/desktop-installers.md'
+      - '.github/workflows/desktop-packaging.yml'
+  pull_request:
+    paths:
+      - 'Software-code/App/**'
+      - 'hotpath/services/dashboard/**'
+      - 'packaging/**'
+      - 'scripts/package/**'
+      - 'docs/release/desktop-installers.md'
+      - '.github/workflows/desktop-packaging.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Override installer version (for example 1.2.3)'
+        required: false
+        type: string
+
+jobs:
+  packaging-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate macOS packaging script syntax
+        run: |
+          bash -n scripts/package/build_macos_installer.sh
+          bash -n packaging/macos/launch_dashboard_service.sh
+          bash -n packaging/macos/pkg_scripts/preinstall
+          bash -n packaging/macos/pkg_scripts/postinstall
+          bash -n packaging/macos/uninstall_slipstream.command
+
+      - name: Validate macOS staging dry-run
+        run: |
+          set -euo pipefail
+          fake_app="tmp/fake/client.app"
+          mkdir -p "$fake_app/Contents/MacOS"
+          touch "$fake_app/Contents/MacOS/client"
+          ./scripts/package/build_macos_installer.sh \
+            --dry-run \
+            --version 0.0.0-ci \
+            --app-build-dir "$fake_app" \
+            --output-dir tmp/macos-packaging-dryrun
+
+      - name: Validate Windows staging script (SkipIscc)
+        shell: pwsh
+        run: |
+          $fakeBuild = "tmp/windows-fake-build"
+          New-Item -ItemType Directory -Path $fakeBuild -Force | Out-Null
+          Set-Content -Path (Join-Path $fakeBuild "client.exe") -Value "fake exe placeholder"
+          ./scripts/package/build_windows_installer.ps1 `
+            -Version "0.0.0-ci" `
+            -AppBuildDir $fakeBuild `
+            -OutputDir "tmp/windows-packaging-dryrun" `
+            -SkipIscc
+          if (-not (Test-Path -LiteralPath "tmp/windows-packaging-dryrun/bundle-manifest.txt")) {
+            throw "Windows packaging manifest was not generated."
+          }
+
+  windows-installer:
+    runs-on: windows-latest
+    needs: packaging-validation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Resolve version
+        shell: pwsh
+        run: |
+          $version = "${{ github.event.inputs.version }}"
+          if (-not $version) {
+            $line = Select-String -Path "Software-code/App/pubspec.yaml" -Pattern '^version:\s*([^+\s]+)'
+            if ($line.Matches.Count -gt 0) {
+              $version = $line.Matches[0].Groups[1].Value
+            } else {
+              $version = "0.0.0-dev"
+            }
+          }
+          "SLIPSTREAM_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build Flutter Windows release
+        working-directory: Software-code/App
+        run: |
+          flutter pub get
+          flutter build windows --release
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          ./scripts/package/build_windows_installer.ps1 -Version "$env:SLIPSTREAM_VERSION"
+
+      - name: Upload Windows installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: slipstream-windows-installer-${{ env.SLIPSTREAM_VERSION }}
+          path: |
+            dist/windows/installer/*.exe
+            dist/windows/bundle-manifest.txt
+
+  macos-installer:
+    runs-on: macos-latest
+    needs: packaging-validation
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable macOS desktop
+        run: flutter config --enable-macos-desktop
+
+      - name: Resolve version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ github.event.inputs.version }}"
+          if [[ -z "$version" ]]; then
+            version="$(sed -n 's/^version: \([0-9A-Za-z.-]*\).*/\1/p' Software-code/App/pubspec.yaml | head -n1)"
+          fi
+          if [[ -z "$version" ]]; then
+            version="0.0.0-dev"
+          fi
+          echo "SLIPSTREAM_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Build Flutter macOS release
+        working-directory: Software-code/App
+        run: |
+          flutter pub get
+          flutter build macos --release
+
+      - name: Build macOS installer
+        run: |
+          ./scripts/package/build_macos_installer.sh --version "$SLIPSTREAM_VERSION"
+
+      - name: Upload macOS installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: slipstream-macos-installer-${{ env.SLIPSTREAM_VERSION }}
+          path: |
+            dist/macos/*.pkg
+            dist/macos/*.dmg
+            dist/macos/bundle-manifest.txt
