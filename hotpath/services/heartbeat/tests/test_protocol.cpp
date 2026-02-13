@@ -33,6 +33,17 @@ static void test_roundtrip_payload() {
   }
 }
 
+static void test_roundtrip_input_event_type() {
+  const uint8_t payload[] = {0x54, 0x50, 0x01, 0x01, 0x2A, 0x00, 0x00, 0x00};
+  auto bytes = build_frame(PacketType::InputEvent, 9, payload, sizeof(payload));
+  Frame frame;
+  bool ok = parse_frame(bytes.data(), bytes.size(), frame);
+  assert(ok);
+  assert(frame.header.type == static_cast<uint8_t>(PacketType::InputEvent));
+  assert(frame.header.seq == 9);
+  assert(frame.payload.size() == sizeof(payload));
+}
+
 static void test_crc_fail() {
   auto bytes = build_frame(PacketType::Heartbeat, 1, nullptr, 0);
   bytes[2] ^= 0xFF; // flip type byte
@@ -52,6 +63,7 @@ static void test_bad_magic() {
 int main() {
   test_roundtrip_empty();
   test_roundtrip_payload();
+  test_roundtrip_input_event_type();
   test_crc_fail();
   test_bad_magic();
   std::cout << "All protocol tests passed.\n";

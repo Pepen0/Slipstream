@@ -28,7 +28,7 @@ Optional: print MCU status frames
 ./build/heartbeat_sender --port /dev/ttyACM0 --status
 ```
 
-Status output includes firmware version and maintenance state.
+Status output includes firmware version, maintenance state, and wheel PTT input events.
 
 Optional: batch heartbeat + command frames into a single USB write
 
@@ -65,7 +65,9 @@ Matches MCU firmware (`protocol.h`):
 Header (packed)
   uint32 magic   = 0xA5C3F00D
   uint8  version = 2
-  uint8  type    = 0x01 heartbeat
+  uint8  type    = 0x01 heartbeat / 0x02 command / 0x03 jog
+                 = 0x10 status / 0x11 input-event
+                 = 0x20 maintenance
   uint16 length  = payload bytes
   uint32 seq
 Payload

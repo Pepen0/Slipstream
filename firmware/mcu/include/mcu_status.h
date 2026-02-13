@@ -8,6 +8,7 @@
 #define MCU_STATUS_FLAG_DECAY     (1u << 3)
 #define MCU_STATUS_FLAG_HOMING    (1u << 4)
 #define MCU_STATUS_FLAG_SENSOR_OK (1u << 5)
+#define MCU_STATUS_FLAG_PTT_HELD  (1u << 6)
 
 #pragma pack(push, 1)
 typedef struct {

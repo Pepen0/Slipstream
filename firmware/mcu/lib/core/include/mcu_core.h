@@ -70,6 +70,7 @@ mcu_update_result_t mcu_core_update_result(const mcu_core_t *ctx);
 
 mcu_state_t mcu_core_state(const mcu_core_t *ctx);
 uint16_t mcu_core_fault(const mcu_core_t *ctx);
+bool mcu_core_allow_ptt(const mcu_core_t *ctx);
 bool mcu_core_should_energize(const mcu_core_t *ctx, uint32_t now_ms);
 float mcu_core_torque_scale(const mcu_core_t *ctx, uint32_t now_ms);
 

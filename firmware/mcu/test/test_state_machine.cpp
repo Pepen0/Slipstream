@@ -18,6 +18,9 @@ void test_update_abort_estop(void);
 void test_jog_start_and_timeout(void);
 void test_jog_stop_command(void);
 void test_jog_default_duration(void);
+void test_ptt_emits_down_up_with_debounce(void);
+void test_ptt_resync_suppresses_stale_edges(void);
+void test_ptt_disabled_during_fault_estop_and_maintenance(void);
 
 void test_usb_disconnect_fault(void) {
   mcu_core_init(&core, 0, 100, 0, 200, 200, 50);
@@ -124,5 +127,8 @@ int main(int argc, char **argv) {
   RUN_TEST(test_jog_start_and_timeout);
   RUN_TEST(test_jog_stop_command);
   RUN_TEST(test_jog_default_duration);
+  RUN_TEST(test_ptt_emits_down_up_with_debounce);
+  RUN_TEST(test_ptt_resync_suppresses_stale_edges);
+  RUN_TEST(test_ptt_disabled_during_fault_estop_and_maintenance);
   return UNITY_END();
 }

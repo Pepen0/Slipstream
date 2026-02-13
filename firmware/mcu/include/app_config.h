@@ -55,6 +55,14 @@
 #define ESTOP_PIN GPIO_PIN_0
 #define ESTOP_ACTIVE_STATE GPIO_PIN_RESET
 
+// Steering-wheel push-to-talk button (active low with pull-up)
+#define APP_WHEEL_PTT_ENABLED 1u
+#define APP_WHEEL_PTT_DEBOUNCE_MS 20u
+#define WHEEL_PTT_GPIO_PORT GPIOA
+#define WHEEL_PTT_GPIO_CLK_ENABLE() __HAL_RCC_GPIOA_CLK_ENABLE()
+#define WHEEL_PTT_PIN GPIO_PIN_1
+#define WHEEL_PTT_ACTIVE_STATE GPIO_PIN_RESET
+
 // PWM enable (gate) output
 #define PWM_EN_GPIO_PORT GPIOB
 #define PWM_EN_GPIO_CLK_ENABLE() __HAL_RCC_GPIOB_CLK_ENABLE()

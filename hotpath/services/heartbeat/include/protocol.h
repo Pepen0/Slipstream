@@ -12,7 +12,9 @@ constexpr size_t kMaxPayload = 64u;
 enum class PacketType : uint8_t {
   Heartbeat = 0x01,
   Command = 0x02,
+  Jog = 0x03,
   Status = 0x10,
+  InputEvent = 0x11,
   Maintenance = 0x20
 };
 

@@ -16,6 +16,9 @@ Update pin mappings, timing, and control settings in `firmware/mcu/include/app_c
 - `APP_TORQUE_LIMIT`
 - `APP_POS_MIN_M` / `APP_POS_MAX_M`
 - `APP_HOMING_ENABLED`
+- `APP_WHEEL_PTT_ENABLED`
+- `APP_WHEEL_PTT_DEBOUNCE_MS`
+- `WHEEL_PTT_PIN` (active low by default)
 
 > If you change the E‑Stop pin, update `EXTI` IRQ selection in `firmware/mcu/src/safety.c`.
 
@@ -26,6 +29,12 @@ Header (packed)
   uint32 magic   = 0xA5C3F00D
   uint8  version = 2
   uint8  type    = 0x01 heartbeat
+                 = 0x02 command
+                 = 0x03 jog
+                 = 0x10 status
+                 = 0x11 input event
+                 = 0x20 maintenance
+                 = 0x30 diagnostic
   uint16 length  = payload bytes
   uint32 seq
 Payload
@@ -97,7 +106,7 @@ struct mcu_status_t {
   float  left_cmd;
   float  right_cmd;
   uint8  state;
-  uint8  flags;      // bit0 USB, bit1 E‑Stop, bit2 PWM, bit3 Decay, bit4 Homing, bit5 Sensor OK
+  uint8  flags;      // bit0 USB, bit1 E‑Stop, bit2 PWM, bit3 Decay, bit4 Homing, bit5 Sensor OK, bit6 PTT held
   uint16 fault_code;
   uint32 fw_version; // packed: major.minor.patch.build (8 bits each)
   uint32 fw_build;   // optional build identifier
@@ -106,6 +115,24 @@ struct mcu_status_t {
   uint16 update_reserved;
 }
 ```
+
+### Steering-wheel PTT input events (MCU → PC)
+
+When enabled, the MCU debounces the wheel PTT button and emits an `INPUT_EVENT` frame on
+state transitions:
+
+```
+struct mcu_ptt_event_t {
+  uint16 magic = 0x5054;
+  uint8  event;      // 1 = PTT_DOWN, 2 = PTT_UP
+  uint8  source;     // 1 = steering wheel
+  uint32 uptime_ms;
+  uint8  pressed;    // debounced current state
+  uint8  reserved[3];
+}
+```
+
+PTT events are safety-gated and suppressed while the MCU is in fault, E-Stop, or maintenance state.
 
 ### Diagnostic telemetry (MCU → PC, on demand)
 

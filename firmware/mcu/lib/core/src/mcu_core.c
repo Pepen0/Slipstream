@@ -135,6 +135,20 @@ uint16_t mcu_core_fault(const mcu_core_t *ctx) {
   return ctx->fault_code;
 }
 
+bool mcu_core_allow_ptt(const mcu_core_t *ctx) {
+  if (!ctx) {
+    return false;
+  }
+  if (ctx->estop_active) {
+    return false;
+  }
+  mcu_state_t state = mcu_core_state(ctx);
+  if (state == MCU_STATE_FAULT || state == MCU_STATE_MAINTENANCE) {
+    return false;
+  }
+  return true;
+}
+
 void mcu_core_set_fault(mcu_core_t *ctx, uint16_t fault_code, uint32_t now_ms) {
   ctx->state = MCU_STATE_FAULT;
   ctx->last_fault_ms = now_ms;

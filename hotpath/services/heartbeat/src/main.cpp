@@ -132,6 +132,20 @@ struct McuStatus {
 static_assert(sizeof(McuStatus) <= 64, "McuStatus payload exceeds protocol limit");
 
 #pragma pack(push, 1)
+struct McuPttEvent {
+  uint16_t magic;
+  uint8_t event;
+  uint8_t source;
+  uint32_t uptime_ms;
+  uint8_t pressed;
+  uint8_t reserved[3];
+};
+#pragma pack(pop)
+
+static_assert(sizeof(McuPttEvent) == 12, "McuPttEvent size unexpected");
+constexpr uint16_t kPttEventMagic = 0x5054u;
+
+#pragma pack(push, 1)
 struct CommandPayload {
   float left_m;
   float right_m;
@@ -308,7 +322,7 @@ int main(int argc, char **argv) {
           rx_buffer.erase(rx_buffer.begin());
           continue;
         }
-          if (parsed.header.type == static_cast<uint8_t>(PacketType::Status) &&
+        if (parsed.header.type == static_cast<uint8_t>(PacketType::Status) &&
             parsed.payload.size() >= sizeof(McuStatus)) {
           McuStatus status{};
           std::memcpy(&status, parsed.payload.data(), sizeof(McuStatus));
@@ -331,6 +345,23 @@ int main(int argc, char **argv) {
                     << " update_state=" << static_cast<int>(status.update_state)
                     << " update_result=" << static_cast<int>(status.update_result)
                     << "\n";
+        } else if (parsed.header.type == static_cast<uint8_t>(PacketType::InputEvent) &&
+                   parsed.payload.size() >= sizeof(McuPttEvent)) {
+          McuPttEvent event{};
+          std::memcpy(&event, parsed.payload.data(), sizeof(McuPttEvent));
+          if (event.magic == kPttEventMagic) {
+            const char *name = "UNKNOWN";
+            if (event.event == 1u) {
+              name = "PTT_DOWN";
+            } else if (event.event == 2u) {
+              name = "PTT_UP";
+            }
+            std::cout << "MCU input: " << name
+                      << " source=" << static_cast<int>(event.source)
+                      << " uptime=" << event.uptime_ms
+                      << " pressed=" << static_cast<int>(event.pressed)
+                      << "\n";
+          }
         }
         rx_buffer.erase(rx_buffer.begin(), rx_buffer.begin() + total);
       }

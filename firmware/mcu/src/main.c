@@ -8,6 +8,7 @@
 #include "mcu_diagnostics.h"
 #include "mcu_faults.h"
 #include "mcu_jog.h"
+#include "mcu_ptt.h"
 #include "mcu_maintenance.h"
 #include "mcu_status.h"
 #include "protocol.h"
@@ -17,6 +18,7 @@
 #include "safety.h"
 #include "bootloader.h"
 #include "firmware_version.h"
+#include "wheel_ptt.h"
 
 IWDG_HandleTypeDef hiwdg;
 
@@ -51,6 +53,7 @@ int main(void) {
   safety_init();
   sensors_init();
   actuators_init();
+  wheel_ptt_init();
   usb_cdc_init();
 
   mcu_core_t core;
@@ -81,10 +84,13 @@ int main(void) {
 
   mcu_jog_state_t jog = {0};
   mcu_jog_init(&jog);
+  mcu_ptt_state_t ptt = {0};
+  mcu_ptt_init(&ptt, APP_WHEEL_PTT_DEBOUNCE_MS, wheel_ptt_raw_pressed());
 
   protocol_frame_t frame;
   uint32_t status_seq = 0;
   uint32_t diag_seq = 0;
+  uint32_t ptt_seq = 0;
   uint32_t last_status_ms = 0;
   uint32_t last_control_ms = 0;
   uint32_t control_period_ms = (1000u / APP_CONTROL_LOOP_HZ);
@@ -95,6 +101,7 @@ int main(void) {
   uint64_t last_cmd_host_ns = 0;
   uint8_t status_buf[sizeof(protocol_header_t) + sizeof(mcu_status_t) + sizeof(uint16_t)] = {0};
   uint8_t diag_buf[sizeof(protocol_header_t) + sizeof(mcu_diag_response_t) + sizeof(uint16_t)] = {0};
+  uint8_t ptt_buf[sizeof(protocol_header_t) + sizeof(mcu_ptt_event_t) + sizeof(uint16_t)] = {0};
 
   while (1) {
     uint32_t now = HAL_GetTick();
@@ -212,6 +219,27 @@ int main(void) {
 
     mcu_core_tick(&core, now);
 
+    bool ptt_raw = wheel_ptt_raw_pressed();
+    if (!mcu_core_allow_ptt(&core)) {
+      mcu_ptt_resync(&ptt, ptt_raw, now);
+    } else {
+      mcu_ptt_event_type_t ptt_event = mcu_ptt_update(&ptt, ptt_raw, now);
+      if (ptt_event != MCU_PTT_EVENT_NONE && usb_ok) {
+        mcu_ptt_event_t event = {0};
+        event.magic = MCU_PTT_EVENT_MAGIC;
+        event.event = (uint8_t)ptt_event;
+        event.source = MCU_PTT_SOURCE_STEERING_WHEEL;
+        event.uptime_ms = now;
+        event.pressed = mcu_ptt_is_pressed(&ptt) ? 1u : 0u;
+        size_t out_len = protocol_build_frame(PROTOCOL_TYPE_INPUT_EVENT, ptt_seq++,
+                                              (const uint8_t *)&event, sizeof(event),
+                                              ptt_buf, sizeof(ptt_buf));
+        if (out_len > 0) {
+          usb_cdc_write(ptt_buf, out_len);
+        }
+      }
+    }
+
     if (mcu_core_update_ready(&core, now)) {
       safety_force_stop();
       actuators_set_torque(0.0f, 0.0f);
@@ -319,6 +347,7 @@ int main(void) {
       if (torque_scale < 1.0f && torque_scale > 0.0f) status.flags |= MCU_STATUS_FLAG_DECAY;
       if (ctrl.homing_active) status.flags |= MCU_STATUS_FLAG_HOMING;
       if (control_fault(&ctrl) == MCU_FAULT_NONE) status.flags |= MCU_STATUS_FLAG_SENSOR_OK;
+      if (mcu_ptt_is_pressed(&ptt)) status.flags |= MCU_STATUS_FLAG_PTT_HELD;
       status.fault_code = mcu_core_fault(&core);
       status.fw_version = FW_VERSION;
       status.fw_build = FW_BUILD_ID;
