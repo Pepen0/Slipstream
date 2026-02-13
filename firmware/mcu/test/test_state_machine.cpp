@@ -21,6 +21,11 @@ void test_jog_default_duration(void);
 void test_ptt_emits_down_up_with_debounce(void);
 void test_ptt_resync_suppresses_stale_edges(void);
 void test_ptt_disabled_during_fault_estop_and_maintenance(void);
+void test_profile_defaults_when_storage_missing(void);
+void test_profile_set_tuning_and_switch_applies_values(void);
+void test_profile_save_and_reload_per_car_type(void);
+void test_profile_save_failure_is_reported(void);
+void test_maintenance_decode_profile_commands(void);
 
 void test_usb_disconnect_fault(void) {
   mcu_core_init(&core, 0, 100, 0, 200, 200, 50);
@@ -130,5 +135,10 @@ int main(int argc, char **argv) {
   RUN_TEST(test_ptt_emits_down_up_with_debounce);
   RUN_TEST(test_ptt_resync_suppresses_stale_edges);
   RUN_TEST(test_ptt_disabled_during_fault_estop_and_maintenance);
+  RUN_TEST(test_profile_defaults_when_storage_missing);
+  RUN_TEST(test_profile_set_tuning_and_switch_applies_values);
+  RUN_TEST(test_profile_save_and_reload_per_car_type);
+  RUN_TEST(test_profile_save_failure_is_reported);
+  RUN_TEST(test_maintenance_decode_profile_commands);
   return UNITY_END();
 }

@@ -17,6 +17,10 @@
 #define APP_UPDATE_DFU_DELAY_MS 200u
 #define APP_DFU_BOOTLOADER_ADDR 0x1FFFF000u // STM32F1 system memory base
 
+// Profile persistence (STM32F103C8 flash emulation for EEPROM-like storage)
+#define APP_PROFILE_FLASH_ADDR 0x0800FC00u  // last 1KB page of 64KB flash
+#define APP_PROFILE_FLASH_PAGE_SIZE 1024u
+
 // Control loop (1 kHz)
 #define APP_CONTROL_LOOP_HZ 1000u
 

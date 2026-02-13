@@ -112,7 +112,9 @@ struct mcu_status_t {
   uint32 fw_build;   // optional build identifier
   uint8  update_state;
   uint8  update_result;
-  uint16 update_reserved;
+  uint8  active_car_type;
+  uint8  profile_flags;  // bit0 active profile valid, bit1 profile storage loaded
+  uint16 status_reserved;
 }
 ```
 
@@ -182,10 +184,32 @@ The maintenance payload is:
 struct mcu_maintenance_t {
   uint16 magic = 0xB007;
   uint8  opcode;
-  uint8  reserved;
+  uint8  arg0;
   uint32 token;
 }
 ```
+
+For hardware-manager profile/tuning operations, use the extended maintenance payload:
+
+```
+struct mcu_maintenance_tuning_t {
+  uint16 magic = 0xB007;
+  uint8  opcode;          // 0x10 SET_TUNING
+  uint8  car_type;
+  uint32 token;           // reserved for host correlation
+  float  force_intensity; // clamped to [0.10, 1.00]
+  float  motion_range;    // clamped to [0.20, 1.00]
+}
+```
+
+Supported maintenance opcodes:
+- `0x01` `UPDATE_REQUEST`
+- `0x02` `UPDATE_ARM`
+- `0x03` `UPDATE_ABORT`
+- `0x10` `SET_TUNING` (set force intensity + motion range for `car_type`)
+- `0x11` `SAVE_PROFILE` (persist profile table to flash; `arg0 = car_type`)
+- `0x12` `SWITCH_PROFILE` (activate profile for `arg0 = car_type`)
+- `0x13` `LOAD_PROFILE` (reload profile table from flash, then activate `arg0 = car_type`)
 
 > Configure `APP_DFU_BOOTLOADER_ADDR` if your STM32 variant uses a different system memory base.
 

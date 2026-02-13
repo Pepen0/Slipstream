@@ -10,6 +10,9 @@
 #define MCU_STATUS_FLAG_SENSOR_OK (1u << 5)
 #define MCU_STATUS_FLAG_PTT_HELD  (1u << 6)
 
+#define MCU_STATUS_PROFILE_FLAG_ACTIVE_VALID  (1u << 0)
+#define MCU_STATUS_PROFILE_FLAG_STORAGE_LOADED (1u << 1)
+
 #pragma pack(push, 1)
 typedef struct {
   uint32_t uptime_ms;
@@ -29,7 +32,9 @@ typedef struct {
   uint32_t fw_build;
   uint8_t update_state;
   uint8_t update_result;
-  uint16_t update_reserved;
+  uint8_t active_car_type;
+  uint8_t profile_flags;
+  uint16_t status_reserved;
 } mcu_status_t;
 #pragma pack(pop)
 

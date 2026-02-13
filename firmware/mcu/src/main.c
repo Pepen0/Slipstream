@@ -8,6 +8,8 @@
 #include "mcu_diagnostics.h"
 #include "mcu_faults.h"
 #include "mcu_jog.h"
+#include "mcu_profile.h"
+#include "mcu_profile_storage.h"
 #include "mcu_ptt.h"
 #include "mcu_maintenance.h"
 #include "mcu_status.h"
@@ -30,6 +32,29 @@ static float clampf(float v, float lo, float hi) {
   if (v < lo) return lo;
   if (v > hi) return hi;
   return v;
+}
+
+static void apply_profile_to_control(control_config_t *cfg,
+                                     const control_config_t *base_cfg,
+                                     const mcu_profile_params_t *params) {
+  if (!cfg || !base_cfg || !params) {
+    return;
+  }
+  const float center = 0.5f * (base_cfg->pos_min_m + base_cfg->pos_max_m);
+  float half_range = 0.5f * (base_cfg->pos_max_m - base_cfg->pos_min_m) * params->motion_range;
+  if (half_range < 0.001f) {
+    half_range = 0.001f;
+  }
+
+  cfg->torque_limit = base_cfg->torque_limit * params->force_intensity;
+  cfg->pid.out_min = -cfg->torque_limit;
+  cfg->pid.out_max = cfg->torque_limit;
+  cfg->pid.integrator_min = -cfg->torque_limit;
+  cfg->pid.integrator_max = cfg->torque_limit;
+
+  cfg->pos_min_m = center - half_range;
+  cfg->pos_max_m = center + half_range;
+  cfg->homing_target_m = cfg->pos_min_m;
 }
 
 void Error_Handler(void) {
@@ -75,6 +100,15 @@ int main(void) {
   ctrl_cfg.homing_target_m = APP_HOMING_TARGET_M;
   ctrl_cfg.homing_timeout_ms = APP_HOMING_TIMEOUT_MS;
   ctrl_cfg.setpoint_deadband_m = APP_SETPOINT_DEADBAND_M;
+  const control_config_t ctrl_cfg_base = ctrl_cfg;
+
+  mcu_profile_manager_t profiles = {0};
+  mcu_profile_manager_init(&profiles, mcu_profile_storage_read, mcu_profile_storage_write, NULL);
+  mcu_profile_params_t active_profile = {0};
+  if (!mcu_profile_active_params(&profiles, &active_profile)) {
+    mcu_profile_default_params(&active_profile);
+  }
+  apply_profile_to_control(&ctrl_cfg, &ctrl_cfg_base, &active_profile);
 
   control_state_t ctrl = {0};
   control_init(&ctrl, &ctrl_cfg);
@@ -145,28 +179,63 @@ int main(void) {
           mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
         }
       } else if (frame.header.type == PROTOCOL_TYPE_MAINTENANCE) {
-        if (frame.header.length >= sizeof(mcu_maintenance_t)) {
-          mcu_maintenance_t maint;
-          memcpy(&maint, frame.payload, sizeof(mcu_maintenance_t));
-          if (maint.magic == MCU_MAINTENANCE_MAGIC) {
-            switch (maint.opcode) {
-              case MCU_MAINTENANCE_OP_UPDATE_REQUEST:
-                mcu_core_request_update(&core, maint.token, now);
-                break;
-              case MCU_MAINTENANCE_OP_UPDATE_ARM:
-                mcu_core_arm_update(&core, maint.token, now);
-                break;
-              case MCU_MAINTENANCE_OP_UPDATE_ABORT:
-                mcu_core_abort_update(&core, MCU_UPDATE_RESULT_ABORT_HOST);
-                break;
-              default:
-                break;
-            }
-          } else {
-            mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
-          }
-        } else {
+        mcu_maintenance_command_t maint = {0};
+        if (!mcu_maintenance_decode(frame.payload, frame.header.length, &maint)) {
           mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
+          continue;
+        }
+        switch (maint.opcode) {
+          case MCU_MAINTENANCE_OP_UPDATE_REQUEST:
+            mcu_core_request_update(&core, maint.token, now);
+            break;
+          case MCU_MAINTENANCE_OP_UPDATE_ARM:
+            mcu_core_arm_update(&core, maint.token, now);
+            break;
+          case MCU_MAINTENANCE_OP_UPDATE_ABORT:
+            mcu_core_abort_update(&core, MCU_UPDATE_RESULT_ABORT_HOST);
+            break;
+          case MCU_MAINTENANCE_OP_SET_TUNING:
+            if (!maint.has_tuning_values ||
+                !mcu_profile_set_tuning(&profiles, maint.car_type,
+                                        maint.force_intensity, maint.motion_range)) {
+              mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
+              break;
+            }
+            if (profiles.active_car_type == maint.car_type) {
+              mcu_profile_active_params(&profiles, &active_profile);
+              apply_profile_to_control(&ctrl_cfg, &ctrl_cfg_base, &active_profile);
+            }
+            break;
+          case MCU_MAINTENANCE_OP_SAVE_PROFILE:
+            profiles.storage_loaded = mcu_profile_save_car_type(&profiles, maint.car_type);
+            if (!profiles.storage_loaded) {
+              mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
+            }
+            break;
+          case MCU_MAINTENANCE_OP_SWITCH_PROFILE:
+            if (!mcu_profile_switch_active(&profiles, maint.car_type)) {
+              mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
+              break;
+            }
+            if (mcu_profile_active_params(&profiles, &active_profile)) {
+              apply_profile_to_control(&ctrl_cfg, &ctrl_cfg_base, &active_profile);
+            }
+            break;
+          case MCU_MAINTENANCE_OP_LOAD_PROFILE:
+            profiles.storage_loaded = mcu_profile_load(&profiles);
+            if (!profiles.storage_loaded ||
+                !mcu_profile_switch_active(&profiles, maint.car_type)) {
+              mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
+              break;
+            }
+            if (mcu_profile_active_params(&profiles, &active_profile)) {
+              apply_profile_to_control(&ctrl_cfg, &ctrl_cfg_base, &active_profile);
+            }
+            break;
+          case MCU_MAINTENANCE_OP_NONE:
+          default:
+            mcu_core_set_fault(&core, MCU_FAULT_COMMAND_INVALID, now);
+            break;
         }
       } else if (frame.header.type == PROTOCOL_TYPE_DIAGNOSTIC) {
         if (frame.header.length >= sizeof(mcu_diag_request_t)) {
@@ -353,7 +422,15 @@ int main(void) {
       status.fw_build = FW_BUILD_ID;
       status.update_state = (uint8_t)mcu_core_update_state(&core);
       status.update_result = (uint8_t)mcu_core_update_result(&core);
-      status.update_reserved = 0;
+      status.active_car_type = profiles.active_car_type;
+      status.profile_flags = 0u;
+      if (mcu_profile_active_valid(&profiles)) {
+        status.profile_flags |= MCU_STATUS_PROFILE_FLAG_ACTIVE_VALID;
+      }
+      if (profiles.storage_loaded) {
+        status.profile_flags |= MCU_STATUS_PROFILE_FLAG_STORAGE_LOADED;
+      }
+      status.status_reserved = 0;
 
       size_t out_len = protocol_build_frame(PROTOCOL_TYPE_STATUS, status_seq++,
                                             (const uint8_t *)&status, sizeof(status),
