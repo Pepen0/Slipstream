@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:fixnum/fixnum.dart';
 
@@ -14,7 +15,9 @@ class _FakeDashboardClient extends DashboardClient {
   @override
   Future<void> connect() async {
     final status = Status()
-      ..state = Status_State.STATE_IDLE
+      ..state = Status_State.STATE_ACTIVE
+      ..sessionActive = true
+      ..sessionId = 'test-session'
       ..updatedAtNs = Int64(DateTime.now().microsecondsSinceEpoch * 1000);
     snapshot.value = DashboardSnapshot(
       status: status,
@@ -37,14 +40,17 @@ class _FakeDashboardClient extends DashboardClient {
   void emitPtt({
     required int sequence,
     required InputEvent_Type type,
+    int? receivedAtNs,
   }) {
+    final nowNs = DateTime.now().microsecondsSinceEpoch * 1000;
     final status = (snapshot.value.status?.deepCopy() ?? Status())
-      ..updatedAtNs = Int64(DateTime.now().microsecondsSinceEpoch * 1000);
+      ..updatedAtNs = Int64(nowNs);
     final event = InputEvent()
       ..sequence = Int64(sequence)
       ..type = type
       ..source = InputEvent_Source.INPUT_EVENT_SOURCE_STEERING_WHEEL
-      ..receivedAtNs = Int64(DateTime.now().microsecondsSinceEpoch * 1000);
+      ..pressed = type == InputEvent_Type.INPUT_EVENT_TYPE_PTT_DOWN
+      ..receivedAtNs = Int64(receivedAtNs ?? nowNs);
     snapshot.value = snapshot.value.copyWith(
       status: status,
       inputEvent: event,
@@ -138,6 +144,8 @@ class _FakeVoicePipelineController extends VoicePipelineController {
 void main() {
   testWidgets('hardware PTT input events trigger voice start and stop',
       (WidgetTester tester) async {
+    const firstEventNs = 1700000000000000000;
+    const secondEventNs = 1700000000500000000;
     final client = _FakeDashboardClient();
     final voice = _FakeVoicePipelineController();
 
@@ -149,27 +157,45 @@ void main() {
     );
     await tester.pump();
 
+    expect(
+        find.byKey(const Key('voice-hardware-ptt-indicator')), findsOneWidget);
+    expect(
+      find.textContaining('HW PTT: No hardware PTT events yet'),
+      findsOneWidget,
+    );
+
     client.emitPtt(
       sequence: 1,
       type: InputEvent_Type.INPUT_EVENT_TYPE_PTT_DOWN,
+      receivedAtNs: firstEventNs,
     );
     await tester.pump();
     expect(voice.startCalls, 1);
     expect(voice.stopCalls, 0);
+    expect(find.textContaining('HW PTT: PTT_DOWN'), findsOneWidget);
+    expect(find.textContaining('seq 1'), findsOneWidget);
+    expect(find.textContaining('pressed'), findsOneWidget);
 
     client.emitPtt(
       sequence: 2,
       type: InputEvent_Type.INPUT_EVENT_TYPE_PTT_UP,
+      receivedAtNs: secondEventNs,
     );
     await tester.pump();
     expect(voice.startCalls, 1);
     expect(voice.stopCalls, 1);
+    expect(find.textContaining('HW PTT: PTT_UP'), findsOneWidget);
+    expect(find.textContaining('seq 2'), findsOneWidget);
+    expect(find.textContaining('released'), findsOneWidget);
 
     client.emitPtt(
       sequence: 2,
       type: InputEvent_Type.INPUT_EVENT_TYPE_PTT_UP,
+      receivedAtNs: secondEventNs,
     );
     await tester.pump();
     expect(voice.stopCalls, 1);
+    expect(find.textContaining('HW PTT: PTT_UP'), findsOneWidget);
+    expect(find.textContaining('seq 2'), findsOneWidget);
   });
 }

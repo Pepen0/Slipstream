@@ -391,6 +391,8 @@ class _DashboardHomeState extends State<DashboardHome> {
   bool _voicePointerDown = false;
   int _lastHardwarePttSequence = 0;
   int _lastHardwarePttReceivedAtNs = 0;
+  String _lastHardwarePttEventLabel = 'NONE';
+  bool _lastHardwarePttPressed = false;
   bool _analysisCompareMode = true;
   double _analysisZoom = 1.0;
   double _analysisPan = 0.0;
@@ -532,12 +534,30 @@ class _DashboardHomeState extends State<DashboardHome> {
     }
     final sequence = event.sequence.toInt();
     final receivedAtNs = event.receivedAtNs.toInt();
+    final normalizedReceivedAtNs = receivedAtNs > 0
+        ? receivedAtNs
+        : DateTime.now().microsecondsSinceEpoch * 1000;
     if (sequence <= _lastHardwarePttSequence &&
-        receivedAtNs <= _lastHardwarePttReceivedAtNs) {
+        normalizedReceivedAtNs <= _lastHardwarePttReceivedAtNs) {
       return;
     }
     _lastHardwarePttSequence = sequence;
-    _lastHardwarePttReceivedAtNs = receivedAtNs;
+    _lastHardwarePttReceivedAtNs = normalizedReceivedAtNs;
+    switch (event.type) {
+      case InputEvent_Type.INPUT_EVENT_TYPE_PTT_DOWN:
+        _lastHardwarePttEventLabel = 'PTT_DOWN';
+        _lastHardwarePttPressed = true;
+        break;
+      case InputEvent_Type.INPUT_EVENT_TYPE_PTT_UP:
+        _lastHardwarePttEventLabel = 'PTT_UP';
+        _lastHardwarePttPressed = false;
+        break;
+      case InputEvent_Type.INPUT_EVENT_TYPE_UNKNOWN:
+      default:
+        _lastHardwarePttEventLabel = 'UNKNOWN';
+        _lastHardwarePttPressed = event.pressed;
+        break;
+    }
 
     if (event.type == InputEvent_Type.INPUT_EVENT_TYPE_PTT_DOWN) {
       unawaited(_startPushToTalk(snapshot));
@@ -3148,6 +3168,19 @@ class _DashboardHomeState extends State<DashboardHome> {
     return '$sign${seconds.abs().toStringAsFixed(3)}s';
   }
 
+  String _formatHardwarePttTimestamp(int receivedAtNs) {
+    if (receivedAtNs <= 0) {
+      return '--:--:--.---';
+    }
+    final timestamp =
+        DateTime.fromMillisecondsSinceEpoch(receivedAtNs ~/ 1000000).toLocal();
+    final hh = timestamp.hour.toString().padLeft(2, '0');
+    final mm = timestamp.minute.toString().padLeft(2, '0');
+    final ss = timestamp.second.toString().padLeft(2, '0');
+    final ms = timestamp.millisecond.toString().padLeft(3, '0');
+    return '$hh:$mm:$ss.$ms';
+  }
+
   Widget _buildVoiceInterface(DashboardSnapshot snapshot) {
     final voice = _voice.state;
     final warningActive = _hasSafetyWarning(snapshot);
@@ -3158,6 +3191,10 @@ class _DashboardHomeState extends State<DashboardHome> {
         : (processing ? 'Processing...' : 'Hold to Talk');
     final buttonColor =
         recording ? _kDanger : (processing ? _kWarning : _kAccentAlt);
+    final hasHardwareEvent = _lastHardwarePttReceivedAtNs > 0;
+    final hardwarePttDebug = hasHardwareEvent
+        ? '${_lastHardwarePttEventLabel} · ${_formatHardwarePttTimestamp(_lastHardwarePttReceivedAtNs)} · seq $_lastHardwarePttSequence · ${_lastHardwarePttPressed ? 'pressed' : 'released'}'
+        : 'No hardware PTT events yet';
 
     return _HudCard(
       key: const Key('voice-console'),
@@ -3167,6 +3204,27 @@ class _DashboardHomeState extends State<DashboardHome> {
           _SectionHeader(
             title: 'Voice Interface',
             subtitle: 'FLT-028~033 · PTT, STT buffer, TTS, playback, ducking',
+          ),
+          const SizedBox(height: 10),
+          Container(
+            key: const Key('voice-hardware-ptt-indicator'),
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: _kSurfaceRaised,
+              borderRadius: BorderRadius.circular(_kControlRadius),
+              border: Border.all(color: _kSurfaceGlow),
+            ),
+            child: Text(
+              'HW PTT: $hardwarePttDebug',
+              style: TextStyle(
+                color: hasHardwareEvent ? _kMuted : _kMutedSoft,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'RobotoMono',
+                letterSpacing: 0.2,
+              ),
+            ),
           ),
           const SizedBox(height: 12),
           Row(
