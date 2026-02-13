@@ -1386,10 +1386,8 @@ class _DashboardHomeState extends State<DashboardHome> {
   }
 
   Widget _buildLiveDashboard(DashboardSnapshot snapshot, bool isWide) {
-    const railWidth = 48.0;
-    const railGap = 16.0;
     const screenInset = 24.0;
-    const contentLeftPadding = screenInset + railWidth + railGap;
+    const contentLeftPadding = screenInset;
     final derived = _deriveTelemetry(snapshot);
     final samples = _reviewMode ? _reviewSamples : _liveHistory;
     final phase =
@@ -1502,12 +1500,6 @@ class _DashboardHomeState extends State<DashboardHome> {
               ],
             ),
           ),
-        ),
-        Positioned(
-          left: screenInset,
-          top: screenInset,
-          bottom: screenInset,
-          child: _buildFeedbackRail(),
         ),
         if (overlaySessionControl)
           Positioned(
