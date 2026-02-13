@@ -14,7 +14,7 @@ void main() {
   testWidgets('Dashboard renders live and system status views',
       (WidgetTester tester) async {
     await tester.pumpWidget(const DashboardApp());
-    expect(find.text('Slipstream Dashboard'), findsOneWidget);
+    expect(find.text('SLIPSTREAM DASHBOARD'), findsOneWidget);
     expect(find.text('Live Dashboard'), findsOneWidget);
     expect(find.text('Data & Sharing'), findsOneWidget);
     expect(find.byKey(const Key('race-phase-indicator')), findsOneWidget);

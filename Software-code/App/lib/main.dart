@@ -22,6 +22,7 @@ const Color _kWarning = Color(0xFFE1B866);
 const Color _kDanger = Color(0xFFE6392F);
 const Color _kOk = Color(0xFF74C77A);
 const Color _kMuted = Color(0xFFB3B3B3);
+const Color _kMutedLabel = Color(0xFF9B9B9B);
 const Color _kSystemOk = Color(0xFF4ADE80);
 const Color _kMutedSoft = Color(0xFF6B6B6B);
 const double _kPanelRadius = 8;
@@ -159,9 +160,9 @@ class DashboardApp extends StatelessWidget {
         surfaceTintColor: Colors.transparent,
         titleTextStyle: TextStyle(
           color: Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.8,
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 2.4,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -251,12 +252,22 @@ class DashboardApp extends StatelessWidget {
       ),
       tabBarTheme: const TabBarThemeData(
         dividerColor: _kSurfaceGlow,
-        indicatorColor: _kDanger,
+        indicator: UnderlineTabIndicator(
+          borderSide: BorderSide(color: _kDanger, width: 2),
+        ),
+        indicatorSize: TabBarIndicatorSize.label,
         labelColor: Colors.white,
         unselectedLabelColor: _kMuted,
-        labelStyle: TextStyle(fontWeight: FontWeight.w600, letterSpacing: 0.4),
-        unselectedLabelStyle:
-            TextStyle(fontWeight: FontWeight.w500, letterSpacing: 0.2),
+        labelStyle: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
+        ),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.1,
+        ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: _kDanger,
@@ -1293,7 +1304,14 @@ class _DashboardHomeState extends State<DashboardHome> {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Slipstream Dashboard'),
+          title: const Text(
+            'SLIPSTREAM DASHBOARD',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 2.4,
+            ),
+          ),
           actions: [
             ValueListenableBuilder<DashboardSnapshot>(
               valueListenable: client.snapshot,
@@ -1313,6 +1331,20 @@ class _DashboardHomeState extends State<DashboardHome> {
             ),
           ],
           bottom: TabBar(
+            indicator: const UnderlineTabIndicator(
+              borderSide: BorderSide(color: _kDanger, width: 2),
+            ),
+            indicatorSize: TabBarIndicatorSize.label,
+            labelStyle: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.2,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0.1,
+            ),
             onTap: (index) {
               setState(() {
                 _selectedTabIndex = index;
@@ -1356,7 +1388,8 @@ class _DashboardHomeState extends State<DashboardHome> {
   Widget _buildLiveDashboard(DashboardSnapshot snapshot, bool isWide) {
     const railWidth = 48.0;
     const railGap = 16.0;
-    const contentLeftPadding = 24.0 + railWidth + railGap;
+    const screenInset = 24.0;
+    const contentLeftPadding = screenInset + railWidth + railGap;
     final derived = _deriveTelemetry(snapshot);
     final samples = _reviewMode ? _reviewSamples : _liveHistory;
     final phase =
@@ -1396,8 +1429,9 @@ class _DashboardHomeState extends State<DashboardHome> {
     }
     final overlaySessionControl = showSessionControl;
 
-    final controlExpandedPadding = _sessionControlExpanded ? 376.0 : 104.0;
-    final bottomPadding = overlaySessionControl ? controlExpandedPadding : 24.0;
+    final controlExpandedPadding = _sessionControlExpanded ? 400.0 : 120.0;
+    final bottomPadding =
+        overlaySessionControl ? controlExpandedPadding : screenInset;
 
     return Stack(
       children: [
@@ -1405,8 +1439,8 @@ class _DashboardHomeState extends State<DashboardHome> {
           child: SingleChildScrollView(
             padding: EdgeInsets.fromLTRB(
               contentLeftPadding,
-              24,
-              24,
+              screenInset,
+              screenInset,
               bottomPadding,
             ),
             child: Column(
@@ -1470,16 +1504,16 @@ class _DashboardHomeState extends State<DashboardHome> {
           ),
         ),
         Positioned(
-          left: 24,
-          top: 24,
-          bottom: 24,
+          left: screenInset,
+          top: screenInset,
+          bottom: screenInset,
           child: _buildFeedbackRail(),
         ),
         if (overlaySessionControl)
           Positioned(
             left: contentLeftPadding,
-            right: 24,
-            bottom: 24,
+            right: screenInset,
+            bottom: screenInset,
             child: _buildSessionControl(snapshot),
           ),
       ],
@@ -1568,11 +1602,13 @@ class _DashboardHomeState extends State<DashboardHome> {
       width: 48,
       height: height,
       decoration: BoxDecoration(
-        color: critical ? _kDanger : Colors.transparent,
+        color: _kSurface,
         border: Border(
           left: BorderSide(
-            color: trigger == null ? Colors.transparent : confidenceColor,
-            width: 2,
+            color: trigger == null
+                ? Colors.transparent
+                : (critical ? _kDanger : confidenceColor),
+            width: critical ? 4 : 2,
           ),
           right: const BorderSide(color: _kSurfaceGlow),
         ),
@@ -1594,9 +1630,9 @@ class _DashboardHomeState extends State<DashboardHome> {
                     causalitySignalLabel(trigger.insight.signal).toUpperCase(),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: critical ? Colors.white : _kMuted,
+                      color: critical ? Colors.white : _kMutedLabel,
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                       letterSpacing: 1.0,
                     ),
                   ),
@@ -1607,7 +1643,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                     style: TextStyle(
                       color: critical
                           ? Colors.white.withValues(alpha: 0.9)
-                          : _kMuted,
+                          : _kMutedLabel,
                       fontSize: 10,
                       height: 1.3,
                     ),
@@ -1712,7 +1748,7 @@ class _DashboardHomeState extends State<DashboardHome> {
     final faults = _buildFaults(snapshot);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: _kDataPagePadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2203,9 +2239,8 @@ class _DashboardHomeState extends State<DashboardHome> {
     final latency = derived.latencyMs.toStringAsFixed(1);
     final connected = client.isConnected && snapshot.connected;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 16),
+    return _HudCard(
+      key: const Key('live-overview-strip'),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -2213,7 +2248,8 @@ class _DashboardHomeState extends State<DashboardHome> {
             _LiveStatusPill(
               label: 'USB LINK',
               value: connected ? 'ONLINE' : 'OFFLINE',
-              dotColor: connected ? _kSystemOk : _kDanger,
+              dotColor: connected ? _kSystemOk : _kMutedSoft,
+              valueColor: connected ? Colors.white : _kMutedSoft,
             ),
             const SizedBox(width: 8),
             _LiveStatusPill(
@@ -2227,6 +2263,7 @@ class _DashboardHomeState extends State<DashboardHome> {
               value: '${latency}ms',
               dotColor: derived.latencyMs > 20 ? _kWarning : _kSystemOk,
               monoValue: true,
+              valueColor: derived.latencyMs > 20 ? _kWarning : Colors.white,
             ),
           ],
         ),
@@ -2282,16 +2319,8 @@ class _DashboardHomeState extends State<DashboardHome> {
       BroadcastRacePhase.summary =>
         'Car stopped. Auto-switched to summary mode.',
     };
-    return Container(
+    return _HudCard(
       key: const Key('race-phase-indicator'),
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(24, 14, 24, 14),
-      decoration: const BoxDecoration(
-        color: _kSurface,
-        border: Border(
-          bottom: BorderSide(color: _kSurfaceGlow),
-        ),
-      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -2525,28 +2554,22 @@ class _DashboardHomeState extends State<DashboardHome> {
   Widget _buildTelemetryHud(_DerivedTelemetry derived) {
     final rpmRatio = (derived.rpm / 8000).clamp(0.0, 1.0).toDouble();
 
-    return Container(
+    return _HudCard(
       key: const Key('telemetry-hud'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(_kControlRadius),
-        border: Border.all(color: _kSurfaceGlow),
-      ),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'TELEMETRY HUD',
             style: TextStyle(
-              color: _kMuted,
+              color: _kMutedLabel,
               fontSize: 12,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 1.2,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 1.1,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -2557,11 +2580,15 @@ class _DashboardHomeState extends State<DashboardHome> {
                   unit: _speedUnitLabel().toLowerCase(),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
+              Container(width: 1, height: 72, color: _kSurfaceGlow),
+              const SizedBox(width: 12),
               _GearHudBlock(
                 value: derived.gear == 0 ? 'N' : derived.gear.toString(),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),
+              Container(width: 1, height: 72, color: _kSurfaceGlow),
+              const SizedBox(width: 12),
               Expanded(
                 child: _LiveHudMetricBlock(
                   label: 'RPM',
@@ -2575,20 +2602,24 @@ class _DashboardHomeState extends State<DashboardHome> {
           ),
           const SizedBox(height: 16),
           Wrap(
-            spacing: 24,
-            runSpacing: 8,
+            spacing: 16,
+            runSpacing: 10,
             children: [
               _HudMetaReadout(
                 label: 'TRACK PROGRESS',
                 value: '${(derived.trackProgress * 100).toStringAsFixed(1)}%',
+                monoValue: true,
               ),
               _HudMetaReadout(
                 label: 'STREAM',
                 value: _reviewMode ? 'PLAYBACK' : 'LIVE',
+                valueColor: _reviewMode ? _kMutedSoft : _kSystemOk,
               ),
               _HudMetaReadout(
                 label: 'LATENCY',
                 value: '${derived.latencyMs.toStringAsFixed(1)}ms',
+                valueColor: derived.latencyMs > 20 ? _kWarning : Colors.white,
+                monoValue: true,
               ),
             ],
           ),
@@ -2600,19 +2631,14 @@ class _DashboardHomeState extends State<DashboardHome> {
   Widget _buildTrackMap(_DerivedTelemetry derived) {
     final displayProgress = derived.trackProgress;
     final interpolationMs = _reviewMode ? 16 : _trackMapInterpolationMs;
-    return Container(
+    return _HudCard(
       key: const Key('track-map'),
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: _kBackground,
-        borderRadius: BorderRadius.circular(_kControlRadius),
-        border: Border.all(color: _kSurfaceGlow),
-      ),
+      padding: EdgeInsets.zero,
       child: Stack(
         children: [
           Positioned.fill(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 42, 24, 24),
+              padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
               child: _TrackMapInterpolator(
                 progress: displayProgress,
                 durationMs: interpolationMs,
@@ -2620,7 +2646,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                   return CustomPaint(
                     painter: _TrackMapPainter(
                       progress: value,
-                      trackColor: _kSurfaceGlow,
+                      trackColor: _kMuted,
                       dotColor: Colors.white,
                       showSectorMarkers: true,
                     ),
@@ -2638,9 +2664,9 @@ class _DashboardHomeState extends State<DashboardHome> {
                 Text(
                   'TRACK MAP',
                   style: TextStyle(
-                    color: _kMutedSoft,
+                    color: _kMutedLabel,
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w500,
                     letterSpacing: 1.0,
                   ),
                 ),
@@ -2648,7 +2674,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                 Text(
                   'FLT-013 — Driver position overlay',
                   style: TextStyle(
-                    color: _kMutedSoft,
+                    color: _kMuted,
                     fontSize: 10,
                     letterSpacing: 0.2,
                   ),
@@ -3894,7 +3920,7 @@ class _DashboardHomeState extends State<DashboardHome> {
   Widget _buildSessionControl(DashboardSnapshot snapshot) {
     final sessionActive = snapshot.status?.sessionActive ?? false;
     final expanded = _sessionControlExpanded;
-    final panelHeight = expanded ? 320.0 : 48.0;
+    final panelHeight = expanded ? 352.0 : 48.0;
     final sessionId =
         snapshot.status?.sessionId ?? sessionController.text.trim();
 
@@ -3905,10 +3931,8 @@ class _DashboardHomeState extends State<DashboardHome> {
       height: panelHeight,
       decoration: BoxDecoration(
         color: _kSurface,
-        borderRadius: BorderRadius.circular(_kControlRadius),
-        border: const Border(
-          top: BorderSide(color: _kSurfaceGlow),
-        ),
+        borderRadius: BorderRadius.circular(_kPanelRadius),
+        border: Border.all(color: _kSurfaceGlow),
       ),
       child: ClipRect(
         child: Column(
@@ -3960,7 +3984,7 @@ class _DashboardHomeState extends State<DashboardHome> {
             if (expanded)
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -4484,7 +4508,7 @@ class _DashboardHomeState extends State<DashboardHome> {
                     labelText: 'PROFILE ID',
                     labelStyle: _kDataSubheaderStyle.copyWith(fontSize: 11),
                     filled: true,
-                    fillColor: _kSurface,
+                    fillColor: _kSurfaceRaised,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(_kControlRadius),
                       borderSide: const BorderSide(color: _kSurfaceGlow),
@@ -4500,10 +4524,11 @@ class _DashboardHomeState extends State<DashboardHome> {
                   ),
                 ),
               ),
-              OutlinedButton(
+              OutlinedButton.icon(
                 onPressed: _handleSetProfile,
                 style: _dataSecondaryButtonStyle(),
-                child: const Text('Set Profile'),
+                icon: const Icon(Icons.save_outlined, size: 16),
+                label: const Text('Set Profile'),
               ),
               if (profileReady)
                 Chip(
@@ -4619,19 +4644,19 @@ class _DashboardHomeState extends State<DashboardHome> {
 }
 
 class _HudCard extends StatelessWidget {
-  const _HudCard({super.key, required this.child});
+  const _HudCard({
+    super.key,
+    required this.child,
+    this.padding = _kDataPanelPadding,
+  });
 
   final Widget child;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(_kPanelRadius),
-        border: Border.all(color: _kSurfaceGlow),
-      ),
-      padding: const EdgeInsets.all(16),
+    return _InteractiveDataCard(
+      padding: padding,
       child: child,
     );
   }
@@ -4641,7 +4666,7 @@ class _SystemPanel extends StatefulWidget {
   const _SystemPanel({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(16),
+    this.padding = _kDataPanelPadding,
     this.accentLeft = false,
   });
 
@@ -4685,7 +4710,7 @@ class _SystemPanelState extends State<_SystemPanel> {
           duration: const Duration(milliseconds: 120),
           padding: const EdgeInsets.all(2),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(_kControlRadius + 2),
+            borderRadius: BorderRadius.circular(_kPanelRadius + 2),
             border: Border.all(color: _focused ? _kDanger : Colors.transparent),
           ),
           child: Stack(
@@ -4694,7 +4719,7 @@ class _SystemPanelState extends State<_SystemPanel> {
                 padding: widget.padding,
                 decoration: BoxDecoration(
                   color: _kSurface,
-                  borderRadius: BorderRadius.circular(_kControlRadius),
+                  borderRadius: BorderRadius.circular(_kPanelRadius),
                   border: Border(
                     left: BorderSide(
                       color: widget.accentLeft ? _kDanger : _kSurfaceGlow,
@@ -4719,7 +4744,7 @@ class _SystemPanelState extends State<_SystemPanel> {
                       width: 2,
                       decoration: BoxDecoration(
                         color: _kDanger,
-                        borderRadius: BorderRadius.circular(_kControlRadius),
+                        borderRadius: BorderRadius.circular(_kPanelRadius),
                       ),
                     ),
                   ),
@@ -5609,20 +5634,14 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final titleStyle =
-        Theme.of(context).textTheme.titleLarge?.copyWith(letterSpacing: 0.4);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: titleStyle),
+        Text(title.toUpperCase(), style: _kDataHeaderStyle),
         const SizedBox(height: 4),
         Text(
-          subtitle,
-          style: const TextStyle(
-            color: _kMuted,
-            fontSize: 12,
-            height: 1.5,
-          ),
+          subtitle.toUpperCase(),
+          style: _kDataSubheaderStyle,
         ),
       ],
     );
@@ -5695,12 +5714,14 @@ class _LiveStatusPill extends StatelessWidget {
     required this.value,
     required this.dotColor,
     this.monoValue = false,
+    this.valueColor = Colors.white,
   });
 
   final String label;
   final String value;
   final Color dotColor;
   final bool monoValue;
+  final Color valueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -5723,25 +5744,26 @@ class _LiveStatusPill extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text.rich(
-            TextSpan(
-              text: '${label.toUpperCase()}: ',
-              children: [
-                TextSpan(
-                  text: value,
-                  style: TextStyle(
-                    fontFamily: monoValue ? 'RobotoMono' : null,
-                    letterSpacing: monoValue ? 0.2 : 0.8,
-                  ),
-                ),
-              ],
-            ),
+          Text(
+            '${label.toUpperCase()}:',
             style: const TextStyle(
-              color: _kMuted,
+              color: _kMutedLabel,
               fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
               letterSpacing: 0.9,
               height: 1.2,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              letterSpacing: monoValue ? 0.2 : 0.3,
+              height: 1.2,
+              fontFamily: monoValue ? 'RobotoMono' : null,
             ),
           ),
         ],
@@ -5774,10 +5796,10 @@ class _LiveHudMetricBlock extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            color: _kMuted,
+            color: _kMutedLabel,
             fontSize: 12,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.1,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 1.0,
             height: 1.2,
           ),
         ),
@@ -5789,19 +5811,19 @@ class _LiveHudMetricBlock extends StatelessWidget {
               value,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w700,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
                 fontFamily: 'RobotoMono',
                 height: 1,
               ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: 6),
             Padding(
-              padding: const EdgeInsets.only(bottom: 2),
+              padding: const EdgeInsets.only(bottom: 1),
               child: Text(
                 unit.toLowerCase(),
                 style: const TextStyle(
-                  color: _kMutedSoft,
+                  color: _kMuted,
                   fontSize: 12,
                   height: 1.1,
                 ),
@@ -5810,11 +5832,11 @@ class _LiveHudMetricBlock extends StatelessWidget {
           ],
         ),
         if (showBar) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(99),
             child: SizedBox(
-              height: 2,
+              height: 3,
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final width = constraints.maxWidth;
@@ -5822,12 +5844,12 @@ class _LiveHudMetricBlock extends StatelessWidget {
                     children: [
                       Container(
                         width: width,
-                        height: 2,
+                        height: 3,
                         color: _kSurfaceGlow,
                       ),
                       Container(
                         width: width * fill,
-                        height: 2,
+                        height: 3,
                         color: Colors.white,
                       ),
                     ],
@@ -5855,10 +5877,10 @@ class _GearHudBlock extends StatelessWidget {
         const Text(
           'GEAR',
           style: TextStyle(
-            color: _kMuted,
+            color: _kMutedLabel,
             fontSize: 12,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.1,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 1.0,
           ),
         ),
         const SizedBox(height: 4),
@@ -5867,16 +5889,17 @@ class _GearHudBlock extends StatelessWidget {
           height: 64,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: Colors.transparent,
+            color: _kSurfaceRaised,
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: _kSurfaceGlow, width: 2),
+            border: Border.all(color: _kSurfaceGlow, width: 1.5),
           ),
           child: Text(
             value,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 48,
-              fontWeight: FontWeight.w700,
+              fontSize: 34,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'RobotoMono',
               height: 1,
             ),
           ),
@@ -5890,21 +5913,38 @@ class _HudMetaReadout extends StatelessWidget {
   const _HudMetaReadout({
     required this.label,
     required this.value,
+    this.valueColor = Colors.white,
+    this.monoValue = false,
   });
 
   final String label;
   final String value;
+  final Color valueColor;
+  final bool monoValue;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      '$label $value',
-      style: const TextStyle(
-        color: _kMutedSoft,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.9,
-        height: 1.2,
+    return Text.rich(
+      TextSpan(
+        text: '${label.toUpperCase()}: ',
+        style: const TextStyle(
+          color: _kMutedLabel,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.9,
+          height: 1.2,
+        ),
+        children: [
+          TextSpan(
+            text: value,
+            style: TextStyle(
+              color: valueColor,
+              fontWeight: FontWeight.w600,
+              fontFamily: monoValue ? 'RobotoMono' : null,
+              letterSpacing: monoValue ? 0.2 : 0.3,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -5927,9 +5967,9 @@ class _SessionControlField extends StatelessWidget {
         Text(
           label.toUpperCase(),
           style: const TextStyle(
-            color: _kMuted,
+            color: _kMutedLabel,
             fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
             letterSpacing: 1.0,
           ),
         ),
@@ -5945,7 +5985,7 @@ class _SessionControlField extends StatelessWidget {
           decoration: InputDecoration(
             isDense: true,
             filled: true,
-            fillColor: _kBackground,
+            fillColor: _kSurface,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             border: OutlineInputBorder(
@@ -6679,7 +6719,7 @@ class _TrackMapPainter extends CustomPainter {
     final trackPaint = Paint()
       ..color = trackColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1
+      ..strokeWidth = 1.6
       ..strokeCap = StrokeCap.round;
 
     canvas.drawPath(path, trackPaint);
@@ -6715,7 +6755,7 @@ class _TrackMapPainter extends CustomPainter {
         canvas.drawCircle(
           tangent.position,
           6,
-          Paint()..color = _kBackground,
+          Paint()..color = _kSurface,
         );
         canvas.drawCircle(
           tangent.position,
