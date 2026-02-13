@@ -31,6 +31,9 @@ find_package(gRPC CONFIG QUIET)
 if (Protobuf_FOUND AND gRPC_FOUND)
   message(STATUS "Building gRPC dashboard server")
 
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../heartbeat
+                   ${CMAKE_CURRENT_BINARY_DIR}/heartbeat_build)
+
   set(GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/_generated)
   set(GEN_SUBDIR ${GEN_DIR}/dashboard/v1)
   file(MAKE_DIRECTORY ${GEN_SUBDIR})
@@ -71,5 +74,5 @@ if (Protobuf_FOUND AND gRPC_FOUND)
 
   add_executable(dashboard_server src/dashboard_server.cpp src/main.cpp)
   target_include_directories(dashboard_server PRIVATE ${GEN_DIR})
-  target_link_libraries(dashboard_server PRIVATE dashboard_core dashboard_proto)
+  target_link_libraries(dashboard_server PRIVATE dashboard_core dashboard_proto heartbeat_core)
 endif()

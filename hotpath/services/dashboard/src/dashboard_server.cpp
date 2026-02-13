@@ -3,10 +3,19 @@
 #include "session_store.h"
 
 #include "dashboard/v1/dashboard.grpc.pb.h"
+#include "protocol.h"
+#include "serial_port.h"
 
+#include <atomic>
 #include <chrono>
+#include <condition_variable>
+#include <cstdlib>
+#include <cstring>
+#include <deque>
 #include <mutex>
+#include <string>
 #include <thread>
+#include <vector>
 
 using dashboard::v1::CalibrateRequest;
 using dashboard::v1::CalibrateResponse;
@@ -17,10 +26,12 @@ using dashboard::v1::EStopRequest;
 using dashboard::v1::EStopResponse;
 using dashboard::v1::EndSessionRequest;
 using dashboard::v1::EndSessionResponse;
-using dashboard::v1::GetStatusRequest;
-using dashboard::v1::GetStatusResponse;
 using dashboard::v1::GetSessionTelemetryRequest;
 using dashboard::v1::GetSessionTelemetryResponse;
+using dashboard::v1::GetStatusRequest;
+using dashboard::v1::GetStatusResponse;
+using dashboard::v1::InputEvent;
+using dashboard::v1::InputEventStreamRequest;
 using dashboard::v1::ListSessionsRequest;
 using dashboard::v1::ListSessionsResponse;
 using dashboard::v1::SetProfileRequest;
@@ -32,6 +43,60 @@ using dashboard::v1::TelemetrySample;
 using dashboard::v1::TelemetryStreamRequest;
 
 namespace slipstream::dashboard {
+
+namespace {
+
+static constexpr uint16_t kMcuPttMagic = 0x5054u;
+static constexpr uint8_t kMcuPttEventDown = 1u;
+static constexpr uint8_t kMcuPttEventUp = 2u;
+
+static uint64_t now_ns() {
+  using clock = std::chrono::system_clock;
+  return std::chrono::duration_cast<std::chrono::nanoseconds>(
+             clock::now().time_since_epoch())
+      .count();
+}
+
+static uint32_t read_u32(const uint8_t *data) {
+  return static_cast<uint32_t>(data[0]) |
+         (static_cast<uint32_t>(data[1]) << 8) |
+         (static_cast<uint32_t>(data[2]) << 16) |
+         (static_cast<uint32_t>(data[3]) << 24);
+}
+
+static uint16_t read_u16(const uint8_t *data) {
+  return static_cast<uint16_t>(data[0]) |
+         (static_cast<uint16_t>(data[1]) << 8);
+}
+
+static bool env_enabled(const char *name, bool fallback) {
+  const char *value = std::getenv(name);
+  if (!value || value[0] == '\0') {
+    return fallback;
+  }
+  return !(std::strcmp(value, "0") == 0 || std::strcmp(value, "false") == 0 ||
+           std::strcmp(value, "FALSE") == 0);
+}
+
+static std::string default_mcu_port() {
+#ifdef _WIN32
+  return "COM3";
+#else
+  return "/dev/ttyACM0";
+#endif
+}
+
+static int env_int(const char *name, int fallback) {
+  const char *value = std::getenv(name);
+  if (!value || value[0] == '\0') {
+    return fallback;
+  }
+  try {
+    return std::stoi(value);
+  } catch (...) {
+    return fallback;
+  }
+}
 
 static Status::State to_proto_state(DashboardState state) {
   switch (state) {
@@ -63,9 +128,47 @@ static Status::CalibrationState to_proto_calibration_state(CalibrationState stat
   }
 }
 
+#pragma pack(push, 1)
+struct McuPttEventPayload {
+  uint16_t magic;
+  uint8_t event;
+  uint8_t source;
+  uint32_t uptime_ms;
+  uint8_t pressed;
+  uint8_t reserved[3];
+};
+#pragma pack(pop)
+
+static_assert(sizeof(McuPttEventPayload) == 12,
+              "McuPttEventPayload size unexpected");
+
+} // namespace
+
 class DashboardServiceImpl final : public DashboardService::Service {
 public:
-  DashboardServiceImpl() = default;
+  DashboardServiceImpl() {
+    if (!env_enabled("SLIPSTREAM_MCU_BRIDGE", true)) {
+      log_info("MCU bridge disabled via SLIPSTREAM_MCU_BRIDGE");
+      return;
+    }
+    const char *port_env = std::getenv("SLIPSTREAM_MCU_PORT");
+    mcu_port_ = (port_env && port_env[0] != '\0') ? port_env : default_mcu_port();
+    mcu_baud_ = env_int("SLIPSTREAM_MCU_BAUD", 115200);
+    mcu_heartbeat_interval_ms_ = env_int("SLIPSTREAM_MCU_HEARTBEAT_MS", 50);
+    if (mcu_heartbeat_interval_ms_ <= 0) {
+      mcu_heartbeat_interval_ms_ = 50;
+    }
+    bridge_running_.store(true);
+    bridge_thread_ = std::thread([this] { mcu_bridge_loop(); });
+  }
+
+  ~DashboardServiceImpl() override {
+    bridge_running_.store(false);
+    if (bridge_thread_.joinable()) {
+      bridge_thread_.join();
+    }
+    input_cv_.notify_all();
+  }
 
   void update_telemetry(const TelemetrySample &sample) {
     {
@@ -212,7 +315,8 @@ public:
 
   grpc::Status StreamTelemetry(grpc::ServerContext *ctx,
                                const TelemetryStreamRequest *,
-                               grpc::ServerWriter<TelemetrySample> *writer) override {
+                               grpc::ServerWriter<TelemetrySample> *writer)
+      override {
     log_info("StreamTelemetry start");
     TelemetrySample last_sent;
     while (!ctx->IsCancelled()) {
@@ -229,7 +333,146 @@ public:
     return grpc::Status::OK;
   }
 
+  grpc::Status StreamInputEvents(grpc::ServerContext *ctx,
+                                 const InputEventStreamRequest *,
+                                 grpc::ServerWriter<InputEvent> *writer)
+      override {
+    log_info("StreamInputEvents start");
+    uint64_t cursor = 0;
+    while (!ctx->IsCancelled()) {
+      std::vector<InputEvent> pending;
+      {
+        std::unique_lock<std::mutex> lock(input_mu_);
+        input_cv_.wait_for(lock, std::chrono::milliseconds(100), [&] {
+          return ctx->IsCancelled() ||
+                 (!input_events_.empty() &&
+                  input_events_.back().sequence() > cursor);
+        });
+        if (ctx->IsCancelled()) {
+          break;
+        }
+        for (const auto &event : input_events_) {
+          if (event.sequence() > cursor) {
+            pending.push_back(event);
+          }
+        }
+      }
+      for (const auto &event : pending) {
+        if (!writer->Write(event)) {
+          log_warn("StreamInputEvents write failed");
+          return grpc::Status::OK;
+        }
+        if (event.sequence() > cursor) {
+          cursor = event.sequence();
+        }
+      }
+    }
+    log_info("StreamInputEvents end");
+    return grpc::Status::OK;
+  }
+
 private:
+  void publish_input_event(const McuPttEventPayload &raw) {
+    InputEvent event;
+    {
+      std::lock_guard<std::mutex> lock(input_mu_);
+      event.set_sequence(next_input_event_sequence_++);
+      if (raw.event == kMcuPttEventDown) {
+        event.set_type(InputEvent::INPUT_EVENT_TYPE_PTT_DOWN);
+      } else if (raw.event == kMcuPttEventUp) {
+        event.set_type(InputEvent::INPUT_EVENT_TYPE_PTT_UP);
+      } else {
+        event.set_type(InputEvent::INPUT_EVENT_TYPE_UNKNOWN);
+      }
+      event.set_source(raw.source == 1u
+                           ? InputEvent::INPUT_EVENT_SOURCE_STEERING_WHEEL
+                           : InputEvent::INPUT_EVENT_SOURCE_UNKNOWN);
+      event.set_received_at_ns(now_ns());
+      event.set_mcu_uptime_ms(raw.uptime_ms);
+      event.set_pressed(raw.pressed != 0u);
+      input_events_.push_back(event);
+      constexpr size_t kInputEventBacklog = 256;
+      if (input_events_.size() > kInputEventBacklog) {
+        input_events_.pop_front();
+      }
+    }
+    input_cv_.notify_all();
+  }
+
+  void mcu_bridge_loop() {
+    heartbeat::SerialPort port;
+    uint32_t tx_seq = 0;
+    std::vector<uint8_t> rx_buffer;
+    auto next_tick = std::chrono::steady_clock::now();
+    log_info("MCU bridge starting on port=" + mcu_port_ + " baud=" +
+             std::to_string(mcu_baud_));
+
+    while (bridge_running_.load()) {
+      if (!port.is_open()) {
+        if (!port.open(mcu_port_, mcu_baud_)) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+          continue;
+        }
+        log_info("MCU bridge connected to " + mcu_port_);
+      }
+
+      next_tick += std::chrono::milliseconds(mcu_heartbeat_interval_ms_);
+      auto heartbeat_frame =
+          heartbeat::build_frame(heartbeat::PacketType::Heartbeat, tx_seq++, nullptr, 0);
+      if (!port.write(heartbeat_frame.data(), heartbeat_frame.size())) {
+        port.close();
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        continue;
+      }
+
+      uint8_t temp[256];
+      const size_t read_n = port.read(temp, sizeof(temp));
+      if (read_n > 0) {
+        rx_buffer.insert(rx_buffer.end(), temp, temp + read_n);
+      }
+
+      while (rx_buffer.size() >= sizeof(heartbeat::Header) + sizeof(uint16_t)) {
+        uint32_t magic = read_u32(rx_buffer.data());
+        uint8_t version = rx_buffer[4];
+        uint16_t length = read_u16(rx_buffer.data() + 6);
+        if (magic != heartbeat::kMagic || version != heartbeat::kVersion ||
+            length > heartbeat::kMaxPayload) {
+          rx_buffer.erase(rx_buffer.begin());
+          continue;
+        }
+        size_t total = sizeof(heartbeat::Header) + length + sizeof(uint16_t);
+        if (rx_buffer.size() < total) {
+          break;
+        }
+
+        heartbeat::Frame frame;
+        if (!heartbeat::parse_frame(rx_buffer.data(), total, frame)) {
+          rx_buffer.erase(rx_buffer.begin());
+          continue;
+        }
+
+        if (frame.header.type ==
+                static_cast<uint8_t>(heartbeat::PacketType::InputEvent) &&
+            frame.payload.size() >= sizeof(McuPttEventPayload)) {
+          McuPttEventPayload raw{};
+          std::memcpy(&raw, frame.payload.data(), sizeof(McuPttEventPayload));
+          if (raw.magic == kMcuPttMagic) {
+            publish_input_event(raw);
+          }
+        }
+
+        rx_buffer.erase(rx_buffer.begin(), rx_buffer.begin() + total);
+      }
+
+      std::this_thread::sleep_until(next_tick);
+    }
+
+    if (port.is_open()) {
+      port.close();
+    }
+    log_info("MCU bridge stopped");
+  }
+
   std::mutex mu_;
   DashboardStateMachine state_{};
   SessionStore store_{"data/sessions"};
@@ -237,6 +480,17 @@ private:
   std::mutex telemetry_mu_;
   TelemetrySample last_sample_{};
   bool telemetry_ready_ = false;
+
+  std::mutex input_mu_;
+  std::condition_variable input_cv_;
+  std::deque<InputEvent> input_events_;
+  uint64_t next_input_event_sequence_ = 1;
+
+  std::atomic<bool> bridge_running_{false};
+  std::thread bridge_thread_;
+  std::string mcu_port_;
+  int mcu_baud_ = 115200;
+  int mcu_heartbeat_interval_ms_ = 50;
 };
 
 DashboardService::Service *make_dashboard_service() {

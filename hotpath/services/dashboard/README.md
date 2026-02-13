@@ -14,6 +14,7 @@ RPCs:
 - StartSession / EndSession
 - ListSessions
 - StreamTelemetry (server streaming)
+- StreamInputEvents (server streaming, hardware PTT)
 
 ## Build & test (core)
 
@@ -38,5 +39,12 @@ cmake --build build
 
 - Core state machine is independent of gRPC for easy testing.
 - `StreamTelemetry` currently replays the latest sample; integrate a real feed by calling `update_telemetry`.
+- The server includes an optional MCU USB bridge that sends heartbeats and forwards
+  incoming `INPUT_EVENT` packets to `StreamInputEvents`.
+- Bridge environment variables:
+  - `SLIPSTREAM_MCU_BRIDGE` (`1` default, set `0` to disable)
+  - `SLIPSTREAM_MCU_PORT` (default `/dev/ttyACM0` on POSIX, `COM3` on Windows)
+  - `SLIPSTREAM_MCU_BAUD` (default `115200`)
+  - `SLIPSTREAM_MCU_HEARTBEAT_MS` (default `50`)
 - Logging is timestamped in `logger.cpp`.
 - Sessions are stored locally under `hotpath/services/dashboard/data/sessions` as JSON + JSONL telemetry.

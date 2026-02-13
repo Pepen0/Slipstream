@@ -8,12 +8,14 @@ import '../gen/dashboard/v1/dashboard.pbgrpc.dart';
 class DashboardSnapshot {
   final Status? status;
   final TelemetrySample? telemetry;
+  final InputEvent? inputEvent;
   final bool connected;
   final String? error;
 
   const DashboardSnapshot({
     this.status,
     this.telemetry,
+    this.inputEvent,
     this.connected = false,
     this.error,
   });
@@ -21,12 +23,14 @@ class DashboardSnapshot {
   DashboardSnapshot copyWith({
     Status? status,
     TelemetrySample? telemetry,
+    InputEvent? inputEvent,
     bool? connected,
     String? error,
   }) {
     return DashboardSnapshot(
       status: status ?? this.status,
       telemetry: telemetry ?? this.telemetry,
+      inputEvent: inputEvent ?? this.inputEvent,
       connected: connected ?? this.connected,
       error: error,
     );
@@ -46,6 +50,7 @@ class DashboardClient {
   DashboardServiceClient? _stub;
   Timer? _pollTimer;
   StreamSubscription<TelemetrySample>? _telemetrySub;
+  StreamSubscription<InputEvent>? _inputEventSub;
 
   Future<void> connect() async {
     if (_channel != null) {
@@ -67,6 +72,8 @@ class DashboardClient {
   Future<void> disconnect() async {
     await _telemetrySub?.cancel();
     _telemetrySub = null;
+    await _inputEventSub?.cancel();
+    _inputEventSub = null;
     _pollTimer?.cancel();
     _pollTimer = null;
     await _channel?.shutdown();
@@ -181,6 +188,17 @@ class DashboardClient {
         _stub!.streamTelemetry(TelemetryStreamRequest()..sessionId = sessionId);
     _telemetrySub = stream.listen((sample) {
       snapshot.value = snapshot.value.copyWith(telemetry: sample, error: null);
+    }, onError: (err) {
+      snapshot.value = snapshot.value.copyWith(error: err.toString());
+    });
+  }
+
+  void startInputEventStream() {
+    if (_stub == null) return;
+    _inputEventSub?.cancel();
+    final stream = _stub!.streamInputEvents(InputEventStreamRequest());
+    _inputEventSub = stream.listen((event) {
+      snapshot.value = snapshot.value.copyWith(inputEvent: event, error: null);
     }, onError: (err) {
       snapshot.value = snapshot.value.copyWith(error: err.toString());
     });

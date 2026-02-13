@@ -54,5 +54,37 @@ class Status_CalibrationState extends $pb.ProtobufEnum {
   const Status_CalibrationState._(super.value, super.name);
 }
 
+class InputEvent_Type extends $pb.ProtobufEnum {
+  static const InputEvent_Type INPUT_EVENT_TYPE_UNKNOWN = InputEvent_Type._(0, _omitEnumNames ? '' : 'INPUT_EVENT_TYPE_UNKNOWN');
+  static const InputEvent_Type INPUT_EVENT_TYPE_PTT_DOWN = InputEvent_Type._(1, _omitEnumNames ? '' : 'INPUT_EVENT_TYPE_PTT_DOWN');
+  static const InputEvent_Type INPUT_EVENT_TYPE_PTT_UP = InputEvent_Type._(2, _omitEnumNames ? '' : 'INPUT_EVENT_TYPE_PTT_UP');
+
+  static const $core.List<InputEvent_Type> values = <InputEvent_Type> [
+    INPUT_EVENT_TYPE_UNKNOWN,
+    INPUT_EVENT_TYPE_PTT_DOWN,
+    INPUT_EVENT_TYPE_PTT_UP,
+  ];
+
+  static final $core.List<InputEvent_Type?> _byValue = $pb.ProtobufEnum.$_initByValueList(values, 2);
+  static InputEvent_Type? valueOf($core.int value) =>  value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const InputEvent_Type._(super.value, super.name);
+}
+
+class InputEvent_Source extends $pb.ProtobufEnum {
+  static const InputEvent_Source INPUT_EVENT_SOURCE_UNKNOWN = InputEvent_Source._(0, _omitEnumNames ? '' : 'INPUT_EVENT_SOURCE_UNKNOWN');
+  static const InputEvent_Source INPUT_EVENT_SOURCE_STEERING_WHEEL = InputEvent_Source._(1, _omitEnumNames ? '' : 'INPUT_EVENT_SOURCE_STEERING_WHEEL');
+
+  static const $core.List<InputEvent_Source> values = <InputEvent_Source> [
+    INPUT_EVENT_SOURCE_UNKNOWN,
+    INPUT_EVENT_SOURCE_STEERING_WHEEL,
+  ];
+
+  static final $core.List<InputEvent_Source?> _byValue = $pb.ProtobufEnum.$_initByValueList(values, 1);
+  static InputEvent_Source? valueOf($core.int value) =>  value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const InputEvent_Source._(super.value, super.name);
+}
+
 
 const $core.bool _omitEnumNames = $core.bool.fromEnvironment('protobuf.omit_enum_names');

@@ -83,6 +83,27 @@ message TelemetrySample {
 
 message TelemetryStreamRequest { string session_id = 1; }
 
+message InputEventStreamRequest {}
+
+message InputEvent {
+  enum Type {
+    INPUT_EVENT_TYPE_UNKNOWN = 0;
+    INPUT_EVENT_TYPE_PTT_DOWN = 1;
+    INPUT_EVENT_TYPE_PTT_UP = 2;
+  }
+  enum Source {
+    INPUT_EVENT_SOURCE_UNKNOWN = 0;
+    INPUT_EVENT_SOURCE_STEERING_WHEEL = 1;
+  }
+
+  uint64 sequence = 1;
+  Type type = 2;
+  Source source = 3;
+  uint64 received_at_ns = 4;
+  uint32 mcu_uptime_ms = 5;
+  bool pressed = 6;
+}
+
 message GetSessionTelemetryRequest {
   string session_id = 1;
   uint32 max_samples = 2;
@@ -99,5 +120,6 @@ service DashboardService {
   rpc EndSession(EndSessionRequest) returns (EndSessionResponse);
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
   rpc StreamTelemetry(TelemetryStreamRequest) returns (stream TelemetrySample);
+  rpc StreamInputEvents(InputEventStreamRequest) returns (stream InputEvent);
   rpc GetSessionTelemetry(GetSessionTelemetryRequest) returns (GetSessionTelemetryResponse);
 }

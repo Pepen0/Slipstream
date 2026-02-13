@@ -1273,6 +1273,142 @@ class TelemetryStreamRequest extends $pb.GeneratedMessage {
   void clearSessionId() => $_clearField(1);
 }
 
+class InputEventStreamRequest extends $pb.GeneratedMessage {
+  factory InputEventStreamRequest() => create();
+
+  InputEventStreamRequest._();
+
+  factory InputEventStreamRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory InputEventStreamRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'InputEventStreamRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  InputEventStreamRequest clone() => InputEventStreamRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  InputEventStreamRequest copyWith(void Function(InputEventStreamRequest) updates) => super.copyWith((message) => updates(message as InputEventStreamRequest)) as InputEventStreamRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static InputEventStreamRequest create() => InputEventStreamRequest._();
+  @$core.override
+  InputEventStreamRequest createEmptyInstance() => create();
+  static $pb.PbList<InputEventStreamRequest> createRepeated() => $pb.PbList<InputEventStreamRequest>();
+  @$core.pragma('dart2js:noInline')
+  static InputEventStreamRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<InputEventStreamRequest>(create);
+  static InputEventStreamRequest? _defaultInstance;
+}
+
+class InputEvent extends $pb.GeneratedMessage {
+  factory InputEvent({
+    $fixnum.Int64? sequence,
+    InputEvent_Type? type,
+    InputEvent_Source? source,
+    $fixnum.Int64? receivedAtNs,
+    $core.int? mcuUptimeMs,
+    $core.bool? pressed,
+  }) {
+    final result = create();
+    if (sequence != null) result.sequence = sequence;
+    if (type != null) result.type = type;
+    if (source != null) result.source = source;
+    if (receivedAtNs != null) result.receivedAtNs = receivedAtNs;
+    if (mcuUptimeMs != null) result.mcuUptimeMs = mcuUptimeMs;
+    if (pressed != null) result.pressed = pressed;
+    return result;
+  }
+
+  InputEvent._();
+
+  factory InputEvent.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory InputEvent.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'InputEvent', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..a<$fixnum.Int64>(1, _omitFieldNames ? '' : 'sequence', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
+    ..e<InputEvent_Type>(2, _omitFieldNames ? '' : 'type', $pb.PbFieldType.OE, defaultOrMaker: InputEvent_Type.INPUT_EVENT_TYPE_UNKNOWN, valueOf: InputEvent_Type.valueOf, enumValues: InputEvent_Type.values)
+    ..e<InputEvent_Source>(3, _omitFieldNames ? '' : 'source', $pb.PbFieldType.OE, defaultOrMaker: InputEvent_Source.INPUT_EVENT_SOURCE_UNKNOWN, valueOf: InputEvent_Source.valueOf, enumValues: InputEvent_Source.values)
+    ..a<$fixnum.Int64>(4, _omitFieldNames ? '' : 'receivedAtNs', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$core.int>(5, _omitFieldNames ? '' : 'mcuUptimeMs', $pb.PbFieldType.OU3)
+    ..aOB(6, _omitFieldNames ? '' : 'pressed')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  InputEvent clone() => InputEvent()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  InputEvent copyWith(void Function(InputEvent) updates) => super.copyWith((message) => updates(message as InputEvent)) as InputEvent;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static InputEvent create() => InputEvent._();
+  @$core.override
+  InputEvent createEmptyInstance() => create();
+  static $pb.PbList<InputEvent> createRepeated() => $pb.PbList<InputEvent>();
+  @$core.pragma('dart2js:noInline')
+  static InputEvent getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<InputEvent>(create);
+  static InputEvent? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $fixnum.Int64 get sequence => $_getI64(0);
+  @$pb.TagNumber(1)
+  set sequence($fixnum.Int64 value) => $_setInt64(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasSequence() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearSequence() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  InputEvent_Type get type => $_getN(1);
+  @$pb.TagNumber(2)
+  set type(InputEvent_Type value) => $_setField(2, value);
+  @$pb.TagNumber(2)
+  $core.bool hasType() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearType() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  InputEvent_Source get source => $_getN(2);
+  @$pb.TagNumber(3)
+  set source(InputEvent_Source value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasSource() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearSource() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $fixnum.Int64 get receivedAtNs => $_getI64(3);
+  @$pb.TagNumber(4)
+  set receivedAtNs($fixnum.Int64 value) => $_setInt64(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasReceivedAtNs() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearReceivedAtNs() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.int get mcuUptimeMs => $_getIZ(4);
+  @$pb.TagNumber(5)
+  set mcuUptimeMs($core.int value) => $_setUnsignedInt32(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasMcuUptimeMs() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearMcuUptimeMs() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.bool get pressed => $_getBF(5);
+  @$pb.TagNumber(6)
+  set pressed($core.bool value) => $_setBool(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasPressed() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearPressed() => $_clearField(6);
+}
+
 class GetSessionTelemetryRequest extends $pb.GeneratedMessage {
   factory GetSessionTelemetryRequest({
     $core.String? sessionId,

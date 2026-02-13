@@ -331,6 +331,59 @@ final $typed_data.Uint8List telemetryStreamRequestDescriptor = $convert.base64De
     'ChZUZWxlbWV0cnlTdHJlYW1SZXF1ZXN0Eh0KCnNlc3Npb25faWQYASABKAlSCXNlc3Npb25JZA'
     '==');
 
+@$core.Deprecated('Use inputEventStreamRequestDescriptor instead')
+const InputEventStreamRequest$json = {
+  '1': 'InputEventStreamRequest',
+};
+
+/// Descriptor for `InputEventStreamRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List inputEventStreamRequestDescriptor = $convert.base64Decode(
+    'ChdJbnB1dEV2ZW50U3RyZWFtUmVxdWVzdA==');
+
+@$core.Deprecated('Use inputEventDescriptor instead')
+const InputEvent$json = {
+  '1': 'InputEvent',
+  '2': [
+    {'1': 'sequence', '3': 1, '4': 1, '5': 4, '10': 'sequence'},
+    {'1': 'type', '3': 2, '4': 1, '5': 14, '6': '.dashboard.v1.InputEvent.Type', '10': 'type'},
+    {'1': 'source', '3': 3, '4': 1, '5': 14, '6': '.dashboard.v1.InputEvent.Source', '10': 'source'},
+    {'1': 'received_at_ns', '3': 4, '4': 1, '5': 4, '10': 'receivedAtNs'},
+    {'1': 'mcu_uptime_ms', '3': 5, '4': 1, '5': 13, '10': 'mcuUptimeMs'},
+    {'1': 'pressed', '3': 6, '4': 1, '5': 8, '10': 'pressed'},
+  ],
+  '4': [InputEvent_Type$json, InputEvent_Source$json],
+};
+
+@$core.Deprecated('Use inputEventDescriptor instead')
+const InputEvent_Type$json = {
+  '1': 'Type',
+  '2': [
+    {'1': 'INPUT_EVENT_TYPE_UNKNOWN', '2': 0},
+    {'1': 'INPUT_EVENT_TYPE_PTT_DOWN', '2': 1},
+    {'1': 'INPUT_EVENT_TYPE_PTT_UP', '2': 2},
+  ],
+};
+
+@$core.Deprecated('Use inputEventDescriptor instead')
+const InputEvent_Source$json = {
+  '1': 'Source',
+  '2': [
+    {'1': 'INPUT_EVENT_SOURCE_UNKNOWN', '2': 0},
+    {'1': 'INPUT_EVENT_SOURCE_STEERING_WHEEL', '2': 1},
+  ],
+};
+
+/// Descriptor for `InputEvent`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List inputEventDescriptor = $convert.base64Decode(
+    'CgpJbnB1dEV2ZW50EhoKCHNlcXVlbmNlGAEgASgEUghzZXF1ZW5jZRIxCgR0eXBlGAIgASgOMh'
+    '0uZGFzaGJvYXJkLnYxLklucHV0RXZlbnQuVHlwZVIEdHlwZRI3CgZzb3VyY2UYAyABKA4yHy5k'
+    'YXNoYm9hcmQudjEuSW5wdXRFdmVudC5Tb3VyY2VSBnNvdXJjZRIkCg5yZWNlaXZlZF9hdF9ucx'
+    'gEIAEoBFIMcmVjZWl2ZWRBdE5zEiIKDW1jdV91cHRpbWVfbXMYBSABKA1SC21jdVVwdGltZU1z'
+    'EhgKB3ByZXNzZWQYBiABKAhSB3ByZXNzZWQiYAoEVHlwZRIcChhJTlBVVF9FVkVOVF9UWVBFX1'
+    'VOS05PV04QABIdChlJTlBVVF9FVkVOVF9UWVBFX1BUVF9ET1dOEAESGwoXSU5QVVRfRVZFTlRf'
+    'VFlQRV9QVFRfVVAQAiJPCgZTb3VyY2USHgoaSU5QVVRfRVZFTlRfU09VUkNFX1VOS05PV04QAB'
+    'IlCiFJTlBVVF9FVkVOVF9TT1VSQ0VfU1RFRVJJTkdfV0hFRUwQAQ==');
+
 @$core.Deprecated('Use getSessionTelemetryRequestDescriptor instead')
 const GetSessionTelemetryRequest$json = {
   '1': 'GetSessionTelemetryRequest',

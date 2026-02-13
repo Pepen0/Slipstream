@@ -68,6 +68,10 @@ class DashboardServiceClient extends $grpc.Client {
     return $createStreamingCall(_$streamTelemetry, $async.Stream.fromIterable([request]), options: options);
   }
 
+  $grpc.ResponseStream<$0.InputEvent> streamInputEvents($0.InputEventStreamRequest request, {$grpc.CallOptions? options,}) {
+    return $createStreamingCall(_$streamInputEvents, $async.Stream.fromIterable([request]), options: options);
+  }
+
   $grpc.ResponseFuture<$0.GetSessionTelemetryResponse> getSessionTelemetry($0.GetSessionTelemetryRequest request, {$grpc.CallOptions? options,}) {
     return $createUnaryCall(_$getSessionTelemetry, request, options: options);
   }
@@ -110,6 +114,10 @@ class DashboardServiceClient extends $grpc.Client {
       '/dashboard.v1.DashboardService/StreamTelemetry',
       ($0.TelemetryStreamRequest value) => value.writeToBuffer(),
       $0.TelemetrySample.fromBuffer);
+  static final _$streamInputEvents = $grpc.ClientMethod<$0.InputEventStreamRequest, $0.InputEvent>(
+      '/dashboard.v1.DashboardService/StreamInputEvents',
+      ($0.InputEventStreamRequest value) => value.writeToBuffer(),
+      $0.InputEvent.fromBuffer);
   static final _$getSessionTelemetry = $grpc.ClientMethod<$0.GetSessionTelemetryRequest, $0.GetSessionTelemetryResponse>(
       '/dashboard.v1.DashboardService/GetSessionTelemetry',
       ($0.GetSessionTelemetryRequest value) => value.writeToBuffer(),
@@ -184,6 +192,13 @@ abstract class DashboardServiceBase extends $grpc.Service {
         true,
         ($core.List<$core.int> value) => $0.TelemetryStreamRequest.fromBuffer(value),
         ($0.TelemetrySample value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.InputEventStreamRequest, $0.InputEvent>(
+        'StreamInputEvents',
+        streamInputEvents_Pre,
+        false,
+        true,
+        ($core.List<$core.int> value) => $0.InputEventStreamRequest.fromBuffer(value),
+        ($0.InputEvent value) => value.writeToBuffer()));
     $addMethod($grpc.ServiceMethod<$0.GetSessionTelemetryRequest, $0.GetSessionTelemetryResponse>(
         'GetSessionTelemetry',
         getSessionTelemetry_Pre,
@@ -246,6 +261,12 @@ abstract class DashboardServiceBase extends $grpc.Service {
   }
 
   $async.Stream<$0.TelemetrySample> streamTelemetry($grpc.ServiceCall call, $0.TelemetryStreamRequest request);
+
+  $async.Stream<$0.InputEvent> streamInputEvents_Pre($grpc.ServiceCall $call, $async.Future<$0.InputEventStreamRequest> $request) async* {
+    yield* streamInputEvents($call, await $request);
+  }
+
+  $async.Stream<$0.InputEvent> streamInputEvents($grpc.ServiceCall call, $0.InputEventStreamRequest request);
 
   $async.Future<$0.GetSessionTelemetryResponse> getSessionTelemetry_Pre($grpc.ServiceCall $call, $async.Future<$0.GetSessionTelemetryRequest> $request) async {
     return getSessionTelemetry($call, await $request);

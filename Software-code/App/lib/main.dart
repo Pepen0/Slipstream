@@ -389,6 +389,8 @@ class _DashboardHomeState extends State<DashboardHome> {
   bool _dfuActive = false;
   double _dfuProgress = 0.0;
   bool _voicePointerDown = false;
+  int _lastHardwarePttSequence = 0;
+  int _lastHardwarePttReceivedAtNs = 0;
   bool _analysisCompareMode = true;
   double _analysisZoom = 1.0;
   double _analysisPan = 0.0;
@@ -420,6 +422,7 @@ class _DashboardHomeState extends State<DashboardHome> {
     _voice.addListener(_onVoiceUpdate);
     client.connect().then((_) {
       client.startTelemetryStream();
+      client.startInputEventStream();
       _refreshSessions();
     });
     _sessionsTimer = Timer.periodic(
@@ -479,6 +482,9 @@ class _DashboardHomeState extends State<DashboardHome> {
         driverLevel: inferredDriver,
       );
     }
+
+    _handleHardwarePttEvent(snapshot);
+
     if (status != null) {
       final lastAt = status.lastCalibrationAtNs.toInt();
       if (lastAt > 0 && lastAt != _lastCalibrationAtNs) {
@@ -514,6 +520,30 @@ class _DashboardHomeState extends State<DashboardHome> {
         status?.state == Status_State.STATE_FAULT ||
         status?.estopActive == true ||
         ((snapshot.telemetry?.latencyMs ?? 0) > 25);
+  }
+
+  void _handleHardwarePttEvent(DashboardSnapshot snapshot) {
+    final event = snapshot.inputEvent;
+    if (event == null) {
+      return;
+    }
+    if (event.source != InputEvent_Source.INPUT_EVENT_SOURCE_STEERING_WHEEL) {
+      return;
+    }
+    final sequence = event.sequence.toInt();
+    final receivedAtNs = event.receivedAtNs.toInt();
+    if (sequence <= _lastHardwarePttSequence &&
+        receivedAtNs <= _lastHardwarePttReceivedAtNs) {
+      return;
+    }
+    _lastHardwarePttSequence = sequence;
+    _lastHardwarePttReceivedAtNs = receivedAtNs;
+
+    if (event.type == InputEvent_Type.INPUT_EVENT_TYPE_PTT_DOWN) {
+      unawaited(_startPushToTalk(snapshot));
+    } else if (event.type == InputEvent_Type.INPUT_EVENT_TYPE_PTT_UP) {
+      unawaited(_stopPushToTalk(snapshot));
+    }
   }
 
   Future<void> _startPushToTalk(DashboardSnapshot snapshot) async {
@@ -4017,7 +4047,8 @@ class _DashboardHomeState extends State<DashboardHome> {
                       width: double.infinity,
                       child: OutlinedButton.icon(
                         onPressed: () async {
-                          await client.endSession(sessionController.text.trim());
+                          await client
+                              .endSession(sessionController.text.trim());
                         },
                         style: _dataSecondaryButtonStyle(),
                         icon: const Icon(Icons.stop_rounded),
@@ -5190,7 +5221,8 @@ class _EStopIndicatorState extends State<_EStopIndicator>
   Widget build(BuildContext context) {
     final background = widget.engaged ? _kDanger : Colors.transparent;
     final iconColor = widget.engaged ? Colors.white : _kDanger;
-    final borderColor = widget.engaged ? _kDanger : _kDanger.withValues(alpha: 0.8);
+    final borderColor =
+        widget.engaged ? _kDanger : _kDanger.withValues(alpha: 0.8);
     final buttonSize = widget.compact ? 40.0 : 56.0;
     final iconSize = widget.compact ? 20.0 : 26.0;
     return AnimatedBuilder(
