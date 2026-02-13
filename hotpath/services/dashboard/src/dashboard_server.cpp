@@ -8,6 +8,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cctype>
 #include <condition_variable>
 #include <cstdlib>
 #include <cstring>
@@ -49,6 +50,22 @@ namespace {
 static constexpr uint16_t kMcuPttMagic = 0x5054u;
 static constexpr uint8_t kMcuPttEventDown = 1u;
 static constexpr uint8_t kMcuPttEventUp = 2u;
+static constexpr uint16_t kMcuMaintenanceMagic = 0xB007u;
+static constexpr uint8_t kMcuProfileCarTypes = 8u;
+static constexpr float kMcuForceIntensityMin = 0.10f;
+static constexpr float kMcuForceIntensityMax = 1.00f;
+static constexpr float kMcuMotionRangeMin = 0.20f;
+static constexpr float kMcuMotionRangeMax = 1.00f;
+
+enum class McuMaintenanceOp : uint8_t {
+  UpdateRequest = 1,
+  UpdateArm = 2,
+  UpdateAbort = 3,
+  SetTuning = 0x10,
+  SaveProfile = 0x11,
+  SwitchProfile = 0x12,
+  LoadProfile = 0x13,
+};
 
 static uint64_t now_ns() {
   using clock = std::chrono::system_clock;
@@ -98,6 +115,59 @@ static int env_int(const char *name, int fallback) {
   }
 }
 
+static float clampf(float value, float min_value, float max_value) {
+  if (value < min_value) {
+    return min_value;
+  }
+  if (value > max_value) {
+    return max_value;
+  }
+  return value;
+}
+
+static float env_float(const char *name, float fallback) {
+  const char *value = std::getenv(name);
+  if (!value || value[0] == '\0') {
+    return fallback;
+  }
+  try {
+    return std::stof(value);
+  } catch (...) {
+    return fallback;
+  }
+}
+
+static uint8_t hash_profile_to_car_type(const std::string &profile_id) {
+  uint32_t hash = 2166136261u;
+  for (char ch : profile_id) {
+    hash ^= static_cast<uint8_t>(ch);
+    hash *= 16777619u;
+  }
+  return static_cast<uint8_t>(hash % kMcuProfileCarTypes);
+}
+
+static uint8_t infer_car_type(const std::string &profile_id) {
+  uint32_t numeric = 0u;
+  bool in_number = false;
+  for (char ch : profile_id) {
+    if (std::isdigit(static_cast<unsigned char>(ch)) != 0) {
+      in_number = true;
+      numeric = (numeric * 10u) + static_cast<uint32_t>(ch - '0');
+      continue;
+    }
+    if (in_number) {
+      break;
+    }
+  }
+  if (in_number) {
+    return static_cast<uint8_t>(numeric % kMcuProfileCarTypes);
+  }
+  if (profile_id.empty()) {
+    return 0u;
+  }
+  return hash_profile_to_car_type(profile_id);
+}
+
 static Status::State to_proto_state(DashboardState state) {
   switch (state) {
     case DashboardState::Idle:
@@ -139,14 +209,42 @@ struct McuPttEventPayload {
 };
 #pragma pack(pop)
 
+#pragma pack(push, 1)
+struct McuMaintenancePayload {
+  uint16_t magic;
+  uint8_t opcode;
+  uint8_t arg0;
+  uint32_t token;
+};
+
+struct McuMaintenanceTuningPayload {
+  uint16_t magic;
+  uint8_t opcode;
+  uint8_t car_type;
+  uint32_t token;
+  float force_intensity;
+  float motion_range;
+};
+#pragma pack(pop)
+
 static_assert(sizeof(McuPttEventPayload) == 12,
               "McuPttEventPayload size unexpected");
+static_assert(sizeof(McuMaintenancePayload) == 8,
+              "McuMaintenancePayload size unexpected");
+static_assert(sizeof(McuMaintenanceTuningPayload) == 16,
+              "McuMaintenanceTuningPayload size unexpected");
 
 } // namespace
 
 class DashboardServiceImpl final : public DashboardService::Service {
 public:
   DashboardServiceImpl() {
+    default_force_intensity_ = clampf(
+        env_float("SLIPSTREAM_MCU_FORCE_INTENSITY", 1.0f),
+        kMcuForceIntensityMin, kMcuForceIntensityMax);
+    default_motion_range_ = clampf(
+        env_float("SLIPSTREAM_MCU_MOTION_RANGE", 1.0f),
+        kMcuMotionRangeMin, kMcuMotionRangeMax);
     if (!env_enabled("SLIPSTREAM_MCU_BRIDGE", true)) {
       log_info("MCU bridge disabled via SLIPSTREAM_MCU_BRIDGE");
       return;
@@ -216,9 +314,26 @@ public:
   grpc::Status Calibrate(grpc::ServerContext *, const CalibrateRequest *req, CalibrateResponse *resp) override {
     std::lock_guard<std::mutex> lock(mu_);
     auto status = state_.calibrate(req->profile_id());
-    log_info("Calibrate profile=" + req->profile_id());
-    resp->set_ok(status.calibration_state != CalibrationState::Failed);
-    resp->set_message(status.calibration_message);
+    bool bridge_ok = true;
+    const uint8_t car_type = infer_car_type(req->profile_id());
+    if (status.calibration_state != CalibrationState::Failed) {
+      const uint32_t token = static_cast<uint32_t>(now_ns());
+      const bool queued_switch = queue_profile_switch(car_type, token);
+      const bool queued_tuning = queue_profile_tuning(
+          car_type, default_force_intensity_, default_motion_range_, token);
+      const bool queued_save = queue_profile_save(car_type, token);
+      bridge_ok = !bridge_running_.load() ||
+                  (queued_switch && queued_tuning && queued_save);
+    }
+    log_info("Calibrate profile=" + req->profile_id() + " car_type=" +
+             std::to_string(car_type));
+    resp->set_ok(status.calibration_state != CalibrationState::Failed && bridge_ok);
+    if (!bridge_ok) {
+      resp->set_message(status.calibration_message +
+                        " (MCU profile command queue unavailable)");
+    } else {
+      resp->set_message(status.calibration_message);
+    }
     return grpc::Status::OK;
   }
 
@@ -235,8 +350,15 @@ public:
   grpc::Status SetProfile(grpc::ServerContext *, const SetProfileRequest *req, SetProfileResponse *resp) override {
     std::lock_guard<std::mutex> lock(mu_);
     auto status = state_.set_profile(req->profile_id());
-    log_info("SetProfile profile=" + req->profile_id());
-    resp->set_ok(true);
+    const uint8_t car_type = infer_car_type(req->profile_id());
+    bool queued_switch = true;
+    if (!req->profile_id().empty()) {
+      const uint32_t token = static_cast<uint32_t>(now_ns());
+      queued_switch = queue_profile_switch(car_type, token);
+    }
+    log_info("SetProfile profile=" + req->profile_id() + " car_type=" +
+             std::to_string(car_type));
+    resp->set_ok(!bridge_running_.load() || queued_switch);
     resp->set_active_profile(status.active_profile);
     return grpc::Status::OK;
   }
@@ -372,6 +494,99 @@ public:
   }
 
 private:
+  struct OutboundMcuPacket {
+    heartbeat::PacketType type = heartbeat::PacketType::Heartbeat;
+    std::vector<uint8_t> payload;
+  };
+
+  bool queue_mcu_packet(heartbeat::PacketType type, const uint8_t *payload,
+                        size_t payload_len) {
+    if (!bridge_running_.load()) {
+      return false;
+    }
+    if (payload_len > heartbeat::kMaxPayload) {
+      return false;
+    }
+    OutboundMcuPacket packet;
+    packet.type = type;
+    if (payload != nullptr && payload_len > 0) {
+      packet.payload.assign(payload, payload + payload_len);
+    }
+    std::lock_guard<std::mutex> lock(mcu_tx_mu_);
+    constexpr size_t kMcuTxBacklog = 128;
+    if (mcu_tx_queue_.size() >= kMcuTxBacklog) {
+      mcu_tx_queue_.pop_front();
+    }
+    mcu_tx_queue_.push_back(std::move(packet));
+    return true;
+  }
+
+  bool queue_profile_switch(uint8_t car_type, uint32_t token) {
+    McuMaintenancePayload payload{};
+    payload.magic = kMcuMaintenanceMagic;
+    payload.opcode = static_cast<uint8_t>(McuMaintenanceOp::SwitchProfile);
+    payload.arg0 = static_cast<uint8_t>(car_type % kMcuProfileCarTypes);
+    payload.token = token;
+    return queue_mcu_packet(heartbeat::PacketType::Maintenance,
+                            reinterpret_cast<const uint8_t *>(&payload),
+                            sizeof(payload));
+  }
+
+  bool queue_profile_save(uint8_t car_type, uint32_t token) {
+    McuMaintenancePayload payload{};
+    payload.magic = kMcuMaintenanceMagic;
+    payload.opcode = static_cast<uint8_t>(McuMaintenanceOp::SaveProfile);
+    payload.arg0 = static_cast<uint8_t>(car_type % kMcuProfileCarTypes);
+    payload.token = token;
+    return queue_mcu_packet(heartbeat::PacketType::Maintenance,
+                            reinterpret_cast<const uint8_t *>(&payload),
+                            sizeof(payload));
+  }
+
+  bool queue_profile_tuning(uint8_t car_type, float force_intensity,
+                            float motion_range, uint32_t token) {
+    McuMaintenanceTuningPayload payload{};
+    payload.magic = kMcuMaintenanceMagic;
+    payload.opcode = static_cast<uint8_t>(McuMaintenanceOp::SetTuning);
+    payload.car_type = static_cast<uint8_t>(car_type % kMcuProfileCarTypes);
+    payload.token = token;
+    payload.force_intensity =
+        clampf(force_intensity, kMcuForceIntensityMin, kMcuForceIntensityMax);
+    payload.motion_range =
+        clampf(motion_range, kMcuMotionRangeMin, kMcuMotionRangeMax);
+    return queue_mcu_packet(heartbeat::PacketType::Maintenance,
+                            reinterpret_cast<const uint8_t *>(&payload),
+                            sizeof(payload));
+  }
+
+  bool flush_mcu_tx_queue(heartbeat::SerialPort &port, uint32_t *tx_seq) {
+    if (!tx_seq) {
+      return false;
+    }
+    while (true) {
+      OutboundMcuPacket packet;
+      {
+        std::lock_guard<std::mutex> lock(mcu_tx_mu_);
+        if (mcu_tx_queue_.empty()) {
+          return true;
+        }
+        packet = std::move(mcu_tx_queue_.front());
+        mcu_tx_queue_.pop_front();
+      }
+
+      const uint8_t *payload_ptr = packet.payload.empty()
+                                       ? nullptr
+                                       : packet.payload.data();
+      auto frame = heartbeat::build_frame(packet.type, (*tx_seq)++, payload_ptr,
+                                          packet.payload.size());
+      if (!port.write(frame.data(), frame.size())) {
+        std::lock_guard<std::mutex> lock(mcu_tx_mu_);
+        mcu_tx_queue_.push_front(std::move(packet));
+        return false;
+      }
+    }
+  }
+
   void publish_input_event(const McuPttEventPayload &raw) {
     InputEvent event;
     {
@@ -420,6 +635,11 @@ private:
       auto heartbeat_frame =
           heartbeat::build_frame(heartbeat::PacketType::Heartbeat, tx_seq++, nullptr, 0);
       if (!port.write(heartbeat_frame.data(), heartbeat_frame.size())) {
+        port.close();
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        continue;
+      }
+      if (!flush_mcu_tx_queue(port, &tx_seq)) {
         port.close();
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
         continue;
@@ -485,6 +705,11 @@ private:
   std::condition_variable input_cv_;
   std::deque<InputEvent> input_events_;
   uint64_t next_input_event_sequence_ = 1;
+
+  std::mutex mcu_tx_mu_;
+  std::deque<OutboundMcuPacket> mcu_tx_queue_;
+  float default_force_intensity_ = 1.0f;
+  float default_motion_range_ = 1.0f;
 
   std::atomic<bool> bridge_running_{false};
   std::thread bridge_thread_;

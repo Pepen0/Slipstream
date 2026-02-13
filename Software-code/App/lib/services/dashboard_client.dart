@@ -118,10 +118,11 @@ class DashboardClient {
     return resp;
   }
 
-  Future<void> setProfile(String profileId) async {
-    if (_stub == null) return;
-    await _stub!.setProfile(SetProfileRequest()..profileId = profileId);
+  Future<SetProfileResponse?> setProfile(String profileId) async {
+    if (_stub == null) return null;
+    final resp = await _stub!.setProfile(SetProfileRequest()..profileId = profileId);
     await refreshStatus();
+    return resp;
   }
 
   Future<CancelCalibrationResponse?> cancelCalibration() async {

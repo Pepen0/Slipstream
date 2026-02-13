@@ -44,6 +44,14 @@ struct Options {
   float cmd_left_m = 0.0f;
   float cmd_right_m = 0.0f;
   bool enter_dfu = false;
+  bool set_tuning = false;
+  int tune_car_type = 0;
+  float force_intensity = 1.0f;
+  float motion_range = 1.0f;
+  bool switch_profile = false;
+  bool save_profile = false;
+  bool load_profile = false;
+  int profile_car_type = 0;
 };
 
 Options parse_args(int argc, char **argv) {
@@ -81,11 +89,32 @@ Options parse_args(int argc, char **argv) {
       opt.cmd_right_m = std::stof(argv[++i]);
     } else if (arg == "--dfu") {
       opt.enter_dfu = true;
+    } else if (arg == "--set-tuning") {
+      opt.set_tuning = true;
+    } else if (arg == "--tune-car" && i + 1 < argc) {
+      opt.set_tuning = true;
+      opt.tune_car_type = std::stoi(argv[++i]);
+    } else if (arg == "--force-intensity" && i + 1 < argc) {
+      opt.set_tuning = true;
+      opt.force_intensity = std::stof(argv[++i]);
+    } else if (arg == "--motion-range" && i + 1 < argc) {
+      opt.set_tuning = true;
+      opt.motion_range = std::stof(argv[++i]);
+    } else if (arg == "--profile-car" && i + 1 < argc) {
+      opt.profile_car_type = std::stoi(argv[++i]);
+    } else if (arg == "--profile-switch") {
+      opt.switch_profile = true;
+    } else if (arg == "--profile-save") {
+      opt.save_profile = true;
+    } else if (arg == "--profile-load") {
+      opt.load_profile = true;
     } else if (arg == "--help") {
       std::cout << "Usage: heartbeat_sender [--port COM3] [--baud 115200] [--interval 50] [--reconnect 1000]\n"
                    "                         [--status] [--batch] [--batch-max 64]\n"
                    "                         [--command] [--cmd-left 0.0] [--cmd-right 0.0]\n"
-                   "                         [--dfu]\n";
+                   "                         [--dfu]\n"
+                   "                         [--set-tuning --tune-car 0 --force-intensity 1.0 --motion-range 1.0]\n"
+                   "                         [--profile-switch|--profile-save|--profile-load --profile-car 0]\n";
       std::exit(0);
     }
   }
@@ -125,7 +154,9 @@ struct McuStatus {
   uint32_t fw_build;
   uint8_t update_state;
   uint8_t update_result;
-  uint16_t update_reserved;
+  uint8_t active_car_type;
+  uint8_t profile_flags;
+  uint16_t status_reserved;
 };
 #pragma pack(pop)
 
@@ -159,23 +190,63 @@ static_assert(sizeof(CommandPayload) == 16, "CommandPayload size unexpected");
 struct MaintenancePayload {
   uint16_t magic;
   uint8_t opcode;
-  uint8_t reserved;
+  uint8_t arg0;
   uint32_t token;
 };
 #pragma pack(pop)
 
 static_assert(sizeof(MaintenancePayload) == 8, "MaintenancePayload size unexpected");
 
+#pragma pack(push, 1)
+struct MaintenanceTuningPayload {
+  uint16_t magic;
+  uint8_t opcode;
+  uint8_t car_type;
+  uint32_t token;
+  float force_intensity;
+  float motion_range;
+};
+#pragma pack(pop)
+
+static_assert(sizeof(MaintenanceTuningPayload) == 16,
+              "MaintenanceTuningPayload size unexpected");
+
 constexpr uint16_t kMaintenanceMagic = 0xB007u;
+constexpr uint8_t kProfileCarTypes = 8u;
+constexpr float kForceIntensityMin = 0.10f;
+constexpr float kForceIntensityMax = 1.00f;
+constexpr float kMotionRangeMin = 0.20f;
+constexpr float kMotionRangeMax = 1.00f;
 enum class MaintenanceOp : uint8_t {
   UpdateRequest = 1,
   UpdateArm = 2,
-  UpdateAbort = 3
+  UpdateAbort = 3,
+  SetTuning = 0x10,
+  SaveProfile = 0x11,
+  SwitchProfile = 0x12,
+  LoadProfile = 0x13
 };
 
 static uint64_t now_ns() {
   using clock = std::chrono::steady_clock;
   return std::chrono::duration_cast<std::chrono::nanoseconds>(clock::now().time_since_epoch()).count();
+}
+
+static float clampf(float value, float min_value, float max_value) {
+  if (value < min_value) {
+    return min_value;
+  }
+  if (value > max_value) {
+    return max_value;
+  }
+  return value;
+}
+
+static uint8_t normalize_car_type(int car_type) {
+  if (car_type < 0) {
+    return 0;
+  }
+  return static_cast<uint8_t>(static_cast<uint32_t>(car_type) % kProfileCarTypes);
 }
 
 int main(int argc, char **argv) {
@@ -197,33 +268,88 @@ int main(int argc, char **argv) {
   std::vector<uint8_t> rx_buffer;
   FrameBatcher batcher(opt.batch_max_bytes);
 
-  if (opt.enter_dfu) {
+  const bool send_maintenance_once =
+      opt.enter_dfu || opt.set_tuning || opt.switch_profile ||
+      opt.save_profile || opt.load_profile;
+
+  if (send_maintenance_once) {
     if (!port.open(opt.port, opt.baud)) {
       std::cerr << "Connect failed: " << port.last_error() << "\n";
       return 1;
     }
-    uint32_t token = static_cast<uint32_t>(now_ns());
-    MaintenancePayload payload{ kMaintenanceMagic,
-                                static_cast<uint8_t>(MaintenanceOp::UpdateRequest),
-                                0,
-                                token };
-    auto req = build_frame(PacketType::Maintenance, seq++,
-                           reinterpret_cast<const uint8_t *>(&payload),
-                           sizeof(payload));
-    if (!port.write(req.data(), req.size())) {
-      std::cerr << "Write failed: " << port.last_error() << "\n";
+
+    auto send_payload = [&](const uint8_t *payload, size_t payload_size) -> bool {
+      auto frame = build_frame(PacketType::Maintenance, seq++, payload, payload_size);
+      if (!port.write(frame.data(), frame.size())) {
+        std::cerr << "Write failed: " << port.last_error() << "\n";
+        return false;
+      }
+      return true;
+    };
+
+    if (opt.enter_dfu) {
+      uint32_t token = static_cast<uint32_t>(now_ns());
+      MaintenancePayload payload{
+          kMaintenanceMagic,
+          static_cast<uint8_t>(MaintenanceOp::UpdateRequest),
+          0,
+          token};
+      if (!send_payload(reinterpret_cast<const uint8_t *>(&payload), sizeof(payload))) {
+        return 1;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      payload.opcode = static_cast<uint8_t>(MaintenanceOp::UpdateArm);
+      if (!send_payload(reinterpret_cast<const uint8_t *>(&payload), sizeof(payload))) {
+        return 1;
+      }
+      std::cout << "DFU request sent (token=" << token << ").\n";
+    }
+
+    if (opt.set_tuning) {
+      MaintenanceTuningPayload payload{};
+      payload.magic = kMaintenanceMagic;
+      payload.opcode = static_cast<uint8_t>(MaintenanceOp::SetTuning);
+      payload.car_type = normalize_car_type(opt.tune_car_type);
+      payload.token = static_cast<uint32_t>(now_ns());
+      payload.force_intensity =
+          clampf(opt.force_intensity, kForceIntensityMin, kForceIntensityMax);
+      payload.motion_range =
+          clampf(opt.motion_range, kMotionRangeMin, kMotionRangeMax);
+      if (!send_payload(reinterpret_cast<const uint8_t *>(&payload), sizeof(payload))) {
+        return 1;
+      }
+      std::cout << "Set tuning: car_type=" << static_cast<int>(payload.car_type)
+                << " force_intensity=" << payload.force_intensity
+                << " motion_range=" << payload.motion_range << "\n";
+    }
+
+    const auto send_profile_op = [&](MaintenanceOp op, const char *label) -> bool {
+      MaintenancePayload payload{
+          kMaintenanceMagic,
+          static_cast<uint8_t>(op),
+          normalize_car_type(opt.profile_car_type),
+          static_cast<uint32_t>(now_ns())};
+      if (!send_payload(reinterpret_cast<const uint8_t *>(&payload), sizeof(payload))) {
+        return false;
+      }
+      std::cout << label << ": car_type=" << static_cast<int>(payload.arg0)
+                << " token=" << payload.token << "\n";
+      return true;
+    };
+
+    if (opt.load_profile &&
+        !send_profile_op(MaintenanceOp::LoadProfile, "Load profile")) {
       return 1;
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
-    payload.opcode = static_cast<uint8_t>(MaintenanceOp::UpdateArm);
-    auto arm = build_frame(PacketType::Maintenance, seq++,
-                           reinterpret_cast<const uint8_t *>(&payload),
-                           sizeof(payload));
-    if (!port.write(arm.data(), arm.size())) {
-      std::cerr << "Write failed: " << port.last_error() << "\n";
+    if (opt.switch_profile &&
+        !send_profile_op(MaintenanceOp::SwitchProfile, "Switch profile")) {
       return 1;
     }
-    std::cout << "DFU request sent (token=" << token << ").\n";
+    if (opt.save_profile &&
+        !send_profile_op(MaintenanceOp::SaveProfile, "Save profile")) {
+      return 1;
+    }
+
     return 0;
   }
 
@@ -344,6 +470,9 @@ int main(int argc, char **argv) {
                     << " build_id=" << status.fw_build
                     << " update_state=" << static_cast<int>(status.update_state)
                     << " update_result=" << static_cast<int>(status.update_result)
+                    << " active_car_type=" << static_cast<int>(status.active_car_type)
+                    << " profile_flags=0x" << std::hex
+                    << static_cast<int>(status.profile_flags) << std::dec
                     << "\n";
         } else if (parsed.header.type == static_cast<uint8_t>(PacketType::InputEvent) &&
                    parsed.payload.size() >= sizeof(McuPttEvent)) {

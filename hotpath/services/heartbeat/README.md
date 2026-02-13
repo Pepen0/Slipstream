@@ -42,6 +42,21 @@ Request the MCU to enter DFU mode:
 ./build/heartbeat_sender --port /dev/ttyACM0 --dfu
 ```
 
+Set fine-tuning parameters for a car profile:
+
+```bash
+./build/heartbeat_sender --port /dev/ttyACM0 \
+  --set-tuning --tune-car 2 --force-intensity 0.75 --motion-range 0.60
+```
+
+Switch/save/load MCU profile by car type:
+
+```bash
+./build/heartbeat_sender --port /dev/ttyACM0 --profile-switch --profile-car 2
+./build/heartbeat_sender --port /dev/ttyACM0 --profile-save --profile-car 2
+./build/heartbeat_sender --port /dev/ttyACM0 --profile-load --profile-car 2
+```
+
 Tune the batch byte budget (default 64 bytes):
 
 ```bash

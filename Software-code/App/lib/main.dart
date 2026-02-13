@@ -811,7 +811,11 @@ class _DashboardHomeState extends State<DashboardHome> {
       _showSnack('Enter a profile ID before continuing.');
       return;
     }
-    await client.setProfile(profileId);
+    final resp = await client.setProfile(profileId);
+    if (resp?.ok == false) {
+      _showSnack('Unable to switch hardware profile. Check MCU link.');
+      return;
+    }
     setState(() {
       profileReady = true;
     });
