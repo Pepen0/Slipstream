@@ -6,9 +6,17 @@ on:
       - main
     tags:
       - "*"
+    paths:
+      - 'Electronics/**'
+      - 'scripts/kibot_ci.sh'
+      - '.github/workflows/kibot.yml'
   pull_request:
     branches:
       - main
+    paths:
+      - 'Electronics/**'
+      - 'scripts/kibot_ci.sh'
+      - '.github/workflows/kibot.yml'
   workflow_dispatch:
 
 permissions:
