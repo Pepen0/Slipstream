@@ -120,7 +120,8 @@ class DashboardClient {
 
   Future<SetProfileResponse?> setProfile(String profileId) async {
     if (_stub == null) return null;
-    final resp = await _stub!.setProfile(SetProfileRequest()..profileId = profileId);
+    final resp =
+        await _stub!.setProfile(SetProfileRequest()..profileId = profileId);
     await refreshStatus();
     return resp;
   }
@@ -180,6 +181,43 @@ class DashboardClient {
       ..maxSamples = maxSamples;
     final resp = await _stub!.getSessionTelemetry(req);
     return resp.samples;
+  }
+
+  Future<StartFirmwareUpdateResponse?> startFirmwareUpdate({
+    String artifactUri = '',
+    String sha256 = '',
+    String targetVersion = '',
+    bool allowRollback = true,
+    String rollbackArtifactUri = '',
+  }) async {
+    if (_stub == null) return null;
+    final req = StartFirmwareUpdateRequest()
+      ..artifactUri = artifactUri
+      ..sha256 = sha256
+      ..targetVersion = targetVersion
+      ..allowRollback = allowRollback
+      ..rollbackArtifactUri = rollbackArtifactUri;
+    final resp = await _stub!.startFirmwareUpdate(req);
+    await refreshStatus();
+    return resp;
+  }
+
+  Future<CancelFirmwareUpdateResponse?> cancelFirmwareUpdate() async {
+    if (_stub == null) return null;
+    final resp =
+        await _stub!.cancelFirmwareUpdate(CancelFirmwareUpdateRequest());
+    await refreshStatus();
+    return resp;
+  }
+
+  Future<CheckFirmwareVersionResponse?> checkFirmwareVersion({
+    String latestVersion = '',
+  }) async {
+    if (_stub == null) return null;
+    final req = CheckFirmwareVersionRequest()..latestVersion = latestVersion;
+    final resp = await _stub!.checkFirmwareVersion(req);
+    await refreshStatus();
+    return resp;
   }
 
   void startTelemetryStream({String sessionId = ''}) {

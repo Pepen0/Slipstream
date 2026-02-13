@@ -11,6 +11,7 @@ add_library(dashboard_core)
 target_include_directories(dashboard_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_sources(dashboard_core PRIVATE
   src/dashboard_state.cpp
+  src/firmware_manager.cpp
   src/logger.cpp
   src/session_store.cpp
 )
@@ -21,9 +22,13 @@ target_link_libraries(dashboard_core_tests PRIVATE dashboard_core)
 add_executable(dashboard_session_tests tests/test_session_store.cpp)
 target_link_libraries(dashboard_session_tests PRIVATE dashboard_core)
 
+add_executable(dashboard_firmware_tests tests/test_firmware_manager.cpp)
+target_link_libraries(dashboard_firmware_tests PRIVATE dashboard_core)
+
 enable_testing()
 add_test(NAME dashboard_core COMMAND dashboard_core_tests)
 add_test(NAME dashboard_sessions COMMAND dashboard_session_tests)
+add_test(NAME dashboard_firmware COMMAND dashboard_firmware_tests)
 
 find_package(Protobuf CONFIG QUIET)
 find_package(gRPC CONFIG QUIET)

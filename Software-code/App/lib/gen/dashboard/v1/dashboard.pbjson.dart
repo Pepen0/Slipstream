@@ -14,6 +14,66 @@ import 'dart:convert' as $convert;
 import 'dart:core' as $core;
 import 'dart:typed_data' as $typed_data;
 
+@$core.Deprecated('Use firmwareUpdateStageDescriptor instead')
+const FirmwareUpdateStage$json = {
+  '1': 'FirmwareUpdateStage',
+  '2': [
+    {'1': 'FIRMWARE_UPDATE_STAGE_IDLE', '2': 0},
+    {'1': 'FIRMWARE_UPDATE_STAGE_DOWNLOADING', '2': 1},
+    {'1': 'FIRMWARE_UPDATE_STAGE_VERIFYING', '2': 2},
+    {'1': 'FIRMWARE_UPDATE_STAGE_REQUESTING_DFU', '2': 3},
+    {'1': 'FIRMWARE_UPDATE_STAGE_FLASHING', '2': 4},
+    {'1': 'FIRMWARE_UPDATE_STAGE_VERIFYING_VERSION', '2': 5},
+    {'1': 'FIRMWARE_UPDATE_STAGE_COMPLETED', '2': 6},
+    {'1': 'FIRMWARE_UPDATE_STAGE_FAILED', '2': 7},
+    {'1': 'FIRMWARE_UPDATE_STAGE_ROLLING_BACK', '2': 8},
+    {'1': 'FIRMWARE_UPDATE_STAGE_ROLLED_BACK', '2': 9},
+    {'1': 'FIRMWARE_UPDATE_STAGE_CANCELED', '2': 10},
+  ],
+};
+
+/// Descriptor for `FirmwareUpdateStage`. Decode as a `google.protobuf.EnumDescriptorProto`.
+final $typed_data.Uint8List firmwareUpdateStageDescriptor = $convert.base64Decode(
+    'ChNGaXJtd2FyZVVwZGF0ZVN0YWdlEh4KGkZJUk1XQVJFX1VQREFURV9TVEFHRV9JRExFEAASJQ'
+    'ohRklSTVdBUkVfVVBEQVRFX1NUQUdFX0RPV05MT0FESU5HEAESIwofRklSTVdBUkVfVVBEQVRF'
+    'X1NUQUdFX1ZFUklGWUlORxACEigKJEZJUk1XQVJFX1VQREFURV9TVEFHRV9SRVFVRVNUSU5HX0'
+    'RGVRADEiIKHkZJUk1XQVJFX1VQREFURV9TVEFHRV9GTEFTSElORxAEEisKJ0ZJUk1XQVJFX1VQ'
+    'REFURV9TVEFHRV9WRVJJRllJTkdfVkVSU0lPThAFEiMKH0ZJUk1XQVJFX1VQREFURV9TVEFHRV'
+    '9DT01QTEVURUQQBhIgChxGSVJNV0FSRV9VUERBVEVfU1RBR0VfRkFJTEVEEAcSJgoiRklSTVdB'
+    'UkVfVVBEQVRFX1NUQUdFX1JPTExJTkdfQkFDSxAIEiUKIUZJUk1XQVJFX1VQREFURV9TVEFHRV'
+    '9ST0xMRURfQkFDSxAJEiIKHkZJUk1XQVJFX1VQREFURV9TVEFHRV9DQU5DRUxFRBAK');
+
+@$core.Deprecated('Use firmwareUpdateStatusDescriptor instead')
+const FirmwareUpdateStatus$json = {
+  '1': 'FirmwareUpdateStatus',
+  '2': [
+    {'1': 'stage', '3': 1, '4': 1, '5': 14, '6': '.dashboard.v1.FirmwareUpdateStage', '10': 'stage'},
+    {'1': 'progress', '3': 2, '4': 1, '5': 2, '10': 'progress'},
+    {'1': 'message', '3': 3, '4': 1, '5': 9, '10': 'message'},
+    {'1': 'active', '3': 4, '4': 1, '5': 8, '10': 'active'},
+    {'1': 'current_version', '3': 5, '4': 1, '5': 9, '10': 'currentVersion'},
+    {'1': 'target_version', '3': 6, '4': 1, '5': 9, '10': 'targetVersion'},
+    {'1': 'last_error', '3': 7, '4': 1, '5': 9, '10': 'lastError'},
+    {'1': 'rollback_available', '3': 8, '4': 1, '5': 8, '10': 'rollbackAvailable'},
+    {'1': 'started_at_ns', '3': 9, '4': 1, '5': 4, '10': 'startedAtNs'},
+    {'1': 'updated_at_ns', '3': 10, '4': 1, '5': 4, '10': 'updatedAtNs'},
+    {'1': 'mcu_fw_version_raw', '3': 11, '4': 1, '5': 13, '10': 'mcuFwVersionRaw'},
+    {'1': 'mcu_fw_build', '3': 12, '4': 1, '5': 13, '10': 'mcuFwBuild'},
+  ],
+};
+
+/// Descriptor for `FirmwareUpdateStatus`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List firmwareUpdateStatusDescriptor = $convert.base64Decode(
+    'ChRGaXJtd2FyZVVwZGF0ZVN0YXR1cxI3CgVzdGFnZRgBIAEoDjIhLmRhc2hib2FyZC52MS5GaX'
+    'Jtd2FyZVVwZGF0ZVN0YWdlUgVzdGFnZRIaCghwcm9ncmVzcxgCIAEoAlIIcHJvZ3Jlc3MSGAoH'
+    'bWVzc2FnZRgDIAEoCVIHbWVzc2FnZRIWCgZhY3RpdmUYBCABKAhSBmFjdGl2ZRInCg9jdXJyZW'
+    '50X3ZlcnNpb24YBSABKAlSDmN1cnJlbnRWZXJzaW9uEiUKDnRhcmdldF92ZXJzaW9uGAYgASgJ'
+    'Ug10YXJnZXRWZXJzaW9uEh0KCmxhc3RfZXJyb3IYByABKAlSCWxhc3RFcnJvchItChJyb2xsYm'
+    'Fja19hdmFpbGFibGUYCCABKAhSEXJvbGxiYWNrQXZhaWxhYmxlEiIKDXN0YXJ0ZWRfYXRfbnMY'
+    'CSABKARSC3N0YXJ0ZWRBdE5zEiIKDXVwZGF0ZWRfYXRfbnMYCiABKARSC3VwZGF0ZWRBdE5zEi'
+    'sKEm1jdV9md192ZXJzaW9uX3JhdxgLIAEoDVIPbWN1RndWZXJzaW9uUmF3EiAKDG1jdV9md19i'
+    'dWlsZBgMIAEoDVIKbWN1RndCdWlsZA==');
+
 @$core.Deprecated('Use statusDescriptor instead')
 const Status$json = {
   '1': 'Status',
@@ -30,6 +90,11 @@ const Status$json = {
     {'1': 'calibration_message', '3': 10, '4': 1, '5': 9, '10': 'calibrationMessage'},
     {'1': 'calibration_attempts', '3': 11, '4': 1, '5': 13, '10': 'calibrationAttempts'},
     {'1': 'last_calibration_at_ns', '3': 12, '4': 1, '5': 4, '10': 'lastCalibrationAtNs'},
+    {'1': 'firmware_update', '3': 13, '4': 1, '5': 11, '6': '.dashboard.v1.FirmwareUpdateStatus', '10': 'firmwareUpdate'},
+    {'1': 'mcu_firmware_version', '3': 14, '4': 1, '5': 9, '10': 'mcuFirmwareVersion'},
+    {'1': 'mcu_firmware_build', '3': 15, '4': 1, '5': 13, '10': 'mcuFirmwareBuild'},
+    {'1': 'mcu_update_state', '3': 16, '4': 1, '5': 13, '10': 'mcuUpdateState'},
+    {'1': 'mcu_update_result', '3': 17, '4': 1, '5': 13, '10': 'mcuUpdateResult'},
   ],
   '4': [Status_State$json, Status_CalibrationState$json],
 };
@@ -69,10 +134,15 @@ final $typed_data.Uint8List statusDescriptor = $convert.base64Decode(
     'licmF0aW9uUHJvZ3Jlc3MSLwoTY2FsaWJyYXRpb25fbWVzc2FnZRgKIAEoCVISY2FsaWJyYXRp'
     'b25NZXNzYWdlEjEKFGNhbGlicmF0aW9uX2F0dGVtcHRzGAsgASgNUhNjYWxpYnJhdGlvbkF0dG'
     'VtcHRzEjMKFmxhc3RfY2FsaWJyYXRpb25fYXRfbnMYDCABKARSE2xhc3RDYWxpYnJhdGlvbkF0'
-    'TnMiSgoFU3RhdGUSDgoKU1RBVEVfSU5JVBAAEg4KClNUQVRFX0lETEUQARIQCgxTVEFURV9BQ1'
-    'RJVkUQAhIPCgtTVEFURV9GQVVMVBADIooBChBDYWxpYnJhdGlvblN0YXRlEhcKE0NBTElCUkFU'
-    'SU9OX1VOS05PV04QABIUChBDQUxJQlJBVElPTl9JRExFEAESFwoTQ0FMSUJSQVRJT05fUlVOTk'
-    'lORxACEhYKEkNBTElCUkFUSU9OX1BBU1NFRBADEhYKEkNBTElCUkFUSU9OX0ZBSUxFRBAE');
+    'TnMSSwoPZmlybXdhcmVfdXBkYXRlGA0gASgLMiIuZGFzaGJvYXJkLnYxLkZpcm13YXJlVXBkYX'
+    'RlU3RhdHVzUg5maXJtd2FyZVVwZGF0ZRIwChRtY3VfZmlybXdhcmVfdmVyc2lvbhgOIAEoCVIS'
+    'bWN1RmlybXdhcmVWZXJzaW9uEiwKEm1jdV9maXJtd2FyZV9idWlsZBgPIAEoDVIQbWN1RmlybX'
+    'dhcmVCdWlsZBIoChBtY3VfdXBkYXRlX3N0YXRlGBAgASgNUg5tY3VVcGRhdGVTdGF0ZRIqChFt'
+    'Y3VfdXBkYXRlX3Jlc3VsdBgRIAEoDVIPbWN1VXBkYXRlUmVzdWx0IkoKBVN0YXRlEg4KClNUQV'
+    'RFX0lOSVQQABIOCgpTVEFURV9JRExFEAESEAoMU1RBVEVfQUNUSVZFEAISDwoLU1RBVEVfRkFV'
+    'TFQQAyKKAQoQQ2FsaWJyYXRpb25TdGF0ZRIXChNDQUxJQlJBVElPTl9VTktOT1dOEAASFAoQQ0'
+    'FMSUJSQVRJT05fSURMRRABEhcKE0NBTElCUkFUSU9OX1JVTk5JTkcQAhIWChJDQUxJQlJBVElP'
+    'Tl9QQVNTRUQQAxIWChJDQUxJQlJBVElPTl9GQUlMRUQQBA==');
 
 @$core.Deprecated('Use getStatusRequestDescriptor instead')
 const GetStatusRequest$json = {
@@ -410,4 +480,98 @@ const GetSessionTelemetryResponse$json = {
 final $typed_data.Uint8List getSessionTelemetryResponseDescriptor = $convert.base64Decode(
     'ChtHZXRTZXNzaW9uVGVsZW1ldHJ5UmVzcG9uc2USNwoHc2FtcGxlcxgBIAMoCzIdLmRhc2hib2'
     'FyZC52MS5UZWxlbWV0cnlTYW1wbGVSB3NhbXBsZXM=');
+
+@$core.Deprecated('Use startFirmwareUpdateRequestDescriptor instead')
+const StartFirmwareUpdateRequest$json = {
+  '1': 'StartFirmwareUpdateRequest',
+  '2': [
+    {'1': 'artifact_uri', '3': 1, '4': 1, '5': 9, '10': 'artifactUri'},
+    {'1': 'sha256', '3': 2, '4': 1, '5': 9, '10': 'sha256'},
+    {'1': 'target_version', '3': 3, '4': 1, '5': 9, '10': 'targetVersion'},
+    {'1': 'allow_rollback', '3': 4, '4': 1, '5': 8, '10': 'allowRollback'},
+    {'1': 'rollback_artifact_uri', '3': 5, '4': 1, '5': 9, '10': 'rollbackArtifactUri'},
+  ],
+};
+
+/// Descriptor for `StartFirmwareUpdateRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List startFirmwareUpdateRequestDescriptor = $convert.base64Decode(
+    'ChpTdGFydEZpcm13YXJlVXBkYXRlUmVxdWVzdBIhCgxhcnRpZmFjdF91cmkYASABKAlSC2FydG'
+    'lmYWN0VXJpEhYKBnNoYTI1NhgCIAEoCVIGc2hhMjU2EiUKDnRhcmdldF92ZXJzaW9uGAMgASgJ'
+    'Ug10YXJnZXRWZXJzaW9uEiUKDmFsbG93X3JvbGxiYWNrGAQgASgIUg1hbGxvd1JvbGxiYWNrEj'
+    'IKFXJvbGxiYWNrX2FydGlmYWN0X3VyaRgFIAEoCVITcm9sbGJhY2tBcnRpZmFjdFVyaQ==');
+
+@$core.Deprecated('Use startFirmwareUpdateResponseDescriptor instead')
+const StartFirmwareUpdateResponse$json = {
+  '1': 'StartFirmwareUpdateResponse',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
+    {'1': 'status', '3': 3, '4': 1, '5': 11, '6': '.dashboard.v1.FirmwareUpdateStatus', '10': 'status'},
+  ],
+};
+
+/// Descriptor for `StartFirmwareUpdateResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List startFirmwareUpdateResponseDescriptor = $convert.base64Decode(
+    'ChtTdGFydEZpcm13YXJlVXBkYXRlUmVzcG9uc2USDgoCb2sYASABKAhSAm9rEhgKB21lc3NhZ2'
+    'UYAiABKAlSB21lc3NhZ2USOgoGc3RhdHVzGAMgASgLMiIuZGFzaGJvYXJkLnYxLkZpcm13YXJl'
+    'VXBkYXRlU3RhdHVzUgZzdGF0dXM=');
+
+@$core.Deprecated('Use cancelFirmwareUpdateRequestDescriptor instead')
+const CancelFirmwareUpdateRequest$json = {
+  '1': 'CancelFirmwareUpdateRequest',
+};
+
+/// Descriptor for `CancelFirmwareUpdateRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List cancelFirmwareUpdateRequestDescriptor = $convert.base64Decode(
+    'ChtDYW5jZWxGaXJtd2FyZVVwZGF0ZVJlcXVlc3Q=');
+
+@$core.Deprecated('Use cancelFirmwareUpdateResponseDescriptor instead')
+const CancelFirmwareUpdateResponse$json = {
+  '1': 'CancelFirmwareUpdateResponse',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'message', '3': 2, '4': 1, '5': 9, '10': 'message'},
+    {'1': 'status', '3': 3, '4': 1, '5': 11, '6': '.dashboard.v1.FirmwareUpdateStatus', '10': 'status'},
+  ],
+};
+
+/// Descriptor for `CancelFirmwareUpdateResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List cancelFirmwareUpdateResponseDescriptor = $convert.base64Decode(
+    'ChxDYW5jZWxGaXJtd2FyZVVwZGF0ZVJlc3BvbnNlEg4KAm9rGAEgASgIUgJvaxIYCgdtZXNzYW'
+    'dlGAIgASgJUgdtZXNzYWdlEjoKBnN0YXR1cxgDIAEoCzIiLmRhc2hib2FyZC52MS5GaXJtd2Fy'
+    'ZVVwZGF0ZVN0YXR1c1IGc3RhdHVz');
+
+@$core.Deprecated('Use checkFirmwareVersionRequestDescriptor instead')
+const CheckFirmwareVersionRequest$json = {
+  '1': 'CheckFirmwareVersionRequest',
+  '2': [
+    {'1': 'latest_version', '3': 1, '4': 1, '5': 9, '10': 'latestVersion'},
+  ],
+};
+
+/// Descriptor for `CheckFirmwareVersionRequest`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List checkFirmwareVersionRequestDescriptor = $convert.base64Decode(
+    'ChtDaGVja0Zpcm13YXJlVmVyc2lvblJlcXVlc3QSJQoObGF0ZXN0X3ZlcnNpb24YASABKAlSDW'
+    'xhdGVzdFZlcnNpb24=');
+
+@$core.Deprecated('Use checkFirmwareVersionResponseDescriptor instead')
+const CheckFirmwareVersionResponse$json = {
+  '1': 'CheckFirmwareVersionResponse',
+  '2': [
+    {'1': 'ok', '3': 1, '4': 1, '5': 8, '10': 'ok'},
+    {'1': 'update_available', '3': 2, '4': 1, '5': 8, '10': 'updateAvailable'},
+    {'1': 'current_version', '3': 3, '4': 1, '5': 9, '10': 'currentVersion'},
+    {'1': 'latest_version', '3': 4, '4': 1, '5': 9, '10': 'latestVersion'},
+    {'1': 'message', '3': 5, '4': 1, '5': 9, '10': 'message'},
+    {'1': 'mcu_connected', '3': 6, '4': 1, '5': 8, '10': 'mcuConnected'},
+  ],
+};
+
+/// Descriptor for `CheckFirmwareVersionResponse`. Decode as a `google.protobuf.DescriptorProto`.
+final $typed_data.Uint8List checkFirmwareVersionResponseDescriptor = $convert.base64Decode(
+    'ChxDaGVja0Zpcm13YXJlVmVyc2lvblJlc3BvbnNlEg4KAm9rGAEgASgIUgJvaxIpChB1cGRhdG'
+    'VfYXZhaWxhYmxlGAIgASgIUg91cGRhdGVBdmFpbGFibGUSJwoPY3VycmVudF92ZXJzaW9uGAMg'
+    'ASgJUg5jdXJyZW50VmVyc2lvbhIlCg5sYXRlc3RfdmVyc2lvbhgEIAEoCVINbGF0ZXN0VmVyc2'
+    'lvbhIYCgdtZXNzYWdlGAUgASgJUgdtZXNzYWdlEiMKDW1jdV9jb25uZWN0ZWQYBiABKAhSDG1j'
+    'dUNvbm5lY3RlZA==');
 

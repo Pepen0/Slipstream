@@ -76,6 +76,18 @@ class DashboardServiceClient extends $grpc.Client {
     return $createUnaryCall(_$getSessionTelemetry, request, options: options);
   }
 
+  $grpc.ResponseFuture<$0.StartFirmwareUpdateResponse> startFirmwareUpdate($0.StartFirmwareUpdateRequest request, {$grpc.CallOptions? options,}) {
+    return $createUnaryCall(_$startFirmwareUpdate, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.CancelFirmwareUpdateResponse> cancelFirmwareUpdate($0.CancelFirmwareUpdateRequest request, {$grpc.CallOptions? options,}) {
+    return $createUnaryCall(_$cancelFirmwareUpdate, request, options: options);
+  }
+
+  $grpc.ResponseFuture<$0.CheckFirmwareVersionResponse> checkFirmwareVersion($0.CheckFirmwareVersionRequest request, {$grpc.CallOptions? options,}) {
+    return $createUnaryCall(_$checkFirmwareVersion, request, options: options);
+  }
+
     // method descriptors
 
   static final _$getStatus = $grpc.ClientMethod<$0.GetStatusRequest, $0.GetStatusResponse>(
@@ -122,6 +134,18 @@ class DashboardServiceClient extends $grpc.Client {
       '/dashboard.v1.DashboardService/GetSessionTelemetry',
       ($0.GetSessionTelemetryRequest value) => value.writeToBuffer(),
       $0.GetSessionTelemetryResponse.fromBuffer);
+  static final _$startFirmwareUpdate = $grpc.ClientMethod<$0.StartFirmwareUpdateRequest, $0.StartFirmwareUpdateResponse>(
+      '/dashboard.v1.DashboardService/StartFirmwareUpdate',
+      ($0.StartFirmwareUpdateRequest value) => value.writeToBuffer(),
+      $0.StartFirmwareUpdateResponse.fromBuffer);
+  static final _$cancelFirmwareUpdate = $grpc.ClientMethod<$0.CancelFirmwareUpdateRequest, $0.CancelFirmwareUpdateResponse>(
+      '/dashboard.v1.DashboardService/CancelFirmwareUpdate',
+      ($0.CancelFirmwareUpdateRequest value) => value.writeToBuffer(),
+      $0.CancelFirmwareUpdateResponse.fromBuffer);
+  static final _$checkFirmwareVersion = $grpc.ClientMethod<$0.CheckFirmwareVersionRequest, $0.CheckFirmwareVersionResponse>(
+      '/dashboard.v1.DashboardService/CheckFirmwareVersion',
+      ($0.CheckFirmwareVersionRequest value) => value.writeToBuffer(),
+      $0.CheckFirmwareVersionResponse.fromBuffer);
 }
 
 @$pb.GrpcServiceName('dashboard.v1.DashboardService')
@@ -206,6 +230,27 @@ abstract class DashboardServiceBase extends $grpc.Service {
         false,
         ($core.List<$core.int> value) => $0.GetSessionTelemetryRequest.fromBuffer(value),
         ($0.GetSessionTelemetryResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.StartFirmwareUpdateRequest, $0.StartFirmwareUpdateResponse>(
+        'StartFirmwareUpdate',
+        startFirmwareUpdate_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.StartFirmwareUpdateRequest.fromBuffer(value),
+        ($0.StartFirmwareUpdateResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.CancelFirmwareUpdateRequest, $0.CancelFirmwareUpdateResponse>(
+        'CancelFirmwareUpdate',
+        cancelFirmwareUpdate_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.CancelFirmwareUpdateRequest.fromBuffer(value),
+        ($0.CancelFirmwareUpdateResponse value) => value.writeToBuffer()));
+    $addMethod($grpc.ServiceMethod<$0.CheckFirmwareVersionRequest, $0.CheckFirmwareVersionResponse>(
+        'CheckFirmwareVersion',
+        checkFirmwareVersion_Pre,
+        false,
+        false,
+        ($core.List<$core.int> value) => $0.CheckFirmwareVersionRequest.fromBuffer(value),
+        ($0.CheckFirmwareVersionResponse value) => value.writeToBuffer()));
   }
 
   $async.Future<$0.GetStatusResponse> getStatus_Pre($grpc.ServiceCall $call, $async.Future<$0.GetStatusRequest> $request) async {
@@ -273,5 +318,23 @@ abstract class DashboardServiceBase extends $grpc.Service {
   }
 
   $async.Future<$0.GetSessionTelemetryResponse> getSessionTelemetry($grpc.ServiceCall call, $0.GetSessionTelemetryRequest request);
+
+  $async.Future<$0.StartFirmwareUpdateResponse> startFirmwareUpdate_Pre($grpc.ServiceCall $call, $async.Future<$0.StartFirmwareUpdateRequest> $request) async {
+    return startFirmwareUpdate($call, await $request);
+  }
+
+  $async.Future<$0.StartFirmwareUpdateResponse> startFirmwareUpdate($grpc.ServiceCall call, $0.StartFirmwareUpdateRequest request);
+
+  $async.Future<$0.CancelFirmwareUpdateResponse> cancelFirmwareUpdate_Pre($grpc.ServiceCall $call, $async.Future<$0.CancelFirmwareUpdateRequest> $request) async {
+    return cancelFirmwareUpdate($call, await $request);
+  }
+
+  $async.Future<$0.CancelFirmwareUpdateResponse> cancelFirmwareUpdate($grpc.ServiceCall call, $0.CancelFirmwareUpdateRequest request);
+
+  $async.Future<$0.CheckFirmwareVersionResponse> checkFirmwareVersion_Pre($grpc.ServiceCall $call, $async.Future<$0.CheckFirmwareVersionRequest> $request) async {
+    return checkFirmwareVersion($call, await $request);
+  }
+
+  $async.Future<$0.CheckFirmwareVersionResponse> checkFirmwareVersion($grpc.ServiceCall call, $0.CheckFirmwareVersionRequest request);
 
 }

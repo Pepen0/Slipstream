@@ -385,9 +385,6 @@ class _DashboardHomeState extends State<DashboardHome> {
   double _reviewProgress = 1.0;
   DateTime? _lastSampleAt;
   Timer? _sessionsTimer;
-  Timer? _dfuTimer;
-  bool _dfuActive = false;
-  double _dfuProgress = 0.0;
   bool _voicePointerDown = false;
   int _lastHardwarePttSequence = 0;
   int _lastHardwarePttReceivedAtNs = 0;
@@ -443,7 +440,6 @@ class _DashboardHomeState extends State<DashboardHome> {
     trackController.dispose();
     carController.dispose();
     _sessionsTimer?.cancel();
-    _dfuTimer?.cancel();
     super.dispose();
   }
 
@@ -1181,35 +1177,99 @@ class _DashboardHomeState extends State<DashboardHome> {
     return _selectedSessionFrom(filtered) ?? _selectedSessionFrom(_sessions);
   }
 
-  void _startDfu() {
+  Future<void> _startDfu() async {
     if (!client.isConnected) {
       _showSnack('Connect to the MCU before entering DFU mode.');
       return;
     }
-    _dfuTimer?.cancel();
-    setState(() {
-      _dfuActive = true;
-      _dfuProgress = 0.04;
-    });
-    _dfuTimer = Timer.periodic(const Duration(milliseconds: 260), (timer) {
-      if (!mounted) return;
-      setState(() {
-        _dfuProgress += 0.08;
-        if (_dfuProgress >= 1.0) {
-          _dfuProgress = 1.0;
-          _dfuActive = false;
-          timer.cancel();
-        }
-      });
-    });
+    final response = await client.startFirmwareUpdate();
+    if (!mounted) return;
+    if (response == null) {
+      _showSnack('Firmware update request failed.');
+      return;
+    }
+    _showSnack(response.message.isNotEmpty
+        ? response.message
+        : (response.ok
+            ? 'Firmware update started.'
+            : 'Unable to start firmware update.'));
   }
 
-  void _cancelDfu() {
-    _dfuTimer?.cancel();
-    setState(() {
-      _dfuActive = false;
-      _dfuProgress = 0.0;
-    });
+  Future<void> _cancelDfu() async {
+    final response = await client.cancelFirmwareUpdate();
+    if (!mounted) return;
+    if (response == null) {
+      _showSnack('Unable to cancel firmware update.');
+      return;
+    }
+    _showSnack(response.message.isNotEmpty
+        ? response.message
+        : (response.ok
+            ? 'Firmware update cancellation requested.'
+            : 'Unable to cancel firmware update.'));
+  }
+
+  Future<void> _checkFirmwareVersion() async {
+    final response = await client.checkFirmwareVersion();
+    if (!mounted) return;
+    if (response == null) {
+      _showSnack('Firmware version check failed.');
+      return;
+    }
+    _showSnack(response.message.isNotEmpty
+        ? response.message
+        : (response.updateAvailable
+            ? 'Firmware update available.'
+            : 'Firmware is up to date.'));
+  }
+
+  String _firmwareStageLabel(FirmwareUpdateStage stage) {
+    switch (stage) {
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_DOWNLOADING:
+        return 'Downloading';
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_VERIFYING:
+        return 'Verifying';
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_REQUESTING_DFU:
+        return 'Requesting DFU';
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_FLASHING:
+        return 'Flashing';
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_VERIFYING_VERSION:
+        return 'Verifying Version';
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_COMPLETED:
+        return 'Completed';
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_FAILED:
+        return 'Failed';
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_ROLLING_BACK:
+        return 'Rolling Back';
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_ROLLED_BACK:
+        return 'Rolled Back';
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_CANCELED:
+        return 'Canceled';
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_IDLE:
+      default:
+        return 'Ready';
+    }
+  }
+
+  Color _firmwareStageColor(FirmwareUpdateStage stage) {
+    switch (stage) {
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_FAILED:
+        return _kDanger;
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_COMPLETED:
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_ROLLED_BACK:
+        return _kSystemOk;
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_FLASHING:
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_REQUESTING_DFU:
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_DOWNLOADING:
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_VERIFYING:
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_VERIFYING_VERSION:
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_ROLLING_BACK:
+        return _kWarning;
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_CANCELED:
+      case FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_IDLE:
+      default:
+        return _kSystemOk;
+    }
   }
 
   _DerivedTelemetry _deriveTelemetry(DashboardSnapshot snapshot,
@@ -3562,7 +3622,7 @@ class _DashboardHomeState extends State<DashboardHome> {
               child: OutlinedButton.icon(
                 onPressed: reviewDisabled
                     ? null
-                    : () => _enterReview(selectedSession!),
+                    : () => _enterReview(selectedSession),
                 icon: const Icon(Icons.play_circle_outline, size: 18),
                 label: const Text('Review Selected'),
                 style: _dataSecondaryButtonStyle(),
@@ -3572,7 +3632,7 @@ class _DashboardHomeState extends State<DashboardHome> {
         : FilledButton.tonalIcon(
             onPressed: selectedSession == null
                 ? null
-                : () => _enterReview(selectedSession!),
+                : () => _enterReview(selectedSession),
             icon: const Icon(Icons.play_circle_outline, size: 18),
             label: const Text('Review Selected'),
           );
@@ -4415,7 +4475,26 @@ class _DashboardHomeState extends State<DashboardHome> {
 
   Widget _buildFirmwareManager(DashboardSnapshot snapshot) {
     final connected = client.isConnected && snapshot.connected;
-    final firmwareStatus = (_dfuActive ? 'DFU ACTIVE' : 'READY').toUpperCase();
+    final status = snapshot.status;
+    final firmwareUpdate = snapshot.status?.firmwareUpdate;
+    final stage =
+        firmwareUpdate?.stage ?? FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_IDLE;
+    final active = firmwareUpdate?.active ?? false;
+    final stageColor = _firmwareStageColor(stage);
+    final firmwareStatus = _firmwareStageLabel(stage).toUpperCase();
+    final progress = (firmwareUpdate?.progress ?? 0.0).clamp(0.0, 1.0);
+    final firmwareVersion = (() {
+      final mcuVersion = status?.mcuFirmwareVersion ?? '';
+      if (mcuVersion.isNotEmpty) {
+        return mcuVersion;
+      }
+      final current = firmwareUpdate?.currentVersion ?? '';
+      return current.isNotEmpty ? current : '--';
+    })();
+    final firmwareMessage = (() {
+      final message = firmwareUpdate?.message ?? '';
+      return message.isNotEmpty ? message : 'Idle.';
+    })();
 
     return _SystemPanel(
       key: const Key('firmware-manager'),
@@ -4435,7 +4514,7 @@ class _DashboardHomeState extends State<DashboardHome> {
               Expanded(
                 child: _SystemInfoTile(
                   label: 'MCU FIRMWARE',
-                  value: 'v1.3.2',
+                  value: firmwareVersion,
                   mono: true,
                   valueColor: Colors.white,
                 ),
@@ -4446,37 +4525,49 @@ class _DashboardHomeState extends State<DashboardHome> {
                   label: 'DFU MODE',
                   value: firmwareStatus,
                   mono: false,
-                  dotColor: _dfuActive ? _kDanger : _kSystemOk,
-                  valueColor: _dfuActive ? _kDanger : _kSystemOk,
+                  dotColor: stageColor,
+                  valueColor: stageColor,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
           LinearProgressIndicator(
-            value: _dfuActive ? _dfuProgress : 0.0,
+            value: progress,
             minHeight: 6,
             backgroundColor: _kSurfaceGlow,
-            valueColor: AlwaysStoppedAnimation(
-              _dfuActive ? _kDanger : _kSystemOk,
+            valueColor: AlwaysStoppedAnimation(stageColor),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            firmwareMessage,
+            style: const TextStyle(
+              color: _kMuted,
+              fontSize: 12,
             ),
           ),
           const SizedBox(height: 16),
           Row(
             children: [
               FilledButton(
-                onPressed: connected && !_dfuActive ? _startDfu : null,
+                onPressed: connected && !active ? _startDfu : null,
                 style: _dataPrimaryButtonStyle(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                 ),
-                child: const Text('Enter DFU'),
+                child: const Text('Start Update'),
               ),
               const SizedBox(width: 8),
               OutlinedButton(
-                onPressed: _dfuActive ? _cancelDfu : null,
+                onPressed: active ? _cancelDfu : null,
                 style: _dataSecondaryButtonStyle(),
                 child: const Text('Cancel'),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: _checkFirmwareVersion,
+                style: _dataSecondaryButtonStyle(),
+                child: const Text('Check Version'),
               ),
               const Spacer(),
               Row(

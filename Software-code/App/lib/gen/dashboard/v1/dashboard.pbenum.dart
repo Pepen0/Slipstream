@@ -14,6 +14,39 @@ import 'dart:core' as $core;
 
 import 'package:protobuf/protobuf.dart' as $pb;
 
+class FirmwareUpdateStage extends $pb.ProtobufEnum {
+  static const FirmwareUpdateStage FIRMWARE_UPDATE_STAGE_IDLE = FirmwareUpdateStage._(0, _omitEnumNames ? '' : 'FIRMWARE_UPDATE_STAGE_IDLE');
+  static const FirmwareUpdateStage FIRMWARE_UPDATE_STAGE_DOWNLOADING = FirmwareUpdateStage._(1, _omitEnumNames ? '' : 'FIRMWARE_UPDATE_STAGE_DOWNLOADING');
+  static const FirmwareUpdateStage FIRMWARE_UPDATE_STAGE_VERIFYING = FirmwareUpdateStage._(2, _omitEnumNames ? '' : 'FIRMWARE_UPDATE_STAGE_VERIFYING');
+  static const FirmwareUpdateStage FIRMWARE_UPDATE_STAGE_REQUESTING_DFU = FirmwareUpdateStage._(3, _omitEnumNames ? '' : 'FIRMWARE_UPDATE_STAGE_REQUESTING_DFU');
+  static const FirmwareUpdateStage FIRMWARE_UPDATE_STAGE_FLASHING = FirmwareUpdateStage._(4, _omitEnumNames ? '' : 'FIRMWARE_UPDATE_STAGE_FLASHING');
+  static const FirmwareUpdateStage FIRMWARE_UPDATE_STAGE_VERIFYING_VERSION = FirmwareUpdateStage._(5, _omitEnumNames ? '' : 'FIRMWARE_UPDATE_STAGE_VERIFYING_VERSION');
+  static const FirmwareUpdateStage FIRMWARE_UPDATE_STAGE_COMPLETED = FirmwareUpdateStage._(6, _omitEnumNames ? '' : 'FIRMWARE_UPDATE_STAGE_COMPLETED');
+  static const FirmwareUpdateStage FIRMWARE_UPDATE_STAGE_FAILED = FirmwareUpdateStage._(7, _omitEnumNames ? '' : 'FIRMWARE_UPDATE_STAGE_FAILED');
+  static const FirmwareUpdateStage FIRMWARE_UPDATE_STAGE_ROLLING_BACK = FirmwareUpdateStage._(8, _omitEnumNames ? '' : 'FIRMWARE_UPDATE_STAGE_ROLLING_BACK');
+  static const FirmwareUpdateStage FIRMWARE_UPDATE_STAGE_ROLLED_BACK = FirmwareUpdateStage._(9, _omitEnumNames ? '' : 'FIRMWARE_UPDATE_STAGE_ROLLED_BACK');
+  static const FirmwareUpdateStage FIRMWARE_UPDATE_STAGE_CANCELED = FirmwareUpdateStage._(10, _omitEnumNames ? '' : 'FIRMWARE_UPDATE_STAGE_CANCELED');
+
+  static const $core.List<FirmwareUpdateStage> values = <FirmwareUpdateStage> [
+    FIRMWARE_UPDATE_STAGE_IDLE,
+    FIRMWARE_UPDATE_STAGE_DOWNLOADING,
+    FIRMWARE_UPDATE_STAGE_VERIFYING,
+    FIRMWARE_UPDATE_STAGE_REQUESTING_DFU,
+    FIRMWARE_UPDATE_STAGE_FLASHING,
+    FIRMWARE_UPDATE_STAGE_VERIFYING_VERSION,
+    FIRMWARE_UPDATE_STAGE_COMPLETED,
+    FIRMWARE_UPDATE_STAGE_FAILED,
+    FIRMWARE_UPDATE_STAGE_ROLLING_BACK,
+    FIRMWARE_UPDATE_STAGE_ROLLED_BACK,
+    FIRMWARE_UPDATE_STAGE_CANCELED,
+  ];
+
+  static final $core.List<FirmwareUpdateStage?> _byValue = $pb.ProtobufEnum.$_initByValueList(values, 10);
+  static FirmwareUpdateStage? valueOf($core.int value) =>  value < 0 || value >= _byValue.length ? null : _byValue[value];
+
+  const FirmwareUpdateStage._(super.value, super.name);
+}
+
 class Status_State extends $pb.ProtobufEnum {
   static const Status_State STATE_INIT = Status_State._(0, _omitEnumNames ? '' : 'STATE_INIT');
   static const Status_State STATE_IDLE = Status_State._(1, _omitEnumNames ? '' : 'STATE_IDLE');

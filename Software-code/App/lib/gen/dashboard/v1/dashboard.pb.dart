@@ -21,6 +21,184 @@ export 'package:protobuf/protobuf.dart' show GeneratedMessageGenericExtensions;
 
 export 'dashboard.pbenum.dart';
 
+class FirmwareUpdateStatus extends $pb.GeneratedMessage {
+  factory FirmwareUpdateStatus({
+    FirmwareUpdateStage? stage,
+    $core.double? progress,
+    $core.String? message,
+    $core.bool? active,
+    $core.String? currentVersion,
+    $core.String? targetVersion,
+    $core.String? lastError,
+    $core.bool? rollbackAvailable,
+    $fixnum.Int64? startedAtNs,
+    $fixnum.Int64? updatedAtNs,
+    $core.int? mcuFwVersionRaw,
+    $core.int? mcuFwBuild,
+  }) {
+    final result = create();
+    if (stage != null) result.stage = stage;
+    if (progress != null) result.progress = progress;
+    if (message != null) result.message = message;
+    if (active != null) result.active = active;
+    if (currentVersion != null) result.currentVersion = currentVersion;
+    if (targetVersion != null) result.targetVersion = targetVersion;
+    if (lastError != null) result.lastError = lastError;
+    if (rollbackAvailable != null) result.rollbackAvailable = rollbackAvailable;
+    if (startedAtNs != null) result.startedAtNs = startedAtNs;
+    if (updatedAtNs != null) result.updatedAtNs = updatedAtNs;
+    if (mcuFwVersionRaw != null) result.mcuFwVersionRaw = mcuFwVersionRaw;
+    if (mcuFwBuild != null) result.mcuFwBuild = mcuFwBuild;
+    return result;
+  }
+
+  FirmwareUpdateStatus._();
+
+  factory FirmwareUpdateStatus.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory FirmwareUpdateStatus.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'FirmwareUpdateStatus', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..e<FirmwareUpdateStage>(1, _omitFieldNames ? '' : 'stage', $pb.PbFieldType.OE, defaultOrMaker: FirmwareUpdateStage.FIRMWARE_UPDATE_STAGE_IDLE, valueOf: FirmwareUpdateStage.valueOf, enumValues: FirmwareUpdateStage.values)
+    ..a<$core.double>(2, _omitFieldNames ? '' : 'progress', $pb.PbFieldType.OF)
+    ..aOS(3, _omitFieldNames ? '' : 'message')
+    ..aOB(4, _omitFieldNames ? '' : 'active')
+    ..aOS(5, _omitFieldNames ? '' : 'currentVersion')
+    ..aOS(6, _omitFieldNames ? '' : 'targetVersion')
+    ..aOS(7, _omitFieldNames ? '' : 'lastError')
+    ..aOB(8, _omitFieldNames ? '' : 'rollbackAvailable')
+    ..a<$fixnum.Int64>(9, _omitFieldNames ? '' : 'startedAtNs', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$fixnum.Int64>(10, _omitFieldNames ? '' : 'updatedAtNs', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
+    ..a<$core.int>(11, _omitFieldNames ? '' : 'mcuFwVersionRaw', $pb.PbFieldType.OU3)
+    ..a<$core.int>(12, _omitFieldNames ? '' : 'mcuFwBuild', $pb.PbFieldType.OU3)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  FirmwareUpdateStatus clone() => FirmwareUpdateStatus()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  FirmwareUpdateStatus copyWith(void Function(FirmwareUpdateStatus) updates) => super.copyWith((message) => updates(message as FirmwareUpdateStatus)) as FirmwareUpdateStatus;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static FirmwareUpdateStatus create() => FirmwareUpdateStatus._();
+  @$core.override
+  FirmwareUpdateStatus createEmptyInstance() => create();
+  static $pb.PbList<FirmwareUpdateStatus> createRepeated() => $pb.PbList<FirmwareUpdateStatus>();
+  @$core.pragma('dart2js:noInline')
+  static FirmwareUpdateStatus getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<FirmwareUpdateStatus>(create);
+  static FirmwareUpdateStatus? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  FirmwareUpdateStage get stage => $_getN(0);
+  @$pb.TagNumber(1)
+  set stage(FirmwareUpdateStage value) => $_setField(1, value);
+  @$pb.TagNumber(1)
+  $core.bool hasStage() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearStage() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.double get progress => $_getN(1);
+  @$pb.TagNumber(2)
+  set progress($core.double value) => $_setFloat(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasProgress() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearProgress() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get message => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set message($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasMessage() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearMessage() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.bool get active => $_getBF(3);
+  @$pb.TagNumber(4)
+  set active($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasActive() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearActive() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get currentVersion => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set currentVersion($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasCurrentVersion() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearCurrentVersion() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.String get targetVersion => $_getSZ(5);
+  @$pb.TagNumber(6)
+  set targetVersion($core.String value) => $_setString(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasTargetVersion() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearTargetVersion() => $_clearField(6);
+
+  @$pb.TagNumber(7)
+  $core.String get lastError => $_getSZ(6);
+  @$pb.TagNumber(7)
+  set lastError($core.String value) => $_setString(6, value);
+  @$pb.TagNumber(7)
+  $core.bool hasLastError() => $_has(6);
+  @$pb.TagNumber(7)
+  void clearLastError() => $_clearField(7);
+
+  @$pb.TagNumber(8)
+  $core.bool get rollbackAvailable => $_getBF(7);
+  @$pb.TagNumber(8)
+  set rollbackAvailable($core.bool value) => $_setBool(7, value);
+  @$pb.TagNumber(8)
+  $core.bool hasRollbackAvailable() => $_has(7);
+  @$pb.TagNumber(8)
+  void clearRollbackAvailable() => $_clearField(8);
+
+  @$pb.TagNumber(9)
+  $fixnum.Int64 get startedAtNs => $_getI64(8);
+  @$pb.TagNumber(9)
+  set startedAtNs($fixnum.Int64 value) => $_setInt64(8, value);
+  @$pb.TagNumber(9)
+  $core.bool hasStartedAtNs() => $_has(8);
+  @$pb.TagNumber(9)
+  void clearStartedAtNs() => $_clearField(9);
+
+  @$pb.TagNumber(10)
+  $fixnum.Int64 get updatedAtNs => $_getI64(9);
+  @$pb.TagNumber(10)
+  set updatedAtNs($fixnum.Int64 value) => $_setInt64(9, value);
+  @$pb.TagNumber(10)
+  $core.bool hasUpdatedAtNs() => $_has(9);
+  @$pb.TagNumber(10)
+  void clearUpdatedAtNs() => $_clearField(10);
+
+  @$pb.TagNumber(11)
+  $core.int get mcuFwVersionRaw => $_getIZ(10);
+  @$pb.TagNumber(11)
+  set mcuFwVersionRaw($core.int value) => $_setUnsignedInt32(10, value);
+  @$pb.TagNumber(11)
+  $core.bool hasMcuFwVersionRaw() => $_has(10);
+  @$pb.TagNumber(11)
+  void clearMcuFwVersionRaw() => $_clearField(11);
+
+  @$pb.TagNumber(12)
+  $core.int get mcuFwBuild => $_getIZ(11);
+  @$pb.TagNumber(12)
+  set mcuFwBuild($core.int value) => $_setUnsignedInt32(11, value);
+  @$pb.TagNumber(12)
+  $core.bool hasMcuFwBuild() => $_has(11);
+  @$pb.TagNumber(12)
+  void clearMcuFwBuild() => $_clearField(12);
+}
+
 class Status extends $pb.GeneratedMessage {
   factory Status({
     Status_State? state,
@@ -35,6 +213,11 @@ class Status extends $pb.GeneratedMessage {
     $core.String? calibrationMessage,
     $core.int? calibrationAttempts,
     $fixnum.Int64? lastCalibrationAtNs,
+    FirmwareUpdateStatus? firmwareUpdate,
+    $core.String? mcuFirmwareVersion,
+    $core.int? mcuFirmwareBuild,
+    $core.int? mcuUpdateState,
+    $core.int? mcuUpdateResult,
   }) {
     final result = create();
     if (state != null) result.state = state;
@@ -49,6 +232,11 @@ class Status extends $pb.GeneratedMessage {
     if (calibrationMessage != null) result.calibrationMessage = calibrationMessage;
     if (calibrationAttempts != null) result.calibrationAttempts = calibrationAttempts;
     if (lastCalibrationAtNs != null) result.lastCalibrationAtNs = lastCalibrationAtNs;
+    if (firmwareUpdate != null) result.firmwareUpdate = firmwareUpdate;
+    if (mcuFirmwareVersion != null) result.mcuFirmwareVersion = mcuFirmwareVersion;
+    if (mcuFirmwareBuild != null) result.mcuFirmwareBuild = mcuFirmwareBuild;
+    if (mcuUpdateState != null) result.mcuUpdateState = mcuUpdateState;
+    if (mcuUpdateResult != null) result.mcuUpdateResult = mcuUpdateResult;
     return result;
   }
 
@@ -70,6 +258,11 @@ class Status extends $pb.GeneratedMessage {
     ..aOS(10, _omitFieldNames ? '' : 'calibrationMessage')
     ..a<$core.int>(11, _omitFieldNames ? '' : 'calibrationAttempts', $pb.PbFieldType.OU3)
     ..a<$fixnum.Int64>(12, _omitFieldNames ? '' : 'lastCalibrationAtNs', $pb.PbFieldType.OU6, defaultOrMaker: $fixnum.Int64.ZERO)
+    ..aOM<FirmwareUpdateStatus>(13, _omitFieldNames ? '' : 'firmwareUpdate', subBuilder: FirmwareUpdateStatus.create)
+    ..aOS(14, _omitFieldNames ? '' : 'mcuFirmwareVersion')
+    ..a<$core.int>(15, _omitFieldNames ? '' : 'mcuFirmwareBuild', $pb.PbFieldType.OU3)
+    ..a<$core.int>(16, _omitFieldNames ? '' : 'mcuUpdateState', $pb.PbFieldType.OU3)
+    ..a<$core.int>(17, _omitFieldNames ? '' : 'mcuUpdateResult', $pb.PbFieldType.OU3)
     ..hasRequiredFields = false
   ;
 
@@ -197,6 +390,53 @@ class Status extends $pb.GeneratedMessage {
   $core.bool hasLastCalibrationAtNs() => $_has(11);
   @$pb.TagNumber(12)
   void clearLastCalibrationAtNs() => $_clearField(12);
+
+  @$pb.TagNumber(13)
+  FirmwareUpdateStatus get firmwareUpdate => $_getN(12);
+  @$pb.TagNumber(13)
+  set firmwareUpdate(FirmwareUpdateStatus value) => $_setField(13, value);
+  @$pb.TagNumber(13)
+  $core.bool hasFirmwareUpdate() => $_has(12);
+  @$pb.TagNumber(13)
+  void clearFirmwareUpdate() => $_clearField(13);
+  @$pb.TagNumber(13)
+  FirmwareUpdateStatus ensureFirmwareUpdate() => $_ensure(12);
+
+  @$pb.TagNumber(14)
+  $core.String get mcuFirmwareVersion => $_getSZ(13);
+  @$pb.TagNumber(14)
+  set mcuFirmwareVersion($core.String value) => $_setString(13, value);
+  @$pb.TagNumber(14)
+  $core.bool hasMcuFirmwareVersion() => $_has(13);
+  @$pb.TagNumber(14)
+  void clearMcuFirmwareVersion() => $_clearField(14);
+
+  @$pb.TagNumber(15)
+  $core.int get mcuFirmwareBuild => $_getIZ(14);
+  @$pb.TagNumber(15)
+  set mcuFirmwareBuild($core.int value) => $_setUnsignedInt32(14, value);
+  @$pb.TagNumber(15)
+  $core.bool hasMcuFirmwareBuild() => $_has(14);
+  @$pb.TagNumber(15)
+  void clearMcuFirmwareBuild() => $_clearField(15);
+
+  @$pb.TagNumber(16)
+  $core.int get mcuUpdateState => $_getIZ(15);
+  @$pb.TagNumber(16)
+  set mcuUpdateState($core.int value) => $_setUnsignedInt32(15, value);
+  @$pb.TagNumber(16)
+  $core.bool hasMcuUpdateState() => $_has(15);
+  @$pb.TagNumber(16)
+  void clearMcuUpdateState() => $_clearField(16);
+
+  @$pb.TagNumber(17)
+  $core.int get mcuUpdateResult => $_getIZ(16);
+  @$pb.TagNumber(17)
+  set mcuUpdateResult($core.int value) => $_setUnsignedInt32(16, value);
+  @$pb.TagNumber(17)
+  $core.bool hasMcuUpdateResult() => $_has(16);
+  @$pb.TagNumber(17)
+  void clearMcuUpdateResult() => $_clearField(17);
 }
 
 class GetStatusRequest extends $pb.GeneratedMessage {
@@ -1505,6 +1745,426 @@ class GetSessionTelemetryResponse extends $pb.GeneratedMessage {
 
   @$pb.TagNumber(1)
   $pb.PbList<TelemetrySample> get samples => $_getList(0);
+}
+
+class StartFirmwareUpdateRequest extends $pb.GeneratedMessage {
+  factory StartFirmwareUpdateRequest({
+    $core.String? artifactUri,
+    $core.String? sha256,
+    $core.String? targetVersion,
+    $core.bool? allowRollback,
+    $core.String? rollbackArtifactUri,
+  }) {
+    final result = create();
+    if (artifactUri != null) result.artifactUri = artifactUri;
+    if (sha256 != null) result.sha256 = sha256;
+    if (targetVersion != null) result.targetVersion = targetVersion;
+    if (allowRollback != null) result.allowRollback = allowRollback;
+    if (rollbackArtifactUri != null) result.rollbackArtifactUri = rollbackArtifactUri;
+    return result;
+  }
+
+  StartFirmwareUpdateRequest._();
+
+  factory StartFirmwareUpdateRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory StartFirmwareUpdateRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'StartFirmwareUpdateRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'artifactUri')
+    ..aOS(2, _omitFieldNames ? '' : 'sha256')
+    ..aOS(3, _omitFieldNames ? '' : 'targetVersion')
+    ..aOB(4, _omitFieldNames ? '' : 'allowRollback')
+    ..aOS(5, _omitFieldNames ? '' : 'rollbackArtifactUri')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  StartFirmwareUpdateRequest clone() => StartFirmwareUpdateRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  StartFirmwareUpdateRequest copyWith(void Function(StartFirmwareUpdateRequest) updates) => super.copyWith((message) => updates(message as StartFirmwareUpdateRequest)) as StartFirmwareUpdateRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static StartFirmwareUpdateRequest create() => StartFirmwareUpdateRequest._();
+  @$core.override
+  StartFirmwareUpdateRequest createEmptyInstance() => create();
+  static $pb.PbList<StartFirmwareUpdateRequest> createRepeated() => $pb.PbList<StartFirmwareUpdateRequest>();
+  @$core.pragma('dart2js:noInline')
+  static StartFirmwareUpdateRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<StartFirmwareUpdateRequest>(create);
+  static StartFirmwareUpdateRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get artifactUri => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set artifactUri($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasArtifactUri() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearArtifactUri() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get sha256 => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set sha256($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasSha256() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearSha256() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get targetVersion => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set targetVersion($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasTargetVersion() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearTargetVersion() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.bool get allowRollback => $_getBF(3);
+  @$pb.TagNumber(4)
+  set allowRollback($core.bool value) => $_setBool(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasAllowRollback() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearAllowRollback() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get rollbackArtifactUri => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set rollbackArtifactUri($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasRollbackArtifactUri() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearRollbackArtifactUri() => $_clearField(5);
+}
+
+class StartFirmwareUpdateResponse extends $pb.GeneratedMessage {
+  factory StartFirmwareUpdateResponse({
+    $core.bool? ok,
+    $core.String? message,
+    FirmwareUpdateStatus? status,
+  }) {
+    final result = create();
+    if (ok != null) result.ok = ok;
+    if (message != null) result.message = message;
+    if (status != null) result.status = status;
+    return result;
+  }
+
+  StartFirmwareUpdateResponse._();
+
+  factory StartFirmwareUpdateResponse.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory StartFirmwareUpdateResponse.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'StartFirmwareUpdateResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'message')
+    ..aOM<FirmwareUpdateStatus>(3, _omitFieldNames ? '' : 'status', subBuilder: FirmwareUpdateStatus.create)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  StartFirmwareUpdateResponse clone() => StartFirmwareUpdateResponse()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  StartFirmwareUpdateResponse copyWith(void Function(StartFirmwareUpdateResponse) updates) => super.copyWith((message) => updates(message as StartFirmwareUpdateResponse)) as StartFirmwareUpdateResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static StartFirmwareUpdateResponse create() => StartFirmwareUpdateResponse._();
+  @$core.override
+  StartFirmwareUpdateResponse createEmptyInstance() => create();
+  static $pb.PbList<StartFirmwareUpdateResponse> createRepeated() => $pb.PbList<StartFirmwareUpdateResponse>();
+  @$core.pragma('dart2js:noInline')
+  static StartFirmwareUpdateResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<StartFirmwareUpdateResponse>(create);
+  static StartFirmwareUpdateResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get message => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set message($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMessage() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMessage() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  FirmwareUpdateStatus get status => $_getN(2);
+  @$pb.TagNumber(3)
+  set status(FirmwareUpdateStatus value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasStatus() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearStatus() => $_clearField(3);
+  @$pb.TagNumber(3)
+  FirmwareUpdateStatus ensureStatus() => $_ensure(2);
+}
+
+class CancelFirmwareUpdateRequest extends $pb.GeneratedMessage {
+  factory CancelFirmwareUpdateRequest() => create();
+
+  CancelFirmwareUpdateRequest._();
+
+  factory CancelFirmwareUpdateRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory CancelFirmwareUpdateRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'CancelFirmwareUpdateRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CancelFirmwareUpdateRequest clone() => CancelFirmwareUpdateRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CancelFirmwareUpdateRequest copyWith(void Function(CancelFirmwareUpdateRequest) updates) => super.copyWith((message) => updates(message as CancelFirmwareUpdateRequest)) as CancelFirmwareUpdateRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CancelFirmwareUpdateRequest create() => CancelFirmwareUpdateRequest._();
+  @$core.override
+  CancelFirmwareUpdateRequest createEmptyInstance() => create();
+  static $pb.PbList<CancelFirmwareUpdateRequest> createRepeated() => $pb.PbList<CancelFirmwareUpdateRequest>();
+  @$core.pragma('dart2js:noInline')
+  static CancelFirmwareUpdateRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<CancelFirmwareUpdateRequest>(create);
+  static CancelFirmwareUpdateRequest? _defaultInstance;
+}
+
+class CancelFirmwareUpdateResponse extends $pb.GeneratedMessage {
+  factory CancelFirmwareUpdateResponse({
+    $core.bool? ok,
+    $core.String? message,
+    FirmwareUpdateStatus? status,
+  }) {
+    final result = create();
+    if (ok != null) result.ok = ok;
+    if (message != null) result.message = message;
+    if (status != null) result.status = status;
+    return result;
+  }
+
+  CancelFirmwareUpdateResponse._();
+
+  factory CancelFirmwareUpdateResponse.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory CancelFirmwareUpdateResponse.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'CancelFirmwareUpdateResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOS(2, _omitFieldNames ? '' : 'message')
+    ..aOM<FirmwareUpdateStatus>(3, _omitFieldNames ? '' : 'status', subBuilder: FirmwareUpdateStatus.create)
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CancelFirmwareUpdateResponse clone() => CancelFirmwareUpdateResponse()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CancelFirmwareUpdateResponse copyWith(void Function(CancelFirmwareUpdateResponse) updates) => super.copyWith((message) => updates(message as CancelFirmwareUpdateResponse)) as CancelFirmwareUpdateResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CancelFirmwareUpdateResponse create() => CancelFirmwareUpdateResponse._();
+  @$core.override
+  CancelFirmwareUpdateResponse createEmptyInstance() => create();
+  static $pb.PbList<CancelFirmwareUpdateResponse> createRepeated() => $pb.PbList<CancelFirmwareUpdateResponse>();
+  @$core.pragma('dart2js:noInline')
+  static CancelFirmwareUpdateResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<CancelFirmwareUpdateResponse>(create);
+  static CancelFirmwareUpdateResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.String get message => $_getSZ(1);
+  @$pb.TagNumber(2)
+  set message($core.String value) => $_setString(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasMessage() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearMessage() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  FirmwareUpdateStatus get status => $_getN(2);
+  @$pb.TagNumber(3)
+  set status(FirmwareUpdateStatus value) => $_setField(3, value);
+  @$pb.TagNumber(3)
+  $core.bool hasStatus() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearStatus() => $_clearField(3);
+  @$pb.TagNumber(3)
+  FirmwareUpdateStatus ensureStatus() => $_ensure(2);
+}
+
+class CheckFirmwareVersionRequest extends $pb.GeneratedMessage {
+  factory CheckFirmwareVersionRequest({
+    $core.String? latestVersion,
+  }) {
+    final result = create();
+    if (latestVersion != null) result.latestVersion = latestVersion;
+    return result;
+  }
+
+  CheckFirmwareVersionRequest._();
+
+  factory CheckFirmwareVersionRequest.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory CheckFirmwareVersionRequest.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'CheckFirmwareVersionRequest', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOS(1, _omitFieldNames ? '' : 'latestVersion')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CheckFirmwareVersionRequest clone() => CheckFirmwareVersionRequest()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CheckFirmwareVersionRequest copyWith(void Function(CheckFirmwareVersionRequest) updates) => super.copyWith((message) => updates(message as CheckFirmwareVersionRequest)) as CheckFirmwareVersionRequest;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CheckFirmwareVersionRequest create() => CheckFirmwareVersionRequest._();
+  @$core.override
+  CheckFirmwareVersionRequest createEmptyInstance() => create();
+  static $pb.PbList<CheckFirmwareVersionRequest> createRepeated() => $pb.PbList<CheckFirmwareVersionRequest>();
+  @$core.pragma('dart2js:noInline')
+  static CheckFirmwareVersionRequest getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<CheckFirmwareVersionRequest>(create);
+  static CheckFirmwareVersionRequest? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.String get latestVersion => $_getSZ(0);
+  @$pb.TagNumber(1)
+  set latestVersion($core.String value) => $_setString(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasLatestVersion() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearLatestVersion() => $_clearField(1);
+}
+
+class CheckFirmwareVersionResponse extends $pb.GeneratedMessage {
+  factory CheckFirmwareVersionResponse({
+    $core.bool? ok,
+    $core.bool? updateAvailable,
+    $core.String? currentVersion,
+    $core.String? latestVersion,
+    $core.String? message,
+    $core.bool? mcuConnected,
+  }) {
+    final result = create();
+    if (ok != null) result.ok = ok;
+    if (updateAvailable != null) result.updateAvailable = updateAvailable;
+    if (currentVersion != null) result.currentVersion = currentVersion;
+    if (latestVersion != null) result.latestVersion = latestVersion;
+    if (message != null) result.message = message;
+    if (mcuConnected != null) result.mcuConnected = mcuConnected;
+    return result;
+  }
+
+  CheckFirmwareVersionResponse._();
+
+  factory CheckFirmwareVersionResponse.fromBuffer($core.List<$core.int> data, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromBuffer(data, registry);
+  factory CheckFirmwareVersionResponse.fromJson($core.String json, [$pb.ExtensionRegistry registry = $pb.ExtensionRegistry.EMPTY]) => create()..mergeFromJson(json, registry);
+
+  static final $pb.BuilderInfo _i = $pb.BuilderInfo(_omitMessageNames ? '' : 'CheckFirmwareVersionResponse', package: const $pb.PackageName(_omitMessageNames ? '' : 'dashboard.v1'), createEmptyInstance: create)
+    ..aOB(1, _omitFieldNames ? '' : 'ok')
+    ..aOB(2, _omitFieldNames ? '' : 'updateAvailable')
+    ..aOS(3, _omitFieldNames ? '' : 'currentVersion')
+    ..aOS(4, _omitFieldNames ? '' : 'latestVersion')
+    ..aOS(5, _omitFieldNames ? '' : 'message')
+    ..aOB(6, _omitFieldNames ? '' : 'mcuConnected')
+    ..hasRequiredFields = false
+  ;
+
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CheckFirmwareVersionResponse clone() => CheckFirmwareVersionResponse()..mergeFromMessage(this);
+  @$core.Deprecated('See https://github.com/google/protobuf.dart/issues/998.')
+  CheckFirmwareVersionResponse copyWith(void Function(CheckFirmwareVersionResponse) updates) => super.copyWith((message) => updates(message as CheckFirmwareVersionResponse)) as CheckFirmwareVersionResponse;
+
+  @$core.override
+  $pb.BuilderInfo get info_ => _i;
+
+  @$core.pragma('dart2js:noInline')
+  static CheckFirmwareVersionResponse create() => CheckFirmwareVersionResponse._();
+  @$core.override
+  CheckFirmwareVersionResponse createEmptyInstance() => create();
+  static $pb.PbList<CheckFirmwareVersionResponse> createRepeated() => $pb.PbList<CheckFirmwareVersionResponse>();
+  @$core.pragma('dart2js:noInline')
+  static CheckFirmwareVersionResponse getDefault() => _defaultInstance ??= $pb.GeneratedMessage.$_defaultFor<CheckFirmwareVersionResponse>(create);
+  static CheckFirmwareVersionResponse? _defaultInstance;
+
+  @$pb.TagNumber(1)
+  $core.bool get ok => $_getBF(0);
+  @$pb.TagNumber(1)
+  set ok($core.bool value) => $_setBool(0, value);
+  @$pb.TagNumber(1)
+  $core.bool hasOk() => $_has(0);
+  @$pb.TagNumber(1)
+  void clearOk() => $_clearField(1);
+
+  @$pb.TagNumber(2)
+  $core.bool get updateAvailable => $_getBF(1);
+  @$pb.TagNumber(2)
+  set updateAvailable($core.bool value) => $_setBool(1, value);
+  @$pb.TagNumber(2)
+  $core.bool hasUpdateAvailable() => $_has(1);
+  @$pb.TagNumber(2)
+  void clearUpdateAvailable() => $_clearField(2);
+
+  @$pb.TagNumber(3)
+  $core.String get currentVersion => $_getSZ(2);
+  @$pb.TagNumber(3)
+  set currentVersion($core.String value) => $_setString(2, value);
+  @$pb.TagNumber(3)
+  $core.bool hasCurrentVersion() => $_has(2);
+  @$pb.TagNumber(3)
+  void clearCurrentVersion() => $_clearField(3);
+
+  @$pb.TagNumber(4)
+  $core.String get latestVersion => $_getSZ(3);
+  @$pb.TagNumber(4)
+  set latestVersion($core.String value) => $_setString(3, value);
+  @$pb.TagNumber(4)
+  $core.bool hasLatestVersion() => $_has(3);
+  @$pb.TagNumber(4)
+  void clearLatestVersion() => $_clearField(4);
+
+  @$pb.TagNumber(5)
+  $core.String get message => $_getSZ(4);
+  @$pb.TagNumber(5)
+  set message($core.String value) => $_setString(4, value);
+  @$pb.TagNumber(5)
+  $core.bool hasMessage() => $_has(4);
+  @$pb.TagNumber(5)
+  void clearMessage() => $_clearField(5);
+
+  @$pb.TagNumber(6)
+  $core.bool get mcuConnected => $_getBF(5);
+  @$pb.TagNumber(6)
+  set mcuConnected($core.bool value) => $_setBool(5, value);
+  @$pb.TagNumber(6)
+  $core.bool hasMcuConnected() => $_has(5);
+  @$pb.TagNumber(6)
+  void clearMcuConnected() => $_clearField(6);
 }
 
 

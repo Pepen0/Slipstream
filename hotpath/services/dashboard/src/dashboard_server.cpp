@@ -1,4 +1,5 @@
 #include "dashboard_state.h"
+#include "firmware_manager.h"
 #include "logger.h"
 #include "session_store.h"
 
@@ -20,8 +21,12 @@
 
 using dashboard::v1::CalibrateRequest;
 using dashboard::v1::CalibrateResponse;
+using dashboard::v1::CancelFirmwareUpdateRequest;
+using dashboard::v1::CancelFirmwareUpdateResponse;
 using dashboard::v1::CancelCalibrationRequest;
 using dashboard::v1::CancelCalibrationResponse;
+using dashboard::v1::CheckFirmwareVersionRequest;
+using dashboard::v1::CheckFirmwareVersionResponse;
 using dashboard::v1::DashboardService;
 using dashboard::v1::EStopRequest;
 using dashboard::v1::EStopResponse;
@@ -37,6 +42,8 @@ using dashboard::v1::ListSessionsRequest;
 using dashboard::v1::ListSessionsResponse;
 using dashboard::v1::SetProfileRequest;
 using dashboard::v1::SetProfileResponse;
+using dashboard::v1::StartFirmwareUpdateRequest;
+using dashboard::v1::StartFirmwareUpdateResponse;
 using dashboard::v1::StartSessionRequest;
 using dashboard::v1::StartSessionResponse;
 using dashboard::v1::Status;
@@ -56,6 +63,7 @@ static constexpr float kMcuForceIntensityMin = 0.10f;
 static constexpr float kMcuForceIntensityMax = 1.00f;
 static constexpr float kMcuMotionRangeMin = 0.20f;
 static constexpr float kMcuMotionRangeMax = 1.00f;
+static constexpr uint8_t kMcuStatusFlagUsb = (1u << 0);
 
 enum class McuMaintenanceOp : uint8_t {
   UpdateRequest = 1,
@@ -198,6 +206,35 @@ static Status::CalibrationState to_proto_calibration_state(CalibrationState stat
   }
 }
 
+static dashboard::v1::FirmwareUpdateStage to_proto_firmware_stage(
+    FirmwareUpdateStage stage) {
+  switch (stage) {
+    case FirmwareUpdateStage::Downloading:
+      return dashboard::v1::FIRMWARE_UPDATE_STAGE_DOWNLOADING;
+    case FirmwareUpdateStage::Verifying:
+      return dashboard::v1::FIRMWARE_UPDATE_STAGE_VERIFYING;
+    case FirmwareUpdateStage::RequestingDfu:
+      return dashboard::v1::FIRMWARE_UPDATE_STAGE_REQUESTING_DFU;
+    case FirmwareUpdateStage::Flashing:
+      return dashboard::v1::FIRMWARE_UPDATE_STAGE_FLASHING;
+    case FirmwareUpdateStage::VerifyingVersion:
+      return dashboard::v1::FIRMWARE_UPDATE_STAGE_VERIFYING_VERSION;
+    case FirmwareUpdateStage::Completed:
+      return dashboard::v1::FIRMWARE_UPDATE_STAGE_COMPLETED;
+    case FirmwareUpdateStage::Failed:
+      return dashboard::v1::FIRMWARE_UPDATE_STAGE_FAILED;
+    case FirmwareUpdateStage::RollingBack:
+      return dashboard::v1::FIRMWARE_UPDATE_STAGE_ROLLING_BACK;
+    case FirmwareUpdateStage::RolledBack:
+      return dashboard::v1::FIRMWARE_UPDATE_STAGE_ROLLED_BACK;
+    case FirmwareUpdateStage::Canceled:
+      return dashboard::v1::FIRMWARE_UPDATE_STAGE_CANCELED;
+    case FirmwareUpdateStage::Idle:
+    default:
+      return dashboard::v1::FIRMWARE_UPDATE_STAGE_IDLE;
+  }
+}
+
 #pragma pack(push, 1)
 struct McuPttEventPayload {
   uint16_t magic;
@@ -225,6 +262,29 @@ struct McuMaintenanceTuningPayload {
   float force_intensity;
   float motion_range;
 };
+
+struct McuStatusPayload {
+  uint32_t uptime_ms;
+  uint32_t last_heartbeat_ms;
+  uint32_t last_cmd_rx_ms;
+  uint64_t last_cmd_host_ns;
+  float left_setpoint_m;
+  float right_setpoint_m;
+  float left_pos_m;
+  float right_pos_m;
+  float left_cmd;
+  float right_cmd;
+  uint8_t state;
+  uint8_t flags;
+  uint16_t fault_code;
+  uint32_t fw_version;
+  uint32_t fw_build;
+  uint8_t update_state;
+  uint8_t update_result;
+  uint8_t active_car_type;
+  uint8_t profile_flags;
+  uint16_t status_reserved;
+};
 #pragma pack(pop)
 
 static_assert(sizeof(McuPttEventPayload) == 12,
@@ -233,12 +293,19 @@ static_assert(sizeof(McuMaintenancePayload) == 8,
               "McuMaintenancePayload size unexpected");
 static_assert(sizeof(McuMaintenanceTuningPayload) == 16,
               "McuMaintenanceTuningPayload size unexpected");
+static_assert(sizeof(McuStatusPayload) <= heartbeat::kMaxPayload,
+              "McuStatusPayload size unexpected");
 
 } // namespace
 
 class DashboardServiceImpl final : public DashboardService::Service {
 public:
   DashboardServiceImpl() {
+    firmware_manager_.set_maintenance_sender(
+        [this](uint8_t opcode, uint8_t arg0, uint32_t token) {
+          return queue_update_maintenance(opcode, arg0, token);
+        });
+
     default_force_intensity_ = clampf(
         env_float("SLIPSTREAM_MCU_FORCE_INTENSITY", 1.0f),
         kMcuForceIntensityMin, kMcuForceIntensityMax);
@@ -295,6 +362,7 @@ public:
   grpc::Status GetStatus(grpc::ServerContext *, const GetStatusRequest *, GetStatusResponse *resp) override {
     std::lock_guard<std::mutex> lock(mu_);
     auto status = state_.get_status();
+    auto fw_status = firmware_manager_.status();
     auto *out = resp->mutable_status();
     out->set_state(to_proto_state(status.state));
     out->set_estop_active(status.estop_active);
@@ -308,6 +376,25 @@ public:
     out->set_calibration_message(status.calibration_message);
     out->set_calibration_attempts(status.calibration_attempts);
     out->set_last_calibration_at_ns(status.last_calibration_at_ns);
+
+    auto *fw = out->mutable_firmware_update();
+    fw->set_stage(to_proto_firmware_stage(fw_status.stage));
+    fw->set_progress(fw_status.progress);
+    fw->set_message(fw_status.message);
+    fw->set_active(fw_status.active);
+    fw->set_current_version(fw_status.current_version);
+    fw->set_target_version(fw_status.target_version);
+    fw->set_last_error(fw_status.last_error);
+    fw->set_rollback_available(fw_status.rollback_available);
+    fw->set_started_at_ns(fw_status.started_at_ns);
+    fw->set_updated_at_ns(fw_status.updated_at_ns);
+    fw->set_mcu_fw_version_raw(fw_status.mcu_fw_version_raw);
+    fw->set_mcu_fw_build(fw_status.mcu_fw_build);
+
+    out->set_mcu_firmware_version(fw_status.current_version);
+    out->set_mcu_firmware_build(fw_status.mcu_fw_build);
+    out->set_mcu_update_state(fw_status.mcu_update_state);
+    out->set_mcu_update_result(fw_status.mcu_update_result);
     return grpc::Status::OK;
   }
 
@@ -347,6 +434,76 @@ public:
     return grpc::Status::OK;
   }
 
+  grpc::Status StartFirmwareUpdate(grpc::ServerContext *,
+                                   const StartFirmwareUpdateRequest *req,
+                                   StartFirmwareUpdateResponse *resp) override {
+    FirmwareUpdateRequest request;
+    request.artifact_uri = req->artifact_uri();
+    request.sha256 = req->sha256();
+    request.target_version = req->target_version();
+    request.allow_rollback = req->allow_rollback();
+    request.rollback_artifact_uri = req->rollback_artifact_uri();
+
+    std::string message;
+    const bool ok = firmware_manager_.start_update(request, &message);
+    auto status = firmware_manager_.status();
+
+    resp->set_ok(ok);
+    resp->set_message(message);
+    auto *fw = resp->mutable_status();
+    fw->set_stage(to_proto_firmware_stage(status.stage));
+    fw->set_progress(status.progress);
+    fw->set_message(status.message);
+    fw->set_active(status.active);
+    fw->set_current_version(status.current_version);
+    fw->set_target_version(status.target_version);
+    fw->set_last_error(status.last_error);
+    fw->set_rollback_available(status.rollback_available);
+    fw->set_started_at_ns(status.started_at_ns);
+    fw->set_updated_at_ns(status.updated_at_ns);
+    fw->set_mcu_fw_version_raw(status.mcu_fw_version_raw);
+    fw->set_mcu_fw_build(status.mcu_fw_build);
+    return grpc::Status::OK;
+  }
+
+  grpc::Status CancelFirmwareUpdate(grpc::ServerContext *,
+                                    const CancelFirmwareUpdateRequest *,
+                                    CancelFirmwareUpdateResponse *resp) override {
+    std::string message;
+    const bool ok = firmware_manager_.cancel_update(&message);
+    auto status = firmware_manager_.status();
+
+    resp->set_ok(ok);
+    resp->set_message(message);
+    auto *fw = resp->mutable_status();
+    fw->set_stage(to_proto_firmware_stage(status.stage));
+    fw->set_progress(status.progress);
+    fw->set_message(status.message);
+    fw->set_active(status.active);
+    fw->set_current_version(status.current_version);
+    fw->set_target_version(status.target_version);
+    fw->set_last_error(status.last_error);
+    fw->set_rollback_available(status.rollback_available);
+    fw->set_started_at_ns(status.started_at_ns);
+    fw->set_updated_at_ns(status.updated_at_ns);
+    fw->set_mcu_fw_version_raw(status.mcu_fw_version_raw);
+    fw->set_mcu_fw_build(status.mcu_fw_build);
+    return grpc::Status::OK;
+  }
+
+  grpc::Status CheckFirmwareVersion(grpc::ServerContext *,
+                                    const CheckFirmwareVersionRequest *req,
+                                    CheckFirmwareVersionResponse *resp) override {
+    const auto result = firmware_manager_.check_version(req->latest_version());
+    resp->set_ok(result.ok);
+    resp->set_update_available(result.update_available);
+    resp->set_current_version(result.current_version);
+    resp->set_latest_version(result.latest_version);
+    resp->set_message(result.message);
+    resp->set_mcu_connected(result.mcu_connected);
+    return grpc::Status::OK;
+  }
+
   grpc::Status SetProfile(grpc::ServerContext *, const SetProfileRequest *req, SetProfileResponse *resp) override {
     std::lock_guard<std::mutex> lock(mu_);
     auto status = state_.set_profile(req->profile_id());
@@ -366,6 +523,10 @@ public:
   grpc::Status EStop(grpc::ServerContext *, const EStopRequest *req, EStopResponse *resp) override {
     std::lock_guard<std::mutex> lock(mu_);
     state_.estop(req->engaged(), req->reason());
+    if (req->engaged()) {
+      std::string ignored;
+      firmware_manager_.cancel_update(&ignored);
+    }
     log_warn(std::string("EStop ") + (req->engaged() ? "ENGAGED" : "RELEASED"));
     resp->set_ok(true);
     return grpc::Status::OK;
@@ -494,6 +655,8 @@ public:
   }
 
 private:
+  FirmwareManager firmware_manager_{};
+
   struct OutboundMcuPacket {
     heartbeat::PacketType type = heartbeat::PacketType::Heartbeat;
     std::vector<uint8_t> payload;
@@ -519,6 +682,17 @@ private:
     }
     mcu_tx_queue_.push_back(std::move(packet));
     return true;
+  }
+
+  bool queue_update_maintenance(uint8_t opcode, uint8_t arg0, uint32_t token) {
+    McuMaintenancePayload payload{};
+    payload.magic = kMcuMaintenanceMagic;
+    payload.opcode = opcode;
+    payload.arg0 = arg0;
+    payload.token = token;
+    return queue_mcu_packet(heartbeat::PacketType::Maintenance,
+                            reinterpret_cast<const uint8_t *>(&payload),
+                            sizeof(payload));
   }
 
   bool queue_profile_switch(uint8_t car_type, uint32_t token) {
@@ -614,6 +788,14 @@ private:
     input_cv_.notify_all();
   }
 
+  void publish_mcu_status(const McuStatusPayload &raw) {
+    const bool usb_connected = (raw.flags & kMcuStatusFlagUsb) != 0u;
+    firmware_manager_.set_current_mcu_status(raw.fw_version, raw.fw_build,
+                                             raw.update_state,
+                                             raw.update_result,
+                                             usb_connected);
+  }
+
   void mcu_bridge_loop() {
     heartbeat::SerialPort port;
     uint32_t tx_seq = 0;
@@ -679,6 +861,12 @@ private:
           if (raw.magic == kMcuPttMagic) {
             publish_input_event(raw);
           }
+        } else if (frame.header.type ==
+                       static_cast<uint8_t>(heartbeat::PacketType::Status) &&
+                   frame.payload.size() >= sizeof(McuStatusPayload)) {
+          McuStatusPayload raw{};
+          std::memcpy(&raw, frame.payload.data(), sizeof(McuStatusPayload));
+          publish_mcu_status(raw);
         }
 
         rx_buffer.erase(rx_buffer.begin(), rx_buffer.begin() + total);

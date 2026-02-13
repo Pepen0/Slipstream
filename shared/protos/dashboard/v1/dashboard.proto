@@ -2,6 +2,35 @@ syntax = "proto3";
 
 package dashboard.v1;
 
+enum FirmwareUpdateStage {
+  FIRMWARE_UPDATE_STAGE_IDLE = 0;
+  FIRMWARE_UPDATE_STAGE_DOWNLOADING = 1;
+  FIRMWARE_UPDATE_STAGE_VERIFYING = 2;
+  FIRMWARE_UPDATE_STAGE_REQUESTING_DFU = 3;
+  FIRMWARE_UPDATE_STAGE_FLASHING = 4;
+  FIRMWARE_UPDATE_STAGE_VERIFYING_VERSION = 5;
+  FIRMWARE_UPDATE_STAGE_COMPLETED = 6;
+  FIRMWARE_UPDATE_STAGE_FAILED = 7;
+  FIRMWARE_UPDATE_STAGE_ROLLING_BACK = 8;
+  FIRMWARE_UPDATE_STAGE_ROLLED_BACK = 9;
+  FIRMWARE_UPDATE_STAGE_CANCELED = 10;
+}
+
+message FirmwareUpdateStatus {
+  FirmwareUpdateStage stage = 1;
+  float progress = 2;
+  string message = 3;
+  bool active = 4;
+  string current_version = 5;
+  string target_version = 6;
+  string last_error = 7;
+  bool rollback_available = 8;
+  uint64 started_at_ns = 9;
+  uint64 updated_at_ns = 10;
+  uint32 mcu_fw_version_raw = 11;
+  uint32 mcu_fw_build = 12;
+}
+
 message Status {
   enum State {
     STATE_INIT = 0;
@@ -28,6 +57,11 @@ message Status {
   string calibration_message = 10;
   uint32 calibration_attempts = 11;
   uint64 last_calibration_at_ns = 12;
+  FirmwareUpdateStatus firmware_update = 13;
+  string mcu_firmware_version = 14;
+  uint32 mcu_firmware_build = 15;
+  uint32 mcu_update_state = 16;
+  uint32 mcu_update_result = 17;
 }
 
 message GetStatusRequest {}
@@ -110,6 +144,39 @@ message GetSessionTelemetryRequest {
 }
 message GetSessionTelemetryResponse { repeated TelemetrySample samples = 1; }
 
+message StartFirmwareUpdateRequest {
+  string artifact_uri = 1;
+  string sha256 = 2;
+  string target_version = 3;
+  bool allow_rollback = 4;
+  string rollback_artifact_uri = 5;
+}
+
+message StartFirmwareUpdateResponse {
+  bool ok = 1;
+  string message = 2;
+  FirmwareUpdateStatus status = 3;
+}
+
+message CancelFirmwareUpdateRequest {}
+
+message CancelFirmwareUpdateResponse {
+  bool ok = 1;
+  string message = 2;
+  FirmwareUpdateStatus status = 3;
+}
+
+message CheckFirmwareVersionRequest { string latest_version = 1; }
+
+message CheckFirmwareVersionResponse {
+  bool ok = 1;
+  bool update_available = 2;
+  string current_version = 3;
+  string latest_version = 4;
+  string message = 5;
+  bool mcu_connected = 6;
+}
+
 service DashboardService {
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
   rpc Calibrate(CalibrateRequest) returns (CalibrateResponse);
@@ -122,4 +189,7 @@ service DashboardService {
   rpc StreamTelemetry(TelemetryStreamRequest) returns (stream TelemetrySample);
   rpc StreamInputEvents(InputEventStreamRequest) returns (stream InputEvent);
   rpc GetSessionTelemetry(GetSessionTelemetryRequest) returns (GetSessionTelemetryResponse);
+  rpc StartFirmwareUpdate(StartFirmwareUpdateRequest) returns (StartFirmwareUpdateResponse);
+  rpc CancelFirmwareUpdate(CancelFirmwareUpdateRequest) returns (CancelFirmwareUpdateResponse);
+  rpc CheckFirmwareVersion(CheckFirmwareVersionRequest) returns (CheckFirmwareVersionResponse);
 }
