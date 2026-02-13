@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 option(SLIPSTREAM_BUILD_GAME_ADAPTER_PLUGINS "Build runtime-loadable game adapter plugins" ON)
 
 add_library(physics_core)
+set_target_properties(physics_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(physics_core PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/../../src/games/Asseto-Corsa
@@ -84,6 +85,7 @@ if (Protobuf_FOUND AND gRPC_FOUND)
       ${GEN_PROTO_SRCS} ${GEN_PROTO_HDRS}
       ${GEN_GRPC_SRCS} ${GEN_GRPC_HDRS}
     )
+    set_target_properties(telemetry_proto PROPERTIES POSITION_INDEPENDENT_CODE ON)
     target_include_directories(telemetry_proto PUBLIC ${GEN_DIR})
     target_link_libraries(telemetry_proto PUBLIC protobuf::libprotobuf gRPC::grpc++)
 
