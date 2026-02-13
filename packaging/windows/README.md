@@ -5,3 +5,5 @@
 - `uninstall-autostart.ps1`: Removes startup registration.
 - `install-driver.ps1`: Optional USB driver installation via `pnputil`.
 - `uninstall-driver.ps1`: Best-effort removal of Slipstream driver packages.
+- `../../scripts/package/sign_windows_installer.ps1`: Optional Authenticode
+  signing helper used by CI placeholders.

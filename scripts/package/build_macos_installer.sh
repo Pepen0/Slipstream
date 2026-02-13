@@ -9,6 +9,12 @@ Usage: $(basename "$0") [options]
                                  (default: Software-code/App/build/macos/Build/Products/Release/client.app)
   --output-dir <path>            Output directory (default: dist/macos)
   --dashboard-server-bin <path>  Optional dashboard_server binary to bundle
+  --codesign-identity <name>     Optional app code-sign identity
+  --installer-sign-identity <n>  Optional installer package signing identity
+  --notarize                      Submit built artifact to Apple notary service
+  --apple-id <id>                Apple ID for notarization
+  --apple-team-id <id>           Apple Team ID for notarization
+  --apple-app-password <pw>      App-specific password for notarization
   --skip-dmg                     Build .pkg only
   --dry-run                      Stage files only (skip pkgbuild + dmg)
 USAGE
@@ -23,6 +29,12 @@ OUTPUT_DIR="dist/macos"
 DASHBOARD_SERVER_BIN="${SLIPSTREAM_DASHBOARD_SERVER_BIN:-}"
 DRY_RUN="0"
 SKIP_DMG="0"
+CODESIGN_IDENTITY="${SLIPSTREAM_MACOS_CODESIGN_IDENTITY:-}"
+INSTALLER_SIGN_IDENTITY="${SLIPSTREAM_MACOS_INSTALLER_SIGN_IDENTITY:-}"
+NOTARIZE="${SLIPSTREAM_MACOS_NOTARIZE:-0}"
+APPLE_ID="${SLIPSTREAM_APPLE_ID:-}"
+APPLE_TEAM_ID="${SLIPSTREAM_APPLE_TEAM_ID:-}"
+APPLE_APP_PASSWORD="${SLIPSTREAM_APPLE_APP_PASSWORD:-}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -40,6 +52,30 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dashboard-server-bin)
       DASHBOARD_SERVER_BIN="$2"
+      shift 2
+      ;;
+    --codesign-identity)
+      CODESIGN_IDENTITY="$2"
+      shift 2
+      ;;
+    --installer-sign-identity)
+      INSTALLER_SIGN_IDENTITY="$2"
+      shift 2
+      ;;
+    --notarize)
+      NOTARIZE="1"
+      shift
+      ;;
+    --apple-id)
+      APPLE_ID="$2"
+      shift 2
+      ;;
+    --apple-team-id)
+      APPLE_TEAM_ID="$2"
+      shift 2
+      ;;
+    --apple-app-password)
+      APPLE_APP_PASSWORD="$2"
       shift 2
       ;;
     --dry-run)
@@ -151,18 +187,33 @@ if ! command -v pkgbuild >/dev/null 2>&1; then
   echo "pkgbuild not found. Install Xcode command line tools." >&2
   exit 1
 fi
-if ! command -v hdiutil >/dev/null 2>&1; then
+if [[ "$SKIP_DMG" != "1" ]] && ! command -v hdiutil >/dev/null 2>&1; then
   echo "hdiutil not found." >&2
   exit 1
 fi
 
-pkgbuild \
-  --root "$STAGE_ROOT" \
-  --identifier "com.slipstream.client" \
-  --version "$VERSION" \
-  --install-location "/" \
-  --scripts "$PKG_SCRIPTS_STAGE" \
-  "$PKG_PATH"
+if [[ -n "$CODESIGN_IDENTITY" ]]; then
+  if ! command -v codesign >/dev/null 2>&1; then
+    echo "codesign not found; unable to sign app bundle." >&2
+    exit 1
+  fi
+  echo "Signing app bundle with identity: $CODESIGN_IDENTITY"
+  codesign --force --deep --options runtime --sign "$CODESIGN_IDENTITY" \
+    "$STAGE_ROOT/Applications/Slipstream.app"
+  codesign --verify --deep --strict "$STAGE_ROOT/Applications/Slipstream.app"
+fi
+
+pkgbuild_args=(
+  --root "$STAGE_ROOT"
+  --identifier "com.slipstream.client"
+  --version "$VERSION"
+  --install-location "/"
+  --scripts "$PKG_SCRIPTS_STAGE"
+)
+if [[ -n "$INSTALLER_SIGN_IDENTITY" ]]; then
+  pkgbuild_args+=(--sign "$INSTALLER_SIGN_IDENTITY")
+fi
+pkgbuild "${pkgbuild_args[@]}" "$PKG_PATH"
 
 cp "$PKG_PATH" "$DMG_SRC/"
 cat > "$DMG_SRC/README.txt" <<'TXT'
@@ -178,6 +229,24 @@ TXT
 
 if [[ "$SKIP_DMG" == "1" ]]; then
   echo "Skip-dmg enabled; created package only: $PKG_PATH"
+  if [[ "$NOTARIZE" == "1" ]]; then
+    if [[ -z "$APPLE_ID" || -z "$APPLE_TEAM_ID" || -z "$APPLE_APP_PASSWORD" ]]; then
+      echo "Notarization requested but Apple credentials are incomplete." >&2
+      exit 1
+    fi
+    if ! command -v xcrun >/dev/null 2>&1; then
+      echo "xcrun not found; unable to notarize package." >&2
+      exit 1
+    fi
+    echo "Submitting package for notarization: $PKG_PATH"
+    xcrun notarytool submit "$PKG_PATH" \
+      --apple-id "$APPLE_ID" \
+      --team-id "$APPLE_TEAM_ID" \
+      --password "$APPLE_APP_PASSWORD" \
+      --wait
+    xcrun stapler staple "$PKG_PATH"
+    echo "Notarization complete for package: $PKG_PATH"
+  fi
   exit 0
 fi
 
@@ -185,3 +254,22 @@ hdiutil create -volname "Slipstream Installer" -srcfolder "$DMG_SRC" -ov -format
 
 echo "Created package: $PKG_PATH"
 echo "Created disk image: $DMG_PATH"
+
+if [[ "$NOTARIZE" == "1" ]]; then
+  if [[ -z "$APPLE_ID" || -z "$APPLE_TEAM_ID" || -z "$APPLE_APP_PASSWORD" ]]; then
+    echo "Notarization requested but Apple credentials are incomplete." >&2
+    exit 1
+  fi
+  if ! command -v xcrun >/dev/null 2>&1; then
+    echo "xcrun not found; unable to notarize dmg." >&2
+    exit 1
+  fi
+  echo "Submitting dmg for notarization: $DMG_PATH"
+  xcrun notarytool submit "$DMG_PATH" \
+    --apple-id "$APPLE_ID" \
+    --team-id "$APPLE_TEAM_ID" \
+    --password "$APPLE_APP_PASSWORD" \
+    --wait
+  xcrun stapler staple "$DMG_PATH"
+  echo "Notarization complete for dmg: $DMG_PATH"
+fi

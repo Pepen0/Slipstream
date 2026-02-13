@@ -7,6 +7,16 @@ This document describes the end-user installer flow for Windows and macOS.
 - Windows: `Slipstream-Setup-<version>.exe`
 - macOS: `Slipstream-<version>.dmg` (contains `Slipstream-<version>.pkg`)
 
+## CI release toggles (placeholders)
+
+In `.github/workflows/desktop-packaging.yml`, use `workflow_dispatch` inputs:
+
+- `sign_windows`
+- `sign_macos`
+- `notarize_macos`
+
+These are intentionally opt-in placeholders so normal CI remains fast and secret-free.
+
 ## What gets bundled
 
 From Flutter desktop release outputs:
@@ -53,6 +63,15 @@ Optional args:
 - `-DriverInf <path to slipstream.inf>`
 - `-SkipIscc` for staging-only test
 
+Optional signing helper:
+
+```powershell
+pwsh ./scripts/package/sign_windows_installer.ps1 `
+  -InstallerPath dist/windows/installer/Slipstream-Setup-1.0.0.exe `
+  -CertBase64 $env:WINDOWS_SIGN_CERT_BASE64 `
+  -CertPassword $env:WINDOWS_SIGN_CERT_PASSWORD
+```
+
 ### macOS
 
 ```bash
@@ -64,9 +83,27 @@ Optional args:
 Optional arg:
 - `--dashboard-server-bin <path to dashboard_server>`
 - `--skip-dmg` to emit `.pkg` only
+- `--codesign-identity <identity>`
+- `--installer-sign-identity <identity>`
+- `--notarize --apple-id <id> --apple-team-id <team> --apple-app-password <password>`
 
 Dry-run staging test:
 
 ```bash
 ./scripts/package/build_macos_installer.sh --dry-run
 ```
+
+## Required secrets for placeholders
+
+Windows signing:
+- `WINDOWS_SIGN_CERT_BASE64`
+- `WINDOWS_SIGN_CERT_PASSWORD`
+
+Apple signing/notarization:
+- `APPLE_SIGN_CERT_BASE64`
+- `APPLE_SIGN_CERT_PASSWORD`
+- `APPLE_SIGN_IDENTITY`
+- optional `APPLE_INSTALLER_SIGN_IDENTITY`
+- `APPLE_NOTARY_APPLE_ID`
+- `APPLE_NOTARY_TEAM_ID`
+- `APPLE_NOTARY_APP_PASSWORD`

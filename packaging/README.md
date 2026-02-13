@@ -27,3 +27,26 @@ This folder contains the Gold Master installer pipeline for end users.
 ## CI
 
 GitHub Actions workflow: `.github/workflows/desktop-packaging.yml`
+
+### Signing and notarization placeholders
+
+The workflow supports opt-in signing/notarization via `workflow_dispatch` inputs:
+
+- `sign_windows`
+- `sign_macos`
+- `notarize_macos`
+
+Expected secrets/vars:
+
+- Windows signing
+  - `WINDOWS_SIGN_CERT_BASE64`
+  - `WINDOWS_SIGN_CERT_PASSWORD`
+  - optional repository variable `WINDOWS_SIGN_TIMESTAMP_URL`
+- Apple signing/notarization
+  - `APPLE_SIGN_CERT_BASE64`
+  - `APPLE_SIGN_CERT_PASSWORD`
+  - `APPLE_SIGN_IDENTITY`
+  - optional `APPLE_INSTALLER_SIGN_IDENTITY`
+  - `APPLE_NOTARY_APPLE_ID`
+  - `APPLE_NOTARY_TEAM_ID`
+  - `APPLE_NOTARY_APP_PASSWORD`

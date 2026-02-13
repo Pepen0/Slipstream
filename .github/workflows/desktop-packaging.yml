@@ -23,6 +23,21 @@ on:
         description: 'Override installer version (for example 1.2.3)'
         required: false
         type: string
+      sign_windows:
+        description: 'Sign Windows installer (requires signing secrets)'
+        required: false
+        type: boolean
+        default: false
+      sign_macos:
+        description: 'Code-sign macOS app/pkg (requires Apple signing cert)'
+        required: false
+        type: boolean
+        default: false
+      notarize_macos:
+        description: 'Notarize macOS artifact (requires Apple notarization secrets)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   packaging-validation:
@@ -65,6 +80,11 @@ jobs:
           if (-not (Test-Path -LiteralPath "tmp/windows-packaging-dryrun/bundle-manifest.txt")) {
             throw "Windows packaging manifest was not generated."
           }
+
+      - name: Validate Windows signing script syntax
+        shell: pwsh
+        run: |
+          Get-Content scripts/package/sign_windows_installer.ps1 | Out-Null
 
   windows-installer:
     runs-on: windows-latest
@@ -112,6 +132,28 @@ jobs:
         run: |
           ./scripts/package/build_windows_installer.ps1 -Version "$env:SLIPSTREAM_VERSION"
 
+      - name: Sign Windows installer (placeholder)
+        if: github.event.inputs.sign_windows == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_SIGN_CERT_BASE64: ${{ secrets.WINDOWS_SIGN_CERT_BASE64 }}
+          WINDOWS_SIGN_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGN_CERT_PASSWORD }}
+          WINDOWS_SIGN_TIMESTAMP_URL: ${{ vars.WINDOWS_SIGN_TIMESTAMP_URL }}
+        run: |
+          if (-not $env:WINDOWS_SIGN_CERT_BASE64 -or -not $env:WINDOWS_SIGN_CERT_PASSWORD) {
+            throw "sign_windows=true but signing secrets are missing."
+          }
+          $installer = Get-ChildItem -LiteralPath dist/windows/installer -Filter *.exe | Select-Object -First 1
+          if (-not $installer) {
+            throw "Installer executable not found in dist/windows/installer."
+          }
+          $timestamp = if ($env:WINDOWS_SIGN_TIMESTAMP_URL) { $env:WINDOWS_SIGN_TIMESTAMP_URL } else { "http://timestamp.digicert.com" }
+          ./scripts/package/sign_windows_installer.ps1 `
+            -InstallerPath $installer.FullName `
+            -CertBase64 $env:WINDOWS_SIGN_CERT_BASE64 `
+            -CertPassword $env:WINDOWS_SIGN_CERT_PASSWORD `
+            -TimestampUrl $timestamp
+
       - name: Upload Windows installer artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -155,9 +197,77 @@ jobs:
           flutter pub get
           flutter build macos --release
 
-      - name: Build macOS installer
+      - name: Import Apple signing certificate (placeholder)
+        if: github.event.inputs.sign_macos == 'true' || github.event.inputs.notarize_macos == 'true'
+        env:
+          APPLE_SIGN_CERT_BASE64: ${{ secrets.APPLE_SIGN_CERT_BASE64 }}
+          APPLE_SIGN_CERT_PASSWORD: ${{ secrets.APPLE_SIGN_CERT_PASSWORD }}
         run: |
-          ./scripts/package/build_macos_installer.sh --version "$SLIPSTREAM_VERSION"
+          set -euo pipefail
+          if [[ -z "${APPLE_SIGN_CERT_BASE64:-}" || -z "${APPLE_SIGN_CERT_PASSWORD:-}" ]]; then
+            echo "macOS signing/notarization requested but Apple signing cert secrets are missing." >&2
+            exit 1
+          fi
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/slipstream-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          CERT_PATH="$RUNNER_TEMP/slipstream-signing-cert.p12"
+
+          echo "$APPLE_SIGN_CERT_BASE64" | base64 --decode > "$CERT_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERT_PATH" -k "$KEYCHAIN_PATH" -P "$APPLE_SIGN_CERT_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/pkgbuild -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
+            -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+
+          echo "SLIPSTREAM_KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      - name: Build macOS installer
+        env:
+          APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+          APPLE_INSTALLER_SIGN_IDENTITY: ${{ secrets.APPLE_INSTALLER_SIGN_IDENTITY }}
+          APPLE_NOTARY_APPLE_ID: ${{ secrets.APPLE_NOTARY_APPLE_ID }}
+          APPLE_NOTARY_TEAM_ID: ${{ secrets.APPLE_NOTARY_TEAM_ID }}
+          APPLE_NOTARY_APP_PASSWORD: ${{ secrets.APPLE_NOTARY_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          args=(--version "$SLIPSTREAM_VERSION")
+
+          if [[ "${{ github.event.inputs.sign_macos }}" == "true" ]]; then
+            if [[ -z "${APPLE_SIGN_IDENTITY:-}" ]]; then
+              echo "sign_macos=true but APPLE_SIGN_IDENTITY is missing." >&2
+              exit 1
+            fi
+            args+=(--codesign-identity "$APPLE_SIGN_IDENTITY")
+            if [[ -n "${APPLE_INSTALLER_SIGN_IDENTITY:-}" ]]; then
+              args+=(--installer-sign-identity "$APPLE_INSTALLER_SIGN_IDENTITY")
+            else
+              args+=(--installer-sign-identity "$APPLE_SIGN_IDENTITY")
+            fi
+          fi
+
+          if [[ "${{ github.event.inputs.notarize_macos }}" == "true" ]]; then
+            if [[ -z "${APPLE_NOTARY_APPLE_ID:-}" || -z "${APPLE_NOTARY_TEAM_ID:-}" || -z "${APPLE_NOTARY_APP_PASSWORD:-}" ]]; then
+              echo "notarize_macos=true but notarization secrets are missing." >&2
+              exit 1
+            fi
+            args+=(
+              --notarize
+              --apple-id "$APPLE_NOTARY_APPLE_ID"
+              --apple-team-id "$APPLE_NOTARY_TEAM_ID"
+              --apple-app-password "$APPLE_NOTARY_APP_PASSWORD"
+            )
+          fi
+
+          ./scripts/package/build_macos_installer.sh "${args[@]}"
+
+      - name: Cleanup temporary keychain
+        if: always() && env.SLIPSTREAM_KEYCHAIN_PATH != ''
+        run: |
+          security delete-keychain "$SLIPSTREAM_KEYCHAIN_PATH" || true
 
       - name: Upload macOS installer artifacts
         uses: actions/upload-artifact@v4
