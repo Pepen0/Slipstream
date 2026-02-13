@@ -1357,12 +1357,12 @@ class _DashboardHomeState extends State<DashboardHome> {
             ],
           ),
         ),
-        floatingActionButton: _selectedTabIndex == 2
-            ? null
-            : ValueListenableBuilder<DashboardSnapshot>(
+        floatingActionButton: _selectedTabIndex == 1
+            ? ValueListenableBuilder<DashboardSnapshot>(
                 valueListenable: client.snapshot,
                 builder: (context, snapshot, _) => _buildEStopFab(snapshot),
-              ),
+              )
+            : null,
         floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
         body: ValueListenableBuilder<DashboardSnapshot>(
           valueListenable: client.snapshot,
@@ -1425,90 +1425,72 @@ class _DashboardHomeState extends State<DashboardHome> {
     if (showVoice) {
       lowerPanels.add(_buildVoiceInterface(snapshot));
     }
-    final overlaySessionControl = showSessionControl;
-
-    final controlExpandedPadding = _sessionControlExpanded ? 400.0 : 120.0;
-    final bottomPadding =
-        overlaySessionControl ? controlExpandedPadding : screenInset;
-
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(
-              contentLeftPadding,
-              screenInset,
-              screenInset,
-              bottomPadding,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 150),
-                  switchInCurve: Curves.linear,
-                  switchOutCurve: Curves.linear,
-                  transitionBuilder: (child, animation) {
-                    final slide = Tween<Offset>(
-                      begin: const Offset(0, -0.18),
-                      end: Offset.zero,
-                    ).animate(animation);
-                    return ClipRect(
-                      child: SlideTransition(
-                        position: slide,
-                        child: child,
-                      ),
-                    );
-                  },
-                  child: _showPostSessionReviewBanner && !_reviewMode
-                      ? _buildPostSessionReviewBanner()
-                      : const SizedBox.shrink(
-                          key: ValueKey('post-session-review-banner-hidden'),
-                        ),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        contentLeftPadding,
+        screenInset,
+        screenInset,
+        screenInset,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 150),
+            switchInCurve: Curves.linear,
+            switchOutCurve: Curves.linear,
+            transitionBuilder: (child, animation) {
+              final slide = Tween<Offset>(
+                begin: const Offset(0, -0.18),
+                end: Offset.zero,
+              ).animate(animation);
+              return ClipRect(
+                child: SlideTransition(
+                  position: slide,
+                  child: child,
                 ),
-                if (_showPostSessionReviewBanner && !_reviewMode)
-                  const SizedBox(height: 16),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 150),
-                  switchInCurve: Curves.linear,
-                  switchOutCurve: Curves.linear,
-                  child: KeyedSubtree(
-                    key: ValueKey<String>('live-phase-${phase.name}'),
-                    child: _buildRacePhaseIndicator(phase),
+              );
+            },
+            child: _showPostSessionReviewBanner && !_reviewMode
+                ? _buildPostSessionReviewBanner()
+                : const SizedBox.shrink(
+                    key: ValueKey('post-session-review-banner-hidden'),
                   ),
-                ),
-                const SizedBox(height: 16),
-                _buildOverviewStrip(snapshot, derived),
-                const SizedBox(height: 16),
-                _buildLiveOperationsCanvas(
-                  derived: derived,
-                  isWide: isWide,
-                  showTelemetry: showTelemetry,
-                  showTrackMap: showTrackMap,
-                ),
-                if (showSummary) const SizedBox(height: 16),
-                if (showSummary)
-                  _buildSummaryModeCard(snapshot, derived, samples),
-                if (middlePanels.isNotEmpty) const SizedBox(height: 16),
-                _buildPanelStack(middlePanels, isWide: isWide),
-                if (showAnalysis) const SizedBox(height: 16),
-                if (showAnalysis) _buildTelemetryAnalysisPanel(samples),
-                if (showAnalysis) const SizedBox(height: 16),
-                if (showAnalysis) _buildCausalityFeedbackSpine(),
-                if (lowerPanels.isNotEmpty) const SizedBox(height: 16),
-                _buildPanelStack(lowerPanels, isWide: isWide),
-              ],
+          ),
+          if (_showPostSessionReviewBanner && !_reviewMode)
+            const SizedBox(height: 16),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 150),
+            switchInCurve: Curves.linear,
+            switchOutCurve: Curves.linear,
+            child: KeyedSubtree(
+              key: ValueKey<String>('live-phase-${phase.name}'),
+              child: _buildRacePhaseIndicator(phase),
             ),
           ),
-        ),
-        if (overlaySessionControl)
-          Positioned(
-            left: contentLeftPadding,
-            right: screenInset,
-            bottom: screenInset,
-            child: _buildSessionControl(snapshot),
+          const SizedBox(height: 16),
+          _buildOverviewStrip(snapshot, derived),
+          const SizedBox(height: 16),
+          _buildLiveOperationsCanvas(
+            derived: derived,
+            isWide: isWide,
+            showTelemetry: showTelemetry,
+            showTrackMap: showTrackMap,
           ),
-      ],
+          if (showSummary) const SizedBox(height: 16),
+          if (showSummary) _buildSummaryModeCard(snapshot, derived, samples),
+          if (middlePanels.isNotEmpty) const SizedBox(height: 16),
+          _buildPanelStack(middlePanels, isWide: isWide),
+          if (showAnalysis) const SizedBox(height: 16),
+          if (showAnalysis) _buildTelemetryAnalysisPanel(samples),
+          if (showAnalysis) const SizedBox(height: 16),
+          if (showAnalysis) _buildCausalityFeedbackSpine(),
+          if (lowerPanels.isNotEmpty) const SizedBox(height: 16),
+          _buildPanelStack(lowerPanels, isWide: isWide),
+          if (showSessionControl) const SizedBox(height: 16),
+          if (showSessionControl) _buildSessionControl(snapshot),
+        ],
+      ),
     );
   }
 
@@ -1581,93 +1563,6 @@ class _DashboardHomeState extends State<DashboardHome> {
         ],
       ),
     );
-  }
-
-  Widget _buildFeedbackRail({double? height}) {
-    final trigger = _feedbackSpine.isEmpty ? null : _feedbackSpine.first;
-    final confidence = trigger?.insight.confidenceScore ?? 0.0;
-    final confidenceColor = confidence >= 0.75 ? Colors.white : _kMutedSoft;
-    final critical = trigger != null && _isSafetyCriticalFeedback(trigger);
-
-    final rail = Container(
-      key: const Key('feedback-rail'),
-      width: 48,
-      height: height,
-      decoration: BoxDecoration(
-        color: _kSurface,
-        border: Border(
-          left: BorderSide(
-            color: trigger == null
-                ? Colors.transparent
-                : (critical ? _kDanger : confidenceColor),
-            width: critical ? 4 : 2,
-          ),
-          right: const BorderSide(color: _kSurfaceGlow),
-        ),
-      ),
-      child: trigger == null
-          ? const SizedBox.expand()
-          : Padding(
-              padding: const EdgeInsets.fromLTRB(6, 10, 6, 10),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    _feedbackSignalIcon(trigger.insight.signal),
-                    size: 24,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    causalitySignalLabel(trigger.insight.signal).toUpperCase(),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: critical ? Colors.white : _kMutedLabel,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    trigger.insight.effect,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: critical
-                          ? Colors.white.withValues(alpha: 0.9)
-                          : _kMutedLabel,
-                      fontSize: 10,
-                      height: 1.3,
-                    ),
-                    maxLines: 4,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-    );
-    return rail;
-  }
-
-  bool _isSafetyCriticalFeedback(CausalityFeedbackTrigger trigger) {
-    final metrics = trigger.insight.metrics;
-    final explicitCritical = (metrics['safetyCritical'] ?? 0) >= 0.5 ||
-        (metrics['critical'] ?? 0) >= 0.5 ||
-        (metrics['fault'] ?? 0) >= 0.5;
-    if (explicitCritical) {
-      return true;
-    }
-    return trigger.insight.severityScore >= 0.92 &&
-        trigger.insight.confidenceScore >= 0.75;
-  }
-
-  IconData _feedbackSignalIcon(CausalitySignal signal) {
-    switch (signal) {
-      case CausalitySignal.understeer:
-        return Icons.turn_right_rounded;
-      case CausalitySignal.oversteer:
-        return Icons.sync_problem_rounded;
-    }
   }
 
   Widget _buildPostSessionReviewBanner() {
@@ -3912,172 +3807,231 @@ class _DashboardHomeState extends State<DashboardHome> {
   Widget _buildSessionControl(DashboardSnapshot snapshot) {
     final sessionActive = snapshot.status?.sessionActive ?? false;
     final expanded = _sessionControlExpanded;
-    final panelHeight = expanded ? 352.0 : 48.0;
     final sessionId =
         snapshot.status?.sessionId ?? sessionController.text.trim();
+    final engaged = snapshot.status?.estopActive ?? estopEngaged;
+    final currentTrack = trackController.text.trim().isEmpty
+        ? '--'
+        : trackController.text.trim();
+    final currentCar =
+        carController.text.trim().isEmpty ? '--' : carController.text.trim();
 
-    return AnimatedContainer(
+    return _HudCard(
       key: const Key('session-control'),
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.linear,
-      height: panelHeight,
-      decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(_kPanelRadius),
-        border: Border.all(color: _kSurfaceGlow),
-      ),
-      child: ClipRect(
-        child: Column(
-          children: [
-            InkWell(
-              onTap: () {
-                setState(() {
-                  _sessionControlExpanded = !_sessionControlExpanded;
-                });
-              },
-              child: SizedBox(
-                height: 46,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 980;
+              final summary = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'SESSION CONTROL',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      const Text(
-                        'SESSION CONTROL',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.0,
-                        ),
+                      _SessionControlSummaryChip(
+                        label: 'STATUS',
+                        value: sessionActive ? 'LIVE' : 'IDLE',
+                        valueColor: sessionActive ? _kSystemOk : _kMutedSoft,
+                        mono: true,
                       ),
-                      const Spacer(),
-                      if (sessionActive)
-                        Text(
-                          'LIVE: $sessionId',
-                          style: const TextStyle(
-                            color: _kSystemOk,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            fontFamily: 'RobotoMono',
-                          ),
-                        ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        expanded
-                            ? Icons.expand_less_rounded
-                            : Icons.expand_more_rounded,
-                        color: _kMuted,
+                      _SessionControlSummaryChip(
+                        label: 'SESSION',
+                        value: sessionId.isEmpty ? '--' : sessionId,
+                        mono: true,
+                      ),
+                      _SessionControlSummaryChip(
+                        label: 'TRACK',
+                        value: currentTrack,
+                      ),
+                      _SessionControlSummaryChip(
+                        label: 'CAR',
+                        value: currentCar,
                       ),
                     ],
                   ),
-                ),
+                ],
+              );
+              final safety = _SessionSafetyBlock(
+                engaged: engaged,
+                onPressed: () async {
+                  final next = !engaged;
+                  setState(() {
+                    estopEngaged = next;
+                  });
+                  await client.setEStop(next, reason: next ? 'UI' : 'UI clear');
+                },
+              );
+              if (compact) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    summary,
+                    const SizedBox(height: 12),
+                    safety,
+                  ],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: summary),
+                  const SizedBox(width: 16),
+                  safety,
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          _dataDivider(),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: () {
+              setState(() {
+                _sessionControlExpanded = !_sessionControlExpanded;
+              });
+            },
+            borderRadius: BorderRadius.circular(_kControlRadius),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: Row(
+                children: [
+                  Text(
+                    expanded ? 'Collapse setup' : 'Expand setup',
+                    style: const TextStyle(
+                      color: _kMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    expanded
+                        ? Icons.expand_less_rounded
+                        : Icons.expand_more_rounded,
+                    color: _kMuted,
+                    size: 18,
+                  ),
+                ],
               ),
             ),
-            if (expanded)
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final compact = constraints.maxWidth < 760;
-                          if (compact) {
-                            return Column(
-                              children: [
-                                _SessionControlField(
-                                  label: 'SESSION ID',
-                                  controller: sessionController,
-                                ),
-                                const SizedBox(height: 12),
-                                _SessionControlField(
-                                  label: 'TRACK',
-                                  controller: trackController,
-                                ),
-                                const SizedBox(height: 12),
-                                _SessionControlField(
-                                  label: 'CAR',
-                                  controller: carController,
-                                ),
-                              ],
-                            );
-                          }
-                          return Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: _SessionControlField(
-                                  label: 'SESSION ID',
-                                  controller: sessionController,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: _SessionControlField(
-                                  label: 'TRACK',
-                                  controller: trackController,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: _SessionControlField(
-                                  label: 'CAR',
-                                  controller: carController,
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 48,
-                        child: FilledButton.icon(
-                          onPressed: sessionActive
-                              ? null
-                              : () async {
-                                  setState(() {
-                                    _sessionControlExpanded = true;
-                                  });
-                                  await client.startSession(
-                                    sessionController.text.trim(),
-                                    track: trackController.text.trim(),
-                                    car: carController.text.trim(),
-                                  );
-                                },
-                          style: _dataPrimaryButtonStyle(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
+          ),
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 180),
+            firstChild: const SizedBox.shrink(),
+            secondChild: Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compact = constraints.maxWidth < 760;
+                      if (compact) {
+                        return Column(
+                          children: [
+                            _SessionControlField(
+                              label: 'SESSION ID',
+                              controller: sessionController,
+                            ),
+                            const SizedBox(height: 12),
+                            _SessionControlField(
+                              label: 'TRACK',
+                              controller: trackController,
+                            ),
+                            const SizedBox(height: 12),
+                            _SessionControlField(
+                              label: 'CAR',
+                              controller: carController,
+                            ),
+                          ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: _SessionControlField(
+                              label: 'SESSION ID',
+                              controller: sessionController,
                             ),
                           ),
-                          icon: const Icon(Icons.play_arrow_rounded),
-                          label: const Text('Start Session'),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _SessionControlField(
+                              label: 'TRACK',
+                              controller: trackController,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _SessionControlField(
+                              label: 'CAR',
+                              controller: carController,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: FilledButton.icon(
+                      onPressed: sessionActive
+                          ? null
+                          : () async {
+                              await client.startSession(
+                                sessionController.text.trim(),
+                                track: trackController.text.trim(),
+                                car: carController.text.trim(),
+                              );
+                            },
+                      style: _dataPrimaryButtonStyle(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
                         ),
                       ),
-                      if (sessionActive) ...[
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: () async {
-                              await client
-                                  .endSession(sessionController.text.trim());
-                            },
-                            style: _dataSecondaryButtonStyle(),
-                            icon: const Icon(Icons.stop_rounded),
-                            label: const Text('End Session'),
-                          ),
-                        ),
-                      ],
-                    ],
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('Start Session'),
+                    ),
                   ),
-                ),
+                  if (sessionActive) ...[
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          await client.endSession(sessionController.text.trim());
+                        },
+                        style: _dataSecondaryButtonStyle(),
+                        icon: const Icon(Icons.stop_rounded),
+                        label: const Text('End Session'),
+                      ),
+                    ),
+                  ],
+                ],
               ),
-          ],
-        ),
+            ),
+            crossFadeState:
+                expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          ),
+        ],
       ),
     );
   }
@@ -4622,6 +4576,7 @@ class _DashboardHomeState extends State<DashboardHome> {
       padding: const EdgeInsets.only(right: 8, bottom: 8),
       child: _EStopIndicator(
         key: const Key('estop-control'),
+        compact: true,
         engaged: engaged,
         onPressed: () async {
           final next = !engaged;
@@ -5188,10 +5143,12 @@ class _EStopIndicator extends StatefulWidget {
     super.key,
     required this.engaged,
     required this.onPressed,
+    this.compact = false,
   });
 
   final bool engaged;
   final VoidCallback onPressed;
+  final bool compact;
 
   @override
   State<_EStopIndicator> createState() => _EStopIndicatorState();
@@ -5231,12 +5188,17 @@ class _EStopIndicatorState extends State<_EStopIndicator>
 
   @override
   Widget build(BuildContext context) {
-    final background = widget.engaged ? _kDanger : _kSurface;
+    final background = widget.engaged ? _kDanger : Colors.transparent;
     final iconColor = widget.engaged ? Colors.white : _kDanger;
+    final borderColor = widget.engaged ? _kDanger : _kDanger.withValues(alpha: 0.8);
+    final buttonSize = widget.compact ? 40.0 : 56.0;
+    final iconSize = widget.compact ? 20.0 : 26.0;
     return AnimatedBuilder(
       animation: _pulse,
       builder: (context, _) {
-        final scale = widget.engaged ? 1.0 + (_pulse.value * 0.04) : 1.0;
+        final scale = widget.engaged && !widget.compact
+            ? 1.0 + (_pulse.value * 0.05)
+            : 1.0;
         return Transform.scale(
           scale: scale,
           child: GestureDetector(
@@ -5246,16 +5208,16 @@ class _EStopIndicatorState extends State<_EStopIndicator>
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: buttonSize,
+                  height: buttonSize,
                   decoration: BoxDecoration(
                     color: background,
                     borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: _kSurfaceGlow),
+                    border: Border.all(color: borderColor, width: 1.4),
                   ),
                   child: Icon(
                     Icons.warning_amber_rounded,
-                    size: 20,
+                    size: iconSize,
                     color: iconColor,
                   ),
                 ),
@@ -5264,12 +5226,25 @@ class _EStopIndicatorState extends State<_EStopIndicator>
                   widget.engaged ? 'E-STOP ENGAGED' : 'E-STOP READY',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: widget.engaged ? Colors.white : _kMuted,
-                    fontSize: 10,
+                    color: widget.engaged
+                        ? Colors.white
+                        : (widget.compact ? _kMuted : _kDanger),
+                    fontSize: widget.compact ? 10 : 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.8,
                   ),
                 ),
+                if (!widget.compact) ...[
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Tap to toggle safety circuit',
+                    style: TextStyle(
+                      color: _kMutedSoft,
+                      fontSize: 10,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -5956,6 +5931,100 @@ class _HudMetaReadout extends StatelessWidget {
               fontFamily: monoValue ? 'RobotoMono' : null,
               letterSpacing: monoValue ? 0.2 : 0.3,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SessionControlSummaryChip extends StatelessWidget {
+  const _SessionControlSummaryChip({
+    required this.label,
+    required this.value,
+    this.valueColor = Colors.white,
+    this.mono = false,
+  });
+
+  final String label;
+  final String value;
+  final Color valueColor;
+  final bool mono;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(color: _kSurfaceGlow),
+      ),
+      child: Text.rich(
+        TextSpan(
+          text: '${label.toUpperCase()}: ',
+          style: const TextStyle(
+            color: _kMutedLabel,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.7,
+          ),
+          children: [
+            TextSpan(
+              text: value,
+              style: TextStyle(
+                color: valueColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                fontFamily: mono ? 'RobotoMono' : null,
+                letterSpacing: mono ? 0.2 : 0.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionSafetyBlock extends StatelessWidget {
+  const _SessionSafetyBlock({
+    required this.engaged,
+    required this.onPressed,
+  });
+
+  final bool engaged;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kSurfaceRaised,
+        borderRadius: BorderRadius.circular(_kControlRadius),
+        border: Border.all(
+          color: engaged ? _kDanger : _kSurfaceGlow,
+          width: engaged ? 1.4 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            'SAFETY',
+            style: TextStyle(
+              color: engaged ? _kDanger : _kMuted,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _EStopIndicator(
+            key: const Key('estop-control'),
+            engaged: engaged,
+            onPressed: onPressed,
           ),
         ],
       ),
