@@ -58,6 +58,15 @@ Example:
 export SLIPSTREAM_GAME_ADAPTER_PLUGINS="/opt/slipstream/libmy_adapter.so"
 ```
 
+Built-in plugin target:
+
+```bash
+cmake --build build --target iracing_game_adapter_plugin
+```
+
+- Windows output: `build/iracing_game_adapter_plugin.dll`
+- macOS/Linux output: `build/iracing_game_adapter_plugin.so` (stub transport)
+
 ## Latency tracing
 
 `MotionCommand.latency_ms` is the elapsed time from telemetry read to command output.
@@ -73,6 +82,6 @@ reduce small oscillations without delaying large corrections.
 ## Notes
 
 - On non‑Windows platforms, the Assetto Corsa adapter is stubbed (builds, but returns no data).
-- iRacing is registered as an optional stub adapter by default; use a plugin or
-  native implementation to enable live telemetry.
+- iRacing is registered as a stub by default; loading `iracing_game_adapter_plugin`
+  replaces it with a Windows shared-memory (IRSDK) transport.
 - Configure axis mapping and gains in `MotionConfig` for your rig.

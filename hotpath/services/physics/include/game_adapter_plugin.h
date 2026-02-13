@@ -25,6 +25,8 @@ public:
 
   std::size_t loaded_count() const;
   std::vector<std::string> loaded_plugin_paths() const;
+  // Manual unload is available, but unloading a plugin while registries still hold
+  // factories from that plugin can invalidate those callables.
   void unload_all();
 
   ~GameAdapterPluginManager();

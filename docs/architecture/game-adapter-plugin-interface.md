@@ -61,3 +61,9 @@ Plugin adapters must implement `IGameTelemetryAdapter`:
 - Prefer `GameId` values not already used by built-ins.
 - `probe()` should be fast and non-blocking beyond the provided timeout.
 - `read()` should return `false` for "no sample available yet" or disconnected state.
+
+## Reference plugin
+
+`hotpath/services/physics/plugins/iracing` provides a reference plugin that
+registers `GameId::IRacing` and reads iRacing IRSDK shared memory on Windows.
+On non-Windows hosts it compiles with a transport stub so CI can still build/test.

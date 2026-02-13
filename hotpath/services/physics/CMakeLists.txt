@@ -3,6 +3,7 @@ project(slipstream_physics LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+option(SLIPSTREAM_BUILD_GAME_ADAPTER_PLUGINS "Build runtime-loadable game adapter plugins" ON)
 
 add_library(physics_core)
 target_include_directories(physics_core PUBLIC
@@ -114,3 +115,45 @@ foreach(test_src IN LISTS PHYSICS_TEST_SOURCES)
   target_link_libraries(${test_name} PRIVATE physics_core)
   add_test(NAME ${test_name} COMMAND ${test_name})
 endforeach()
+
+add_executable(test_iracing_adapter_plugin
+  tests/test_iracing_adapter_plugin.cpp
+  plugins/iracing/src/iracing_adapter_plugin.cpp
+)
+target_include_directories(test_iracing_adapter_plugin PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/plugins/iracing/include
+)
+target_link_libraries(test_iracing_adapter_plugin PRIVATE physics_core)
+add_test(NAME test_iracing_adapter_plugin COMMAND test_iracing_adapter_plugin)
+
+if (SLIPSTREAM_BUILD_GAME_ADAPTER_PLUGINS)
+  add_library(iracing_game_adapter_plugin MODULE
+    plugins/iracing/src/iracing_adapter_plugin.cpp
+  )
+  target_include_directories(iracing_game_adapter_plugin PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/plugins/iracing/include
+  )
+  target_link_libraries(iracing_game_adapter_plugin PRIVATE physics_core)
+  set_target_properties(iracing_game_adapter_plugin PROPERTIES
+    OUTPUT_NAME "iracing_game_adapter_plugin"
+    PREFIX ""
+  )
+  if (WIN32)
+    target_compile_definitions(iracing_game_adapter_plugin PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+  endif()
+
+  add_executable(test_iracing_plugin_loader_integration
+    tests/test_iracing_plugin_loader_integration.cpp
+  )
+  target_include_directories(test_iracing_plugin_loader_integration PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+  )
+  target_link_libraries(test_iracing_plugin_loader_integration PRIVATE physics_core)
+  target_compile_definitions(test_iracing_plugin_loader_integration PRIVATE
+    SLIPSTREAM_IRACING_PLUGIN_PATH="$<TARGET_FILE:iracing_game_adapter_plugin>"
+  )
+  add_dependencies(test_iracing_plugin_loader_integration iracing_game_adapter_plugin)
+  add_test(NAME test_iracing_plugin_loader_integration COMMAND test_iracing_plugin_loader_integration)
+endif()

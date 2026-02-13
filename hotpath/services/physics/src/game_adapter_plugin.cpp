@@ -187,7 +187,8 @@ void GameAdapterPluginManager::unload_all() {
 }
 
 GameAdapterPluginManager::~GameAdapterPluginManager() {
-  unload_all();
+  // Keep plugin libraries loaded for process lifetime by default.
+  // Registry factories may reference code from these modules.
 }
 
 } // namespace slipstream::physics
