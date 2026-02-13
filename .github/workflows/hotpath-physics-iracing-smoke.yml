@@ -1,0 +1,43 @@
+name: Hotpath Physics iRacing Smoke (Windows)
+
+on:
+  workflow_dispatch:
+    inputs:
+      iracing_process_name:
+        description: Running iRacing process executable name
+        required: false
+        default: iRacingSim64DX11.exe
+      probe_timeout_ms:
+        description: Total probe timeout in milliseconds
+        required: false
+        default: '6000'
+
+jobs:
+  iracing-live-probe-smoke:
+    runs-on:
+      - self-hosted
+      - windows
+      - iracing
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S hotpath/services/physics -B hotpath/services/physics/build -DSLIPSTREAM_BUILD_GAME_ADAPTER_PLUGINS=ON
+
+      - name: Build smoke test + plugin
+        shell: pwsh
+        run: |
+          cmake --build hotpath/services/physics/build --target test_iracing_live_probe_smoke_win --config Release
+
+      - name: Run iRacing live probe smoke test
+        shell: pwsh
+        env:
+          SLIPSTREAM_IRACING_SMOKE_PROCESS: ${{ github.event.inputs.iracing_process_name }}
+          SLIPSTREAM_IRACING_SMOKE_PROBE_TIMEOUT_MS: ${{ github.event.inputs.probe_timeout_ms }}
+          SLIPSTREAM_IRACING_SMOKE_POLL_SLICE_MS: '250'
+        run: |
+          ctest --test-dir hotpath/services/physics/build -R test_iracing_live_probe_smoke_win -C Release --output-on-failure
+

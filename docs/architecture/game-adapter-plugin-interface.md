@@ -67,3 +67,7 @@ Plugin adapters must implement `IGameTelemetryAdapter`:
 `hotpath/services/physics/plugins/iracing` provides a reference plugin that
 registers `GameId::IRacing` and reads iRacing IRSDK shared memory on Windows.
 On non-Windows hosts it compiles with a transport stub so CI can still build/test.
+
+The repository also includes a Windows-only live smoke test
+(`test_iracing_live_probe_smoke_win`) that verifies `probe()` against a running
+iRacing process on a self-hosted runner.

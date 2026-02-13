@@ -156,4 +156,25 @@ if (SLIPSTREAM_BUILD_GAME_ADAPTER_PLUGINS)
   )
   add_dependencies(test_iracing_plugin_loader_integration iracing_game_adapter_plugin)
   add_test(NAME test_iracing_plugin_loader_integration COMMAND test_iracing_plugin_loader_integration)
+
+  if (WIN32)
+    add_executable(test_iracing_live_probe_smoke_win
+      tests/test_iracing_live_probe_smoke_win.cpp
+    )
+    target_include_directories(test_iracing_live_probe_smoke_win PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(test_iracing_live_probe_smoke_win PRIVATE physics_core)
+    target_compile_definitions(test_iracing_live_probe_smoke_win PRIVATE
+      SLIPSTREAM_IRACING_PLUGIN_PATH="$<TARGET_FILE:iracing_game_adapter_plugin>"
+      NOMINMAX
+      WIN32_LEAN_AND_MEAN
+    )
+    add_dependencies(test_iracing_live_probe_smoke_win iracing_game_adapter_plugin)
+    add_test(NAME test_iracing_live_probe_smoke_win COMMAND test_iracing_live_probe_smoke_win)
+    set_tests_properties(test_iracing_live_probe_smoke_win PROPERTIES
+      LABELS "smoke;iracing;windows"
+      TIMEOUT 45
+    )
+  endif()
 endif()

@@ -67,6 +67,18 @@ cmake --build build --target iracing_game_adapter_plugin
 - Windows output: `build/iracing_game_adapter_plugin.dll`
 - macOS/Linux output: `build/iracing_game_adapter_plugin.so` (stub transport)
 
+Windows live smoke test target:
+
+```bash
+cmake --build build --target test_iracing_live_probe_smoke_win --config Release
+ctest --test-dir build -R test_iracing_live_probe_smoke_win -C Release --output-on-failure
+```
+
+Optional environment variables for smoke test tuning:
+- `SLIPSTREAM_IRACING_SMOKE_PROCESS` (default: `iRacingSim64DX11.exe`)
+- `SLIPSTREAM_IRACING_SMOKE_PROBE_TIMEOUT_MS` (default: `6000`)
+- `SLIPSTREAM_IRACING_SMOKE_POLL_SLICE_MS` (default: `250`)
+
 ## Latency tracing
 
 `MotionCommand.latency_ms` is the elapsed time from telemetry read to command output.
